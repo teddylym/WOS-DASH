@@ -216,46 +216,46 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 정사각형 그리드 (Streamlit columns 사용)
+# 정사각형 그리드 (Streamlit columns 사용 - 크기 축소)
 col1, col2 = st.columns(2)
 with col1:
     st.markdown("""
-    <div style="width: 100%; height: 200px; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 1px solid #e8eaed; display: flex; flex-direction: column; justify-content: center; margin-bottom: 1rem;">
-        <div style="color: #1a73e8; font-size: 2rem; margin-bottom: 0.8rem;">📊</div>
-        <div style="color: #3c4043; font-size: 1rem; font-weight: 500; margin-bottom: 0.3rem;">Data Classification</div>
-        <div style="color: #5f6368; font-size: 0.8rem;">Targeted paper selection</div>
+    <div style="width: 100%; height: 150px; padding: 1rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 1px solid #e8eaed; display: flex; flex-direction: column; justify-content: center; margin-bottom: 0.8rem;">
+        <div style="color: #1a73e8; font-size: 1.5rem; margin-bottom: 0.5rem;">📊</div>
+        <div style="color: #3c4043; font-size: 0.9rem; font-weight: 500; margin-bottom: 0.2rem;">Data Classification</div>
+        <div style="color: #5f6368; font-size: 0.75rem;">Targeted paper selection</div>
     </div>
     """, unsafe_allow_html=True)
     
     st.markdown("""
-    <div style="width: 100%; height: 200px; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 1px solid #e8eaed; display: flex; flex-direction: column; justify-content: center;">
-        <div style="color: #ea4335; font-size: 2rem; margin-bottom: 0.8rem;">🎯</div>
-        <div style="color: #3c4043; font-size: 1rem; font-weight: 500; margin-bottom: 0.3rem;">SciMAT Compatibility</div>
-        <div style="color: #5f6368; font-size: 0.8rem;">Perfect analysis integration</div>
+    <div style="width: 100%; height: 150px; padding: 1rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 1px solid #e8eaed; display: flex; flex-direction: column; justify-content: center;">
+        <div style="color: #ea4335; font-size: 1.5rem; margin-bottom: 0.5rem;">🎯</div>
+        <div style="color: #3c4043; font-size: 0.9rem; font-weight: 500; margin-bottom: 0.2rem;">SciMAT Compatibility</div>
+        <div style="color: #5f6368; font-size: 0.75rem;">Perfect analysis integration</div>
     </div>
     """, unsafe_allow_html=True)
 
 with col2:
     st.markdown("""
-    <div style="width: 100%; height: 200px; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 1px solid #e8eaed; display: flex; flex-direction: column; justify-content: center; margin-bottom: 1rem;">
-        <div style="color: #34a853; font-size: 2rem; margin-bottom: 0.8rem;">⚙️</div>
-        <div style="color: #3c4043; font-size: 1rem; font-weight: 500; margin-bottom: 0.3rem;">Keyword Normalization</div>
-        <div style="color: #5f6368; font-size: 0.8rem;">AI-based standardization</div>
+    <div style="width: 100%; height: 150px; padding: 1rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 1px solid #e8eaed; display: flex; flex-direction: column; justify-content: center; margin-bottom: 0.8rem;">
+        <div style="color: #34a853; font-size: 1.5rem; margin-bottom: 0.5rem;">⚙️</div>
+        <div style="color: #3c4043; font-size: 0.9rem; font-weight: 500; margin-bottom: 0.2rem;">Keyword Normalization</div>
+        <div style="color: #5f6368; font-size: 0.75rem;">AI-based standardization</div>
     </div>
     """, unsafe_allow_html=True)
     
     st.markdown("""
-    <div style="width: 100%; height: 200px; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 1px solid #e8eaed; display: flex; flex-direction: column; justify-content: center;">
-        <div style="color: #9aa0a6; font-size: 1.5rem; margin-bottom: 0.8rem;">👨‍💻</div>
-        <div style="color: #3c4043; font-size: 0.9rem; font-weight: 500; margin-bottom: 0.3rem;">T.K. Lim</div>
-        <div style="color: #5f6368; font-size: 0.75rem; margin-bottom: 0.2rem;">Hanyang Univ.</div>
-        <div style="color: #5f6368; font-size: 0.75rem;">Version 1.0.0</div>
+    <div style="width: 100%; height: 150px; padding: 1rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 1px solid #e8eaed; display: flex; flex-direction: column; justify-content: center;">
+        <div style="color: #9aa0a6; font-size: 1.2rem; margin-bottom: 0.5rem;">👨‍💻</div>
+        <div style="color: #3c4043; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.2rem;">Teddy Lym</div>
+        <div style="color: #5f6368; font-size: 0.7rem; margin-bottom: 0.1rem;">Hanyang Univ.</div>
+        <div style="color: #5f6368; font-size: 0.7rem;">Version 1.0.0</div>
     </div>
     """, unsafe_allow_html=True)
 
 # PREP 설명
 st.markdown("""
-<div style="text-align: center; margin: 2rem 0;">
+<div style="text-align: center; margin: 1.5rem 0;">
     <p style="color: #3c4043; font-size: 0.95rem; font-weight: 600; margin: 0;">
         <strong>PREP:</strong> Professional REsearch data Preprocessing for optimal SciMAT workflow
     </p>
@@ -362,22 +362,25 @@ if uploaded_file is not None:
             st.dataframe(classification_counts, hide_index=True, use_container_width=True)
         
         with col2:
-            # 단순한 도넛 차트로 수정 (오류 해결)
-            chart = alt.Chart(classification_counts).mark_arc(innerRadius=50, outerRadius=90).encode(
-                theta=alt.Theta(field="논문 수", type="quantitative"), 
-                color=alt.Color(field="분류", type="nominal", title="분류"),
-                tooltip=['분류', '논문 수']
-            ).properties(width=200, height=200)
-            st.altair_chart(chart, use_container_width=True)
-            
-            # 중앙 텍스트를 별도로 표시
-            st.markdown(f"""
-            <div style="text-align: center; margin-top: -120px; margin-bottom: 80px;">
-                <div style="color: #3c4043; font-size: 1.2rem; font-weight: bold;">
-                    총 {total_papers}편
+            # 도넛 차트와 중앙 텍스트를 컨테이너로 감싸기
+            chart_container = st.container()
+            with chart_container:
+                # 도넛 차트
+                chart = alt.Chart(classification_counts).mark_arc(innerRadius=50, outerRadius=90).encode(
+                    theta=alt.Theta(field="논문 수", type="quantitative"), 
+                    color=alt.Color(field="분류", type="nominal", title="분류"),
+                    tooltip=['분류', '논문 수']
+                ).properties(width=200, height=200)
+                st.altair_chart(chart, use_container_width=True)
+                
+                # 중앙 텍스트를 차트 위에 오버레이
+                st.markdown(f"""
+                <div style="position: relative; text-align: center; margin-top: -120px; z-index: 10;">
+                    <div style="color: #3c4043; font-size: 1.1rem; font-weight: bold;">
+                        총 {total_papers}편
+                    </div>
                 </div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
         
         # 키워드 분석
         st.markdown("**주요 키워드 (관련연구)**")
@@ -412,6 +415,23 @@ if uploaded_file is not None:
         else:
             st.warning("관련연구로 분류된 논문에서 키워드를 찾을 수 없습니다.")
 
+        # 데이터 전처리 (df_final_output 생성)
+        df_final = df[df['Classification'].isin(['Include (관련연구)', 'Review (검토필요)'])].copy()
+        
+        # 최소 정제 버전 (SciMAT 최적화)
+        if 'DE' in df_final.columns:
+            df_final['DE'] = df_final['DE'].apply(
+                lambda x: '; '.join([kw.strip().lower() for kw in str(x).split(';') if kw.strip()]) if pd.notna(x) else x
+            )
+        if 'ID' in df_final.columns:
+            df_final['ID'] = df_final['ID'].apply(
+                lambda x: '; '.join([kw.strip().lower() for kw in str(x).split(';') if kw.strip()]) if pd.notna(x) else x
+            )
+        
+        # 임시 컬럼들 제거
+        cols_to_drop = ['Classification', 'DE_cleaned', 'ID_cleaned', 'DE_Original', 'ID_Original']
+        df_final_output = df_final.drop(columns=[col for col in cols_to_drop if col in df_final.columns])
+        
         # 메트릭 정보
         col1, col2 = st.columns(2)
         with col1:
