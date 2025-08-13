@@ -10,8 +10,8 @@ import io
 
 # --- 페이지 설정 ---
 st.set_page_config(
-    page_title="WOS Prep - Professional Data Preprocessing", 
-    layout="wide",
+    page_title="WOS Prep", 
+    layout="centered",
     initial_sidebar_state="collapsed"
 )
 
@@ -207,197 +207,81 @@ def convert_df_to_scimat_format(df_to_convert):
     # 원본과 동일: UTF-8 (BOM 없음)으로 인코딩
     return "\n".join(file_content).encode('utf-8')
 
-# --- Streamlit UI - 베인앤컴퍼니 스타일 ---
-
-# 베인 스타일 CSS
+# --- 헤더 ---
 st.markdown("""
-<style>
-    /* 베인 컬러 팔레트 */
-    :root {
-        --bain-red: #e31837;
-        --bain-dark-gray: #333333;
-        --bain-light-gray: #f8f9fa;
-        --bain-medium-gray: #6c757d;
-        --bain-white: #ffffff;
-    }
-    
-    /* 헤더 스타일 */
-    .bain-header {
-        background: linear-gradient(135deg, #e31837 0%, #333333 100%);
-        padding: 60px 0;
-        text-align: center;
-        color: white;
-        margin-bottom: 50px;
-    }
-    
-    /* 메인 타이틀 */
-    .bain-title {
-        font-family: 'Arial', sans-serif;
-        font-size: 4rem;
-        font-weight: 300;
-        letter-spacing: -2px;
-        margin: 0;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    }
-    
-    /* 서브타이틀 */
-    .bain-subtitle {
-        font-size: 1.5rem;
-        font-weight: 300;
-        margin: 20px 0 0 0;
-        opacity: 0.9;
-    }
-    
-    /* 카드 스타일 */
-    .bain-card {
-        background: white;
-        border: none;
-        border-radius: 0;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        padding: 40px;
-        margin: 20px 0;
-        border-left: 4px solid var(--bain-red);
-    }
-    
-    /* 섹션 헤더 */
-    .bain-section-header {
-        font-family: 'Arial', sans-serif;
-        font-size: 2.2rem;
-        font-weight: 300;
-        color: var(--bain-dark-gray);
-        margin: 50px 0 30px 0;
-        border-bottom: 2px solid var(--bain-red);
-        padding-bottom: 15px;
-    }
-    
-    /* 메트릭 카드 */
-    .bain-metric {
-        background: white;
-        padding: 30px;
-        text-align: center;
-        border-radius: 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        border-top: 3px solid var(--bain-red);
-    }
-    
-    /* 메트릭 숫자 */
-    .bain-metric-number {
-        font-size: 3rem;
-        font-weight: 300;
-        color: var(--bain-red);
-        margin: 0;
-    }
-    
-    /* 메트릭 라벨 */
-    .bain-metric-label {
-        font-size: 1rem;
-        color: var(--bain-medium-gray);
-        margin: 10px 0 0 0;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    
-    /* 인사이트 박스 */
-    .bain-insight {
-        background: var(--bain-light-gray);
-        border-left: 5px solid var(--bain-red);
-        padding: 30px;
-        margin: 30px 0;
-        font-style: italic;
-    }
-    
-    /* 다운로드 섹션 */
-    .bain-download-section {
-        background: var(--bain-light-gray);
-        padding: 50px;
-        margin: 40px 0;
-    }
-    
-    /* 단계별 가이드 */
-    .bain-step {
-        background: white;
-        padding: 25px;
-        margin: 15px 0;
-        border-left: 4px solid var(--bain-red);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    
-    .bain-step-number {
-        background: var(--bain-red);
-        color: white;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        margin-right: 15px;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# 헤더 섹션
-st.markdown("""
-<div class="bain-header">
-    <h1 class="bain-title">WOS Prep</h1>
-    <p class="bain-subtitle">Professional Data Preprocessing for Science Mapping Excellence</p>
+<div style="text-align: center; padding: 2rem 0 3rem 0;">
+    <h1 style="color: #1f1f1f; font-size: 2.5rem; font-weight: 600; margin-bottom: 0.5rem; letter-spacing: -0.02em;">
+        🔬 WOS Prep
+    </h1>
+    <p style="color: #5f6368; font-size: 1.1rem; margin: 0; font-weight: 400;">
+        Web of Science 데이터 전처리 및 SciMAT 호환성 도구
+    </p>
+    <div style="width: 60px; height: 3px; background: linear-gradient(90deg, #4285f4, #34a853); margin: 1.5rem auto; border-radius: 2px;"></div>
 </div>
 """, unsafe_allow_html=True)
 
-# 전략적 개요 섹션
-col1, col2 = st.columns([2, 1])
-
+# 주요 기능 소개
+col1, col2, col3 = st.columns(3)
 with col1:
     st.markdown("""
-    <div class="bain-card">
-        <h2 style="color: #e31837; font-weight: 300; margin-top: 0;">Strategic Overview</h2>
-        <p style="font-size: 1.1rem; line-height: 1.6; color: #333;">
-            Transform raw Web of Science data into analysis-ready datasets through our proprietary 
-            three-tier preprocessing methodology. Our platform delivers enterprise-grade data quality 
-            while maintaining full compatibility with SciMAT's advanced analytics capabilities.
-        </p>
-        <p style="font-size: 1rem; color: #6c757d; margin-bottom: 0;">
-            Designed for research professionals who demand precision and efficiency in their 
-            bibliometric analysis workflows.
-        </p>
+    <div style="text-align: center; padding: 1.5rem; background: #f8f9fa; border-radius: 12px; border: 1px solid #e8eaed;">
+        <div style="color: #1a73e8; font-size: 1.8rem; margin-bottom: 0.8rem;">📊</div>
+        <h4 style="color: #3c4043; margin-bottom: 0.5rem; font-weight: 500;">데이터 분류</h4>
+        <p style="color: #5f6368; font-size: 0.9rem; margin: 0;">연구 목적에 맞는 논문 자동 선별</p>
     </div>
     """, unsafe_allow_html=True)
 
 with col2:
     st.markdown("""
-    <div class="bain-card">
-        <h3 style="color: #e31837; font-weight: 300; margin-top: 0;">Key Capabilities</h3>
-        <ul style="list-style: none; padding: 0;">
-            <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
-                ✓ Intelligent Research Classification
-            </li>
-            <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
-                ✓ Advanced Keyword Normalization
-            </li>
-            <li style="padding: 8px 0; border-bottom: 1px solid #eee;">
-                ✓ SciMAT Integration Optimization
-            </li>
-            <li style="padding: 8px 0;">
-                ✓ Enterprise-Grade Output Formats
-            </li>
-        </ul>
+    <div style="text-align: center; padding: 1.5rem; background: #f8f9fa; border-radius: 12px; border: 1px solid #e8eaed;">
+        <div style="color: #34a853; font-size: 1.8rem; margin-bottom: 0.8rem;">⚙️</div>
+        <h4 style="color: #3c4043; margin-bottom: 0.5rem; font-weight: 500;">키워드 정규화</h4>
+        <p style="color: #5f6368; font-size: 0.9rem; margin: 0;">AI 기반 키워드 표준화</p>
     </div>
     """, unsafe_allow_html=True)
 
-# 파일 업로드 섹션
-st.markdown('<h2 class="bain-section-header">Data Input</h2>', unsafe_allow_html=True)
+with col3:
+    st.markdown("""
+    <div style="text-align: center; padding: 1.5rem; background: #f8f9fa; border-radius: 12px; border: 1px solid #e8eaed;">
+        <div style="color: #ea4335; font-size: 1.8rem; margin-bottom: 0.8rem;">🎯</div>
+        <h4 style="color: #3c4043; margin-bottom: 0.5rem; font-weight: 500;">SciMAT 호환</h4>
+        <p style="color: #5f6368; font-size: 0.9rem; margin: 0;">완벽한 분석 도구 연동</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# 키워드 정규화 기준 설명
+with st.expander("🎛️ 키워드 정규화 기준", expanded=False):
+    st.markdown("""
+    **적용되는 정규화 규칙:**
+    
+    - **AI/ML 관련**: machine learning ← machine-learning, ML, machinelearning
+    - **인공지능**: artificial intelligence ← AI, artificial-intelligence  
+    - **딥러닝**: deep learning ← deep-learning, deep neural networks, DNN
+    - **스트리밍**: live streaming ← live-streaming, livestreaming
+    - **사용자 경험**: user experience ← user-experience, UX
+    - **연구방법론**: structural equation modeling ← SEM, PLS-SEM
+    - **전자상거래**: e commerce ← ecommerce, e-commerce, electronic commerce
+    """)
+
+# 파일 업로드
+st.markdown("""
+<div style="background: #fff; padding: 2rem; border-radius: 12px; border: 2px solid #e8eaed; margin: 2rem 0;">
+    <h3 style="color: #3c4043; margin-bottom: 1rem; font-weight: 500;">📁 데이터 업로드</h3>
+</div>
+""", unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader(
-    "Upload Web of Science Export File",
+    "Web of Science Raw Data 파일을 업로드하세요",
     type=['csv', 'txt'],
-    help="Accepts Tab-delimited (.txt) or CSV formats from Web of Science"
+    help="Web of Science에서 다운로드한 Tab-delimited 또는 Plain Text 형식의 파일"
 )
 
 if uploaded_file is not None:
     df = load_data(uploaded_file)
     if df is None:
-        st.error("**Data Import Error:** Unable to process the uploaded file. Please ensure you've uploaded a valid Tab-delimited or Plain Text format file from Web of Science.")
+        st.error("❌ 파일을 읽을 수 없습니다. Web of Science에서 다운로드한 'Tab-delimited' 또는 'Plain Text' 형식의 파일이 맞는지 확인해주세요.")
         st.stop()
     
     # 원본 컬럼명 보존
@@ -412,9 +296,7 @@ if uploaded_file is not None:
         if old_name in df.columns:
             df.rename(columns={old_name: new_name}, inplace=True)
 
-    # 처리 진행
-    with st.spinner("Processing data with advanced algorithms..."):
-        
+    with st.spinner("🔄 데이터를 분석하고 있습니다..."):
         # 1단계: 분류 (원본 키워드 기준)
         df['Classification'] = df.apply(classify_article, axis=1)
         
@@ -442,67 +324,35 @@ if uploaded_file is not None:
             df.loc[include_mask, 'ID_cleaned'] = df.loc[include_mask, 'ID'].apply(
                 lambda x: clean_keyword_string(x, stop_words, lemmatizer)
             )
-    
-    # 성공 메시지
-    st.success("Data processing completed successfully")
-    
-    # 결과 분석 섹션
-    st.markdown('<h2 class="bain-section-header">Analysis Results</h2>', unsafe_allow_html=True)
-    
-    # 분류 결과 메트릭
-    classification_counts = df['Classification'].value_counts().reset_index()
-    classification_counts.columns = ['Classification', 'Count']
-    
-    include_count = classification_counts[classification_counts['Classification'] == 'Include (관련연구)']['Count'].iloc[0] if len(classification_counts[classification_counts['Classification'] == 'Include (관련연구)']) > 0 else 0
-    review_count = classification_counts[classification_counts['Classification'] == 'Review (검토필요)']['Count'].iloc[0] if len(classification_counts[classification_counts['Classification'] == 'Review (검토필요)']) > 0 else 0
-    exclude_count = classification_counts[classification_counts['Classification'] == 'Exclude (제외연구)']['Count'].iloc[0] if len(classification_counts[classification_counts['Classification'] == 'Exclude (제외연구)']) > 0 else 0
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.markdown(f"""
-        <div class="bain-metric">
-            <div class="bain-metric-number">{len(df):,}</div>
-            <div class="bain-metric-label">Total Papers</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"""
-        <div class="bain-metric">
-            <div class="bain-metric-number">{include_count:,}</div>
-            <div class="bain-metric-label">Relevant ({include_count/len(df)*100:.1f}%)</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown(f"""
-        <div class="bain-metric">
-            <div class="bain-metric-number">{review_count:,}</div>
-            <div class="bain-metric-label">Review Required ({review_count/len(df)*100:.1f}%)</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        st.markdown(f"""
-        <div class="bain-metric">
-            <div class="bain-metric-number">{exclude_count:,}</div>
-            <div class="bain-metric-label">Excluded ({exclude_count/len(df)*100:.1f}%)</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # 인사이트 박스
-    st.markdown(f"""
-    <div class="bain-insight">
-        <strong>Key Insight:</strong> {include_count + review_count:,} papers ({(include_count + review_count)/len(df)*100:.1f}%) 
-        have been identified as analysis-ready, representing high-quality research aligned with your objectives.
-    </div>
-    """, unsafe_allow_html=True)
-
-    # 키워드 분석 결과
-    if include_count > 0:
-        st.markdown('<h2 class="bain-section-header">Keyword Intelligence</h2>', unsafe_allow_html=True)
         
+        st.success("✅ 분석 완료!")
+        
+        # 분석 결과
+        st.markdown("""
+        <div style="background: #fff; padding: 2rem; border-radius: 12px; border: 1px solid #e8eaed; margin: 2rem 0;">
+            <h3 style="color: #3c4043; margin-bottom: 1.5rem; font-weight: 500;">📈 분석 결과</h3>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 논문 분류 결과
+        classification_counts = df['Classification'].value_counts().reset_index()
+        classification_counts.columns = ['분류', '논문 수']
+        
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            st.subheader("논문 분류 현황")
+            st.dataframe(classification_counts, use_container_width=True)
+        
+        with col2:
+            chart = alt.Chart(classification_counts).mark_arc(innerRadius=50).encode(
+                theta=alt.Theta(field="논문 수", type="quantitative"), 
+                color=alt.Color(field="분류", type="nominal", title="분류"),
+                tooltip=['분류', '논문 수']
+            ).properties(title='논문 분류 분포', width=300, height=300)
+            st.altair_chart(chart, use_container_width=True)
+        
+        # 키워드 분석
+        st.subheader("주요 키워드 분석 (관련연구)")
         all_keywords = []
         if 'DE_cleaned' in df.columns: 
             all_keywords.extend([kw.strip() for text in df.loc[include_mask, 'DE_cleaned'].dropna() for kw in text.split(';') if kw.strip()])
@@ -511,225 +361,85 @@ if uploaded_file is not None:
         
         if all_keywords:
             keyword_counts = Counter(all_keywords)
-            top_keywords = keyword_counts.most_common(15)
-            df_keywords = pd.DataFrame(top_keywords, columns=['Keyword', 'Frequency'])
+            top_n = 15
+            top_keywords = keyword_counts.most_common(top_n)
+            df_keywords = pd.DataFrame(top_keywords, columns=['키워드', '빈도'])
             
-            # 차트 생성
-            chart = alt.Chart(df_keywords).mark_bar(color='#e31837').encode(
-                y=alt.Y('Keyword:N', title='', sort='-x'),
-                x=alt.X('Frequency:Q', title='Frequency'),
-                tooltip=['Keyword', 'Frequency']
-            ).properties(
-                title=alt.TitleParams(
-                    text='Top 15 Normalized Keywords',
-                    fontSize=18,
-                    color='#333333'
-                ),
-                height=400
-            )
-            st.altair_chart(chart, use_container_width=True)
+            keyword_chart = alt.Chart(df_keywords).mark_bar(color='#1a73e8').encode(
+                x=alt.X('빈도:Q', title='빈도'), 
+                y=alt.Y('키워드:N', title='키워드', sort='-x'),
+                tooltip=['키워드', '빈도']
+            ).properties(title=f'상위 {top_n} 키워드', height=400)
+            st.altair_chart(keyword_chart, use_container_width=True)
+            
+            # 정규화 전후 비교
+            if st.checkbox("📋 정규화 전후 비교 보기"):
+                sample_data = []
+                sample_rows = df.loc[include_mask].head(3)
+                
+                for idx, row in sample_rows.iterrows():
+                    if 'DE_Original' in df.columns and pd.notna(row.get('DE_Original')):
+                        sample_data.append({
+                            '논문 ID': idx,
+                            '필드': 'Author Keywords (DE)',
+                            '정규화 전': str(row['DE_Original'])[:60] + "..." if len(str(row['DE_Original'])) > 60 else str(row['DE_Original']),
+                            '정규화 후': str(row['DE_cleaned'])[:60] + "..." if len(str(row['DE_cleaned'])) > 60 else str(row['DE_cleaned'])
+                        })
+                
+                if sample_data:
+                    comparison_df = pd.DataFrame(sample_data)
+                    st.dataframe(comparison_df, use_container_width=True)
+        else:
+            st.warning("⚠️ 관련연구로 분류된 논문에서 유효한 키워드를 찾을 수 없습니다.")
 
-    # 다운로드 섹션
-    st.markdown('<h2 class="bain-section-header">Export Options</h2>', unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class="bain-download-section">
-        <h3 style="color: #333; font-weight: 300; margin-top: 0;">Three-Tier Export Strategy</h3>
-        <p style="color: #6c757d; margin-bottom: 30px;">
-            Choose the optimal format based on your analytical workflow and integration requirements.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns(3)
-    
-    # 원본 데이터
-    with col1:
-        df_scimat = df[df['Classification'].isin(['Include (관련연구)', 'Review (검토필요)'])].copy()
-        
-        if 'DE_Original' in df_scimat.columns:
-            df_scimat['DE'] = df_scimat['DE_Original']
-        if 'ID_Original' in df_scimat.columns:
-            df_scimat['ID'] = df_scimat['ID_Original']
-        
-        cols_to_drop = ['Classification', 'DE_cleaned', 'ID_cleaned', 'DE_Original', 'ID_Original']
-        df_scimat_output = df_scimat.drop(columns=[col for col in cols_to_drop if col in df_scimat.columns])
-        
+        # 데이터 다운로드
         st.markdown("""
-        <div class="bain-card">
-            <h4 style="color: #e31837; margin-top: 0;">Tier 1: Original Format</h4>
-            <p style="color: #6c757d; font-size: 0.9rem; margin-bottom: 20px;">
-                Preserves complete data integrity for comprehensive SciMAT preprocessing workflows.
-            </p>
+        <div style="background: #fff; padding: 2rem; border-radius: 12px; border: 1px solid #e8eaed; margin: 2rem 0;">
+            <h3 style="color: #3c4043; margin-bottom: 1.5rem; font-weight: 500;">💾 SciMAT 호환 파일 다운로드</h3>
         </div>
         """, unsafe_allow_html=True)
         
-        st.metric("Papers", f"{len(df_scimat_output):,}", delta="100% fidelity")
+        df_final = df[df['Classification'].isin(['Include (관련연구)', 'Review (검토필요)'])].copy()
         
-        text_data_scimat = convert_df_to_scimat_format(df_scimat_output)
-        st.download_button(
-            label="Download Original Format",
-            data=text_data_scimat,
-            file_name="wos_prep_original.txt",
-            mime="text/plain",
-            key="original_download",
-            use_container_width=True
-        )
-    
-    # 최소 처리
-    with col2:
-        df_minimal = df[df['Classification'].isin(['Include (관련연구)', 'Review (검토필요)'])].copy()
-        
-        if 'DE' in df_minimal.columns:
-            df_minimal['DE'] = df_minimal['DE'].apply(
+        # 최소 정제 버전 (SciMAT 최적화)
+        if 'DE' in df_final.columns:
+            df_final['DE'] = df_final['DE'].apply(
                 lambda x: '; '.join([kw.strip().lower() for kw in str(x).split(';') if kw.strip()]) if pd.notna(x) else x
             )
-    # 최소 처리
-    with col2:
-        df_minimal = df[df['Classification'].isin(['Include (관련연구)', 'Review (검토필요)'])].copy()
-        
-        if 'DE' in df_minimal.columns:
-            df_minimal['DE'] = df_minimal['DE'].apply(
-                lambda x: '; '.join([kw.strip().lower() for kw in str(x).split(';') if kw.strip()]) if pd.notna(x) else x
-            )
-        if 'ID' in df_minimal.columns:
-            df_minimal['ID'] = df_minimal['ID'].apply(
+        if 'ID' in df_final.columns:
+            df_final['ID'] = df_final['ID'].apply(
                 lambda x: '; '.join([kw.strip().lower() for kw in str(x).split(';') if kw.strip()]) if pd.notna(x) else x
             )
         
+        # 임시 컬럼들 제거
         cols_to_drop = ['Classification', 'DE_cleaned', 'ID_cleaned', 'DE_Original', 'ID_Original']
-        df_minimal_output = df_minimal.drop(columns=[col for col in cols_to_drop if col in df_minimal.columns])
+        df_final_output = df_final.drop(columns=[col for col in cols_to_drop if col in df_final.columns])
         
-        st.markdown("""
-        <div class="bain-card">
-            <h4 style="color: #e31837; margin-top: 0;">Tier 2: Optimized Format</h4>
-            <p style="color: #6c757d; font-size: 0.9rem; margin-bottom: 20px;">
-                Case-normalized for enhanced Levenshtein distance performance in SciMAT grouping algorithms.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            st.metric("📊 최종 분석 대상 논문 수", len(df_final_output))
+        with col2:
+            if include_mask.any():
+                include_count = include_mask.sum()
+                st.metric("🎯 키워드 정규화 적용", f"{include_count}개 논문")
         
-        st.metric("Papers", f"{len(df_minimal_output):,}", delta="Optimized")
-        
-        text_data_minimal = convert_df_to_scimat_format(df_minimal_output)
+        text_data = convert_df_to_scimat_format(df_final_output)
         st.download_button(
-            label="Download Optimized Format",
-            data=text_data_minimal,
-            file_name="wos_prep_optimized.txt",
+            label="📥 SciMAT 호환 파일 다운로드",
+            data=text_data,
+            file_name="wos_prep_for_scimat.txt",
             mime="text/plain",
-            key="minimal_download",
+            type="primary",
             use_container_width=True
         )
-    
-    # 완전 정규화
-    with col3:
-        df_analysis = df[df['Classification'].isin(['Include (관련연구)', 'Review (검토필요)'])].copy()
         
-        if 'DE_cleaned' in df_analysis.columns: 
-            df_analysis.loc[df_analysis['Classification'] == 'Include (관련연구)', 'DE'] = df_analysis.loc[df_analysis['Classification'] == 'Include (관련연구)', 'DE_cleaned']
-        if 'ID_cleaned' in df_analysis.columns: 
-            df_analysis.loc[df_analysis['Classification'] == 'Include (관련연구)', 'ID'] = df_analysis.loc[df_analysis['Classification'] == 'Include (관련연구)', 'ID_cleaned']
-        
-        cols_to_drop = ['Classification', 'DE_cleaned', 'ID_cleaned', 'DE_Original', 'ID_Original']
-        df_analysis_output = df_analysis.drop(columns=[col for col in cols_to_drop if col in df_analysis.columns])
-        
-        st.markdown("""
-        <div class="bain-card">
-            <h4 style="color: #e31837; margin-top: 0;">Tier 3: Normalized Format</h4>
-            <p style="color: #6c757d; font-size: 0.9rem; margin-bottom: 20px;">
-                Fully standardized keywords for high-precision analysis and publication-ready insights.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.metric("Papers", f"{len(df_analysis_output):,}", delta="Normalized")
-        
-        text_data_analysis = convert_df_to_scimat_format(df_analysis_output)
-        st.download_button(
-            label="Download Normalized Format",
-            data=text_data_analysis,
-            file_name="wos_prep_normalized.txt",
-            mime="text/plain",
-            key="analysis_download",
-            use_container_width=True
-        )
-
-    # 실행 가이드
-    st.markdown('<h2 class="bain-section-header">Implementation Roadmap</h2>', unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class="bain-step">
-        <span class="bain-step-number">1</span>
-        <strong>Data Preparation</strong><br>
-        Import Original or Optimized format into SciMAT. Leverage built-in preprocessing modules for maximum analytical depth.
-    </div>
-    
-    <div class="bain-step">
-        <span class="bain-step-number">2</span>
-        <strong>Science Mapping Execution</strong><br>
-        Configure temporal analysis periods, similarity measures, and clustering algorithms within SciMAT's analytical framework.
-    </div>
-    
-    <div class="bain-step">
-        <span class="bain-step-number">3</span>
-        <strong>Strategic Insights</strong><br>
-        Utilize Normalized format for final keyword analysis, strategic diagrams, and publication-ready research outputs.
-    </div>
-    """, unsafe_allow_html=True)
-
-    # 전문가 권고사항
-    with st.expander("🔍 Expert Recommendations"):
-        st.markdown("""
-        ### SciMAT Integration Best Practices
-        
-        **Optimal Grouping Strategy:**
-        - Configure Levenshtein distance to 2-3 for semantic clustering
-        - Prioritize manual grouping for domain-specific terminology
-        - Implement Stop Groups for generic research terms
-        
-        **Performance Optimization:**
-        - Use Tier 2 (Optimized) format for automated grouping workflows
-        - Reserve Tier 1 (Original) for comprehensive manual preprocessing
-        - Deploy Tier 3 (Normalized) for final analytical outputs
-        
-        **Quality Assurance:**
-        - Validate keyword standardization against domain expertise
-        - Cross-reference clustering results with literature reviews
-        - Implement iterative refinement based on strategic objectives
+        st.info("""
+        **💡 SciMAT 사용 가이드:**
+        1. 다운로드한 파일을 SciMAT에 업로드
+        2. `Group set` → `Words groups manager`에서 Levenshtein distance로 자동 그룹핑
+        3. 수동으로 키워드 그룹 조정 후 분석 실행
         """)
-
-    # 데이터 미리보기
-    st.markdown('<h2 class="bain-section-header">Data Preview</h2>', unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class="bain-card">
-        <h4 style="color: #e31837; margin-top: 0;">Sample Output (Optimized Format)</h4>
-        <p style="color: #6c757d; margin-bottom: 20px;">
-            Representative sample of processed data optimized for SciMAT integration.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.dataframe(df_minimal_output.head(8), use_container_width=True)
-
-    # 처리 통계
-    if include_mask.any():
-        st.markdown(f"""
-        <div class="bain-insight">
-            <strong>Processing Summary:</strong> Applied advanced normalization algorithms to {include_count:,} relevant studies, 
-            standardizing {len(all_keywords) if 'all_keywords' in locals() else 'N/A'} unique keywords for enhanced analytical precision.
-        </div>
-        """, unsafe_allow_html=True)
-
-# 푸터
-st.markdown("""
-<div style="text-align: center; padding: 60px 0 40px 0; margin-top: 60px; border-top: 1px solid #eee; background: #f8f9fa;">
-    <h3 style="color: #e31837; font-weight: 300; margin: 0 0 15px 0;">WOS Prep</h3>
-    <p style="color: #6c757d; margin: 0; font-size: 1rem;">
-        Professional Data Preprocessing for Science Mapping Excellence
-    </p>
-    <p style="color: #6c757d; margin: 5px 0 0 0; font-size: 0.9rem;">
-        Engineered for research professionals • Optimized for SciMAT integration
-    </p>
-</div>
-""", unsafe_allow_html=True)
+        
+        # 미리보기
+        st.subheader("📋 처리된 데이터 미리보기")
+        st.dataframe(df_final_output.head(10), use_container_width=True)
