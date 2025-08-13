@@ -159,20 +159,22 @@ def clean_keyword_string(keywords_str, stop_words, lemmatizer):
     
     return '; '.join(sorted(list(cleaned_keywords)))
 
-# --- SCIMAT 형식 변환 함수 (표준 형식 준수) ---
+# --- SCIMAT 형식 변환 함수 (완전 WoS 표준 준수) ---
 def convert_df_to_scimat_format(df_to_convert):
+    # 원본 WoS 파일과 완전히 동일한 필드 순서 및 헤더
     wos_field_order = [
-        'PT', 'AU', 'AF', 'TI', 'SO', 'LA', 'DT', 'DE', 'ID', 'AB', 'C1', 'RP',
-        'EM', 'FU', 'FX', 'CR', 'NR', 'TC', 'Z9', 'U1', 'U2', 'PU', 'PI', 'PA',
-        'SN', 'EI', 'J9', 'JI', 'PD', 'PY', 'VL', 'IS', 'BP', 'EP', 'AR', 'DI', 'PG',
-        'WC', 'SC', 'GA', 'UT', 'PM', 'OA', 'DA'
+        'PT', 'AU', 'AF', 'TI', 'SO', 'LA', 'DT', 'DE', 'ID', 'AB', 'C1', 'C3', 'RP',
+        'EM', 'RI', 'OI', 'FU', 'FX', 'CR', 'NR', 'TC', 'Z9', 'U1', 'U2', 'PU', 'PI', 'PA',
+        'SN', 'EI', 'J9', 'JI', 'PD', 'PY', 'VL', 'IS', 'BP', 'EP', 'DI', 'EA', 'PG',
+        'WC', 'WE', 'SC', 'GA', 'UT', 'PM', 'OA', 'DA'
     ]
     
-    file_content = ["FN Thomson Reuters Web of Science™", "VR 1.0"]
-    multi_line_fields = ['AU', 'AF', 'DE', 'ID', 'C1', 'CR']
+    # 원본과 완전히 동일한 헤더
+    file_content = ["FN Clarivate Analytics Web of Science", "VR 1.0"]
+    multi_line_fields = ['AU', 'AF', 'DE', 'ID', 'C1', 'C3', 'CR']
     
     for _, row in df_to_convert.iterrows():
-        # 레코드 시작 전 빈 줄 추가 (첫 번째 레코드 제외)
+        # 첫 번째 레코드가 아닌 경우에만 빈 줄 추가 (원본과 동일)
         if len(file_content) > 2:
             file_content.append("")
             
@@ -198,8 +200,8 @@ def convert_df_to_scimat_format(df_to_convert):
 
         file_content.append("ER")
     
-    # 표준 WoS 형식: 단일 줄바꿈으로 연결
-    return "\n".join(file_content).encode('utf-8-sig')
+    # 원본과 동일: UTF-8 (BOM 없음)으로 인코딩
+    return "\n".join(file_content).encode('utf-8')
 
 # --- Streamlit UI 및 실행 로직 ---
 st.title("WOS 데이터 분석 및 정제 도구")
@@ -228,13 +230,17 @@ if uploaded_file is not None:
         st.error("파일을 읽을 수 없습니다. Web of Science에서 다운로드한 'Tab-delimited' 또는 'Plain Text' 형식의 파일이 맞는지 확인해주세요.")
         st.stop()
     
-    df.columns = [col.upper().strip() for col in df.columns]
+    # 원본 컬럼명 보존 (대소문자 변환하지 않음)
     column_mapping = {
-        'AUTHORS': 'AU', 'ARTICLE TITLE': 'TI', 'SOURCE TITLE': 'SO', 'AUTHOR KEYWORDS': 'DE',
-        'KEYWORDS PLUS': 'ID', 'ABSTRACT': 'AB', 'CITED REFERENCES': 'CR', 'PUBLICATION YEAR': 'PY',
-        'TIMES CITED, ALL DATABASES': 'TC'
+        'Authors': 'AU', 'Article Title': 'TI', 'Source Title': 'SO', 'Author Keywords': 'DE',
+        'Keywords Plus': 'ID', 'Abstract': 'AB', 'Cited References': 'CR', 'Publication Year': 'PY',
+        'Times Cited, All Databases': 'TC', 'Times Cited, WoS Core': 'Z9'
     }
-    df.rename(columns={k: v for k, v in column_mapping.items() if k in df.columns}, inplace=True)
+    
+    # 컬럼명이 이미 WoS 태그 형식인 경우는 변환하지 않음
+    for old_name, new_name in column_mapping.items():
+        if old_name in df.columns:
+            df.rename(columns={old_name: new_name}, inplace=True)
 
     with st.spinner("데이터를 분석하고 분류하고 있습니다... / Analyzing and classifying data..."):
         # 1단계: 분류 (원본 키워드 기준)
