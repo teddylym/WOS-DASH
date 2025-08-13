@@ -1,12 +1,3 @@
-요청하신 수정 사항이 반영된 전체 코드를 생성했습니다.
-
-아래 코드는 Web of Science 데이터 파일 업로드 시, 최종 결과물에 **AU, TI, SO, PY, DE, ID, AB, CR** 8개 필드만 포함하여 `.txt` 파일로 생성하는 완전한 스크립트입니다.
-
------
-
-### 최종 스크립트 (Final Code)
-
-```python
 import streamlit as st
 import pandas as pd
 import nltk
@@ -157,5 +148,3 @@ if uploaded_file is not None:
                 file_name="wos_processed_for_scimat.txt",
                 mime="text/plain",
             )
-
-```
