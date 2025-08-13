@@ -333,31 +333,73 @@ if uploaded_file is not None:
 
         st.markdown("---")
         st.subheader("데이터 다운로드 / Download Data")
-        df_final = df[df['Classification'].isin(['Include (관련연구)', 'Review (검토필요)'])].copy()
         
-        # 정규화된 키워드로 교체 (Include 논문만)
-        if 'DE_cleaned' in df_final.columns: 
-            df_final.loc[df_final['Classification'] == 'Include (관련연구)', 'DE'] = df_final.loc[df_final['Classification'] == 'Include (관련연구)', 'DE_cleaned']
-        if 'ID_cleaned' in df_final.columns: 
-            df_final.loc[df_final['Classification'] == 'Include (관련연구)', 'ID'] = df_final.loc[df_final['Classification'] == 'Include (관련연구)', 'ID_cleaned']
+        # 두 가지 다운로드 옵션 제공
+        col1, col2 = st.columns(2)
         
-        # 임시 컬럼들 제거
-        cols_to_drop = ['Classification', 'DE_cleaned', 'ID_cleaned', 'DE_Original', 'ID_Original']
-        df_final_output = df_final.drop(columns=[col for col in cols_to_drop if col in df_final.columns])
+        with col1:
+            st.write("**📊 분석용 (정규화 적용)**")
+            df_analysis = df[df['Classification'].isin(['Include (관련연구)', 'Review (검토필요)'])].copy()
+            
+            # 정규화된 키워드로 교체 (Include 논문만)
+            if 'DE_cleaned' in df_analysis.columns: 
+                df_analysis.loc[df_analysis['Classification'] == 'Include (관련연구)', 'DE'] = df_analysis.loc[df_analysis['Classification'] == 'Include (관련연구)', 'DE_cleaned']
+            if 'ID_cleaned' in df_analysis.columns: 
+                df_analysis.loc[df_analysis['Classification'] == 'Include (관련연구)', 'ID'] = df_analysis.loc[df_analysis['Classification'] == 'Include (관련연구)', 'ID_cleaned']
+            
+            # 임시 컬럼들 제거
+            cols_to_drop = ['Classification', 'DE_cleaned', 'ID_cleaned', 'DE_Original', 'ID_Original']
+            df_analysis_output = df_analysis.drop(columns=[col for col in cols_to_drop if col in df_analysis.columns])
+            
+            st.metric("논문 수", len(df_analysis_output))
+            
+            text_data_analysis = convert_df_to_scimat_format(df_analysis_output)
+            st.download_button(
+                label="📥 정규화된 키워드 파일", 
+                data=text_data_analysis, 
+                file_name="wos_normalized_keywords.txt", 
+                mime="text/plain",
+                key="analysis_download"
+            )
+            st.caption("키워드 분석 및 시각화용")
         
-        st.metric("최종 분석 대상 논문 수 (Include + Review)", len(df_final_output))
+        with col2:
+            st.write("**🔧 SciMAT용 (원본 구조 유지)**")
+            df_scimat = df[df['Classification'].isin(['Include (관련연구)', 'Review (검토필요)'])].copy()
+            
+            # 원본 키워드 복원 (SciMAT 호환성을 위해)
+            if 'DE_Original' in df_scimat.columns:
+                df_scimat['DE'] = df_scimat['DE_Original']
+            if 'ID_Original' in df_scimat.columns:
+                df_scimat['ID'] = df_scimat['ID_Original']
+            
+            # 임시 컬럼들만 제거
+            cols_to_drop = ['Classification', 'DE_cleaned', 'ID_cleaned', 'DE_Original', 'ID_Original']
+            df_scimat_output = df_scimat.drop(columns=[col for col in cols_to_drop if col in df_scimat.columns])
+            
+            st.metric("논문 수", len(df_scimat_output))
+            
+            text_data_scimat = convert_df_to_scimat_format(df_scimat_output)
+            st.download_button(
+                label="📥 SciMAT 호환 파일", 
+                data=text_data_scimat, 
+                file_name="wos_for_scimat_original.txt", 
+                mime="text/plain",
+                key="scimat_download"
+            )
+            st.caption("SciMAT 전용 (원본 키워드)")
+        
+        # 사용 안내
+        st.info("""
+        **📋 사용 권고사항:**
+        - **SciMAT 호환 파일**: SciMAT에서 데이터 가져오기 및 전처리 기능 사용
+        - **정규화된 키워드 파일**: 키워드 분석 완료 후 시각화 및 보고서 작성용
+        """)
         
         # 키워드 정규화 통계
         if include_mask.any():
             include_count = include_mask.sum()
-            st.info(f"키워드 정규화 적용: {include_count}개 'Include' 논문")
+            st.success(f"✅ 키워드 정규화 적용: {include_count}개 'Include' 논문")
         
-        st.dataframe(df_final_output.head(10))
-        
-        text_data = convert_df_to_scimat_format(df_final_output)
-        st.download_button(
-            label="📥 최종 파일 다운로드 (.txt for SciMAT)", 
-            data=text_data, 
-            file_name="wos_processed_normalized_for_scimat.txt", 
-            mime="text/plain"
-        )
+        st.write("**미리보기 (SciMAT 호환 파일)**")
+        st.dataframe(df_scimat_output.head(10))
