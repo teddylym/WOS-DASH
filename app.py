@@ -73,12 +73,13 @@ def clean_keyword_string(keywords_str, stop_words, lemmatizer):
 st.title("WOS 데이터 분석 및 정제 도구")
 st.caption("WOS Data Classifier & Preprocessor")
 
-uploaded_file = st.file_uploader("WoS Raw Data 파일(TXT)을 업로드하세요", type=['txt'])
+# 수정: 파일 업로드 형식을 CSV와 TXT 모두 허용하도록 변경
+uploaded_file = st.file_uploader("WoS Raw Data 파일(CSV/TXT)을 업로드하세요", type=['csv', 'txt'])
 
 if uploaded_file is not None:
     df_raw = load_data(uploaded_file)
     if df_raw is None:
-        st.error("파일을 읽을 수 없습니다. Web of Science에서 다운로드한 'Tab-delimited' 형식의 .txt 파일이 맞는지 확인해주세요.")
+        st.error("파일을 읽을 수 없습니다. Web of Science에서 다운로드한 'Tab-delimited' 또는 'Plain Text' 형식의 파일이 맞는지 확인해주세요.")
         st.stop()
 
     df_raw.columns = [col.upper() for col in df_raw.columns]
@@ -113,7 +114,7 @@ if uploaded_file is not None:
 
         st.success("✅ 분석 및 변환 완료! / Process Complete!")
 
-        # --- 결과 요약 및 시각화 (수정: 세로 배치) ---
+        # --- 결과 요약 및 시각화 ---
         st.subheader("분석 결과 요약 / Analysis Summary")
         
         st.write("##### 논문 분류 결과")
@@ -156,7 +157,7 @@ if uploaded_file is not None:
         else:
             st.warning("'관련연구'로 분류된 논문에서 유효한 키워드를 찾을 수 없습니다.")
 
-        # --- 최종 출력 파일 생성 (수정: 원본의 모든 열 유지) ---
+        # --- 최종 출력 파일 생성 ---
         st.markdown("---")
         st.subheader("데이터 다운로드 / Download Data")
         
@@ -167,7 +168,6 @@ if uploaded_file is not None:
         if 'ID_cleaned' in df_final.columns:
             df_final['ID'] = df_final['ID_cleaned']
 
-        # 분석에 사용된 보조 열들(Classification, *_cleaned)을 최종 파일에서 제외
         cols_to_drop = ['Classification', 'DE_cleaned', 'ID_cleaned']
         df_final_output = df_final.drop(columns=[col for col in cols_to_drop if col in df_final.columns])
         
