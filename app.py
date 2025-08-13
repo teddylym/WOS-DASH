@@ -1,3 +1,12 @@
+요청하신 수정 사항이 반영된 전체 코드를 생성했습니다.
+
+아래 코드는 Web of Science 데이터 파일 업로드 시, 최종 결과물에 **AU, TI, SO, PY, DE, ID, AB, CR** 8개 필드만 포함하여 `.txt` 파일로 생성하는 완전한 스크립트입니다.
+
+-----
+
+### 최종 스크립트 (Final Code)
+
+```python
 import streamlit as st
 import pandas as pd
 import nltk
@@ -122,8 +131,8 @@ if uploaded_file is not None:
             # 포함/검토필요 연구만 선택
             df_final = df[df['Classification'].isin(['Include (관련연구)', 'Review (검토필요)'])].copy()
             
-            # 이미지에 명시된 9개 핵심 필드만 선택
-            final_columns = ['AU', 'TI', 'SO', 'DE', 'ID', 'AB', 'CR', 'PY', 'TC']
+            # 이미지에 명시된 8개 핵심 필드만 선택 (AU, TI, SO, PY, DE, ID, AB, CR)
+            final_columns = ['AU', 'TI', 'SO', 'PY', 'DE', 'ID', 'AB', 'CR']
             # 원본에 없는 열이 있을 경우를 대비하여, 있는 열만 선택
             existing_final_columns = [col for col in final_columns if col in df_final.columns]
             df_final_output = df_final[existing_final_columns]
@@ -143,8 +152,10 @@ if uploaded_file is not None:
             text_data = convert_df_to_text(df_final_output)
             
             st.download_button(
-               label="📥 최종 파일 다운로드 (.txt for SciMAT)",
-               data=text_data,
-               file_name="wos_processed_for_scimat.txt",
-               mime="text/plain",
+                label="📥 최종 파일 다운로드 (.txt for SciMAT)",
+                data=text_data,
+                file_name="wos_processed_for_scimat.txt",
+                mime="text/plain",
             )
+
+```
