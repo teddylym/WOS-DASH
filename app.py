@@ -9,7 +9,11 @@ import altair as alt
 import io
 
 # --- 페이지 설정 ---
-st.set_page_config(page_title="WOS Analysis Dashboard", layout="centered")
+st.set_page_config(
+    page_title="WOS Prep - Professional Data Preprocessing", 
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
 
 # --- NLTK 리소스 다운로드 (캐시 유지) ---
 @st.cache_resource
@@ -204,25 +208,82 @@ def convert_df_to_scimat_format(df_to_convert):
     return "\n".join(file_content).encode('utf-8')
 
 # --- Streamlit UI 및 실행 로직 ---
-st.title("WOS 데이터 분석 및 정제 도구")
-st.caption("WOS Data Classifier & Preprocessor with Enhanced Keyword Normalization")
+# 헤더 섹션 - 전문적 디자인
+st.markdown("""
+<div style="text-align: center; padding: 2rem 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            border-radius: 10px; margin-bottom: 2rem; color: white;">
+    <h1 style="font-size: 3rem; font-weight: 300; margin: 0; letter-spacing: -1px;">
+        📊 WOS Prep
+    </h1>
+    <p style="font-size: 1.2rem; margin: 0.5rem 0 0 0; opacity: 0.9; font-weight: 300;">
+        Professional Data Preprocessing for Science Mapping Analysis
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
-# 정규화 예시 표시
-with st.expander("🔧 키워드 정규화 규칙"):
-    st.write("**적용되는 정규화 규칙 예시:**")
-    examples = [
-        "machine learning ← machine-learning, ML, machinelearning",
-        "artificial intelligence ← AI, artificial-intelligence", 
-        "deep learning ← deep-learning, deep neural networks, DNN",
-        "live streaming ← live-streaming, livestreaming",
-        "user experience ← user-experience, UX",
-        "structural equation modeling ← SEM, PLS-SEM",
-        "e commerce ← ecommerce, e-commerce, electronic commerce"
-    ]
-    for example in examples:
-        st.write(f"• {example}")
+# 기능 개요 섹션
+col1, col2, col3 = st.columns(3)
 
-uploaded_file = st.file_uploader("WoS Raw Data 파일(CSV/TXT)을 업로드하세요", type=['csv', 'txt'])
+with col1:
+    st.markdown("""
+    <div style="text-align: center; padding: 1.5rem; border: 1px solid #e0e0e0; border-radius: 8px; height: 120px;">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚡</div>
+        <h4 style="margin: 0; font-weight: 500;">Smart Classification</h4>
+        <p style="margin: 0.5rem 0 0 0; color: #666; font-size: 0.9rem;">AI-powered research filtering</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    st.markdown("""
+    <div style="text-align: center; padding: 1.5rem; border: 1px solid #e0e0e0; border-radius: 8px; height: 120px;">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔬</div>
+        <h4 style="margin: 0; font-weight: 500;">SciMAT Integration</h4>
+        <p style="margin: 0.5rem 0 0 0; color: #666; font-size: 0.9rem;">Seamless compatibility</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col3:
+    st.markdown("""
+    <div style="text-align: center; padding: 1.5rem; border: 1px solid #e0e0e0; border-radius: 8px; height: 120px;">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎯</div>
+        <h4 style="margin: 0; font-weight: 500;">Keyword Normalization</h4>
+        <p style="margin: 0.5rem 0 0 0; color: #666; font-size: 0.9rem;">Advanced standardization</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# 정규화 예시 표시 - 전문적 스타일
+with st.expander("⚙️ Advanced Keyword Normalization Rules"):
+    st.markdown("""
+    **Machine Learning & AI Standardization:**
+    - `machine learning` ← machine-learning, ML, machinelearning
+    - `artificial intelligence` ← AI, artificial-intelligence
+    - `deep learning` ← deep-learning, deep neural networks, DNN
+    
+    **Streaming & Media Normalization:**
+    - `live streaming` ← live-streaming, livestreaming
+    - `user experience` ← user-experience, UX
+    
+    **Research Methodology Standardization:**
+    - `structural equation modeling` ← SEM, PLS-SEM
+    - `e commerce` ← ecommerce, e-commerce, electronic commerce
+    """)
+
+# 파일 업로드 섹션 - 전문적 디자인
+st.markdown("""
+<div style="border: 2px dashed #ccc; border-radius: 10px; padding: 2rem; text-align: center; margin: 2rem 0;">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+    <h3 style="margin: 0; color: #333;">Upload Your WOS Data</h3>
+    <p style="color: #666; margin: 0.5rem 0;">Support for CSV and TXT formats from Web of Science</p>
+</div>
+""", unsafe_allow_html=True)
+
+uploaded_file = st.file_uploader(
+    "Choose your Web of Science file", 
+    type=['csv', 'txt'],
+    help="Please upload Tab-delimited or Plain Text format files downloaded from Web of Science"
+)
 
 if uploaded_file is not None:
     df = load_data(uploaded_file)
@@ -242,7 +303,7 @@ if uploaded_file is not None:
         if old_name in df.columns:
             df.rename(columns={old_name: new_name}, inplace=True)
 
-    with st.spinner("데이터를 분석하고 분류하고 있습니다... / Analyzing and classifying data..."):
+    with st.spinner("🔍 Processing your data with advanced algorithms..."):
         # 1단계: 분류 (원본 키워드 기준)
         df['Classification'] = df.apply(classify_article, axis=1)
         
@@ -271,23 +332,38 @@ if uploaded_file is not None:
                 lambda x: clean_keyword_string(x, stop_words, lemmatizer)
             )
         
-        st.success("✅ 분석, 분류 및 정규화 완료! / Analysis, classification and normalization complete!")
+        st.success("✅ Processing completed successfully!")
         
-        st.subheader("분석 결과 요약 / Analysis Summary")
-        st.write("##### 논문 분류 결과")
+        # 결과 요약 - 전문적 메트릭 디스플레이
+        st.markdown("### 📈 Analysis Results")
+        
+        # 메트릭 카드 스타일
         classification_counts = df['Classification'].value_counts().reset_index()
         classification_counts.columns = ['Classification', 'Count']
-        st.dataframe(classification_counts)
         
+        metric_col1, metric_col2, metric_col3 = st.columns(3)
+        
+        include_count = classification_counts[classification_counts['Classification'] == 'Include (관련연구)']['Count'].iloc[0] if len(classification_counts[classification_counts['Classification'] == 'Include (관련연구)']) > 0 else 0
+        review_count = classification_counts[classification_counts['Classification'] == 'Review (검토필요)']['Count'].iloc[0] if len(classification_counts[classification_counts['Classification'] == 'Review (검토필요)']) > 0 else 0
+        exclude_count = classification_counts[classification_counts['Classification'] == 'Exclude (제외연구)']['Count'].iloc[0] if len(classification_counts[classification_counts['Classification'] == 'Exclude (제외연구)']) > 0 else 0
+        
+        with metric_col1:
+            st.metric("Relevant Studies", include_count, delta=f"{include_count/(len(df))*100:.1f}%")
+        with metric_col2:
+            st.metric("Review Required", review_count, delta=f"{review_count/(len(df))*100:.1f}%")
+        with metric_col3:
+            st.metric("Excluded", exclude_count, delta=f"{exclude_count/(len(df))*100:.1f}%")
+        
+        # 차트 표시
         chart = alt.Chart(classification_counts).mark_arc(innerRadius=50).encode(
             theta=alt.Theta(field="Count", type="quantitative"), 
-            color=alt.Color(field="Classification", type="nominal", title="분류"),
+            color=alt.Color(field="Classification", type="nominal", title="Classification"),
             tooltip=['Classification', 'Count']
-        ).properties(title='논문 분류 분포')
+        ).properties(title='Research Classification Distribution', width=400, height=300)
         st.altair_chart(chart, use_container_width=True)
         
         st.markdown("---")
-        st.write("##### '관련연구(Include)' 정규화된 주요 키워드 분석")
+        st.markdown("### 🔍 Keyword Analysis for Relevant Studies")
         all_keywords = []
         if 'DE_cleaned' in df.columns: 
             all_keywords.extend([kw.strip() for text in df.loc[include_mask, 'DE_cleaned'].dropna() for kw in text.split(';') if kw.strip()])
@@ -300,51 +376,117 @@ if uploaded_file is not None:
             top_keywords = keyword_counts.most_common(top_n)
             df_keywords = pd.DataFrame(top_keywords, columns=['Keyword', 'Frequency'])
             
-            keyword_chart = alt.Chart(df_keywords).mark_bar().encode(
-                x=alt.X('Frequency:Q', title='빈도'), 
-                y=alt.Y('Keyword:N', title='키워드', sort='-x'),
+            keyword_chart = alt.Chart(df_keywords).mark_bar(color='#667eea').encode(
+                x=alt.X('Frequency:Q', title='Frequency'), 
+                y=alt.Y('Keyword:N', title='Keywords', sort='-x'),
                 tooltip=['Keyword', 'Frequency']
-            ).properties(title=f'상위 {top_n} 정규화된 키워드 빈도')
+            ).properties(title=f'Top {top_n} Normalized Keywords', width=600, height=400)
             st.altair_chart(keyword_chart, use_container_width=True)
             
             # 정규화 전후 비교 샘플 표시
-            if st.checkbox("정규화 전후 비교 예시 보기"):
-                st.write("**정규화 전후 키워드 비교 (상위 3개 Include 논문)**")
+            if st.checkbox("🔬 View Normalization Examples"):
+                st.markdown("**Keyword Normalization Comparison (Top 3 Relevant Studies)**")
                 sample_data = []
                 sample_rows = df.loc[include_mask].head(3)
                 
                 for idx, row in sample_rows.iterrows():
                     if 'DE_Original' in df.columns and pd.notna(row.get('DE_Original')):
                         sample_data.append({
-                            '논문ID': idx,
-                            '필드': 'Author Keywords (DE)',
-                            '정규화 전': str(row['DE_Original'])[:80] + "..." if len(str(row['DE_Original'])) > 80 else str(row['DE_Original']),
-                            '정규화 후': str(row['DE_cleaned'])[:80] + "..." if len(str(row['DE_cleaned'])) > 80 else str(row['DE_cleaned'])
+                            'Paper ID': idx,
+                            'Field': 'Author Keywords (DE)',
+                            'Before': str(row['DE_Original'])[:80] + "..." if len(str(row['DE_Original'])) > 80 else str(row['DE_Original']),
+                            'After': str(row['DE_cleaned'])[:80] + "..." if len(str(row['DE_cleaned'])) > 80 else str(row['DE_cleaned'])
                         })
                     if 'ID_Original' in df.columns and pd.notna(row.get('ID_Original')):
                         sample_data.append({
-                            '논문ID': idx,
-                            '필드': 'Keywords Plus (ID)',
-                            '정규화 전': str(row['ID_Original'])[:80] + "..." if len(str(row['ID_Original'])) > 80 else str(row['ID_Original']),
-                            '정규화 후': str(row['ID_cleaned'])[:80] + "..." if len(str(row['ID_cleaned'])) > 80 else str(row['ID_cleaned'])
+                            'Paper ID': idx,
+                            'Field': 'Keywords Plus (ID)',
+                            'Before': str(row['ID_Original'])[:80] + "..." if len(str(row['ID_Original'])) > 80 else str(row['ID_Original']),
+                            'After': str(row['ID_cleaned'])[:80] + "..." if len(str(row['ID_cleaned'])) > 80 else str(row['ID_cleaned'])
                         })
                 
                 if sample_data:
                     comparison_df = pd.DataFrame(sample_data)
                     st.dataframe(comparison_df, use_container_width=True)
                 else:
-                    st.info("비교할 데이터가 없습니다.")
+                    st.info("No comparison data available.")
         else:
-            st.warning("'관련연구'로 분류된 논문에서 유효한 키워드를 찾을 수 없습니다.")
+            st.warning("⚠️ No valid keywords found in relevant studies.")
 
         st.markdown("---")
-        st.subheader("데이터 다운로드 / Download Data")
+        st.markdown("### 📥 Download Processed Data")
         
-        # 두 가지 다운로드 옵션 제공
-        col1, col2 = st.columns(2)
+        # 다운로드 옵션을 카드 스타일로 개선
+        st.markdown("""
+        <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+            <h4 style="margin: 0 0 0.5rem 0; color: #333;">Choose Your Export Format</h4>
+            <p style="margin: 0; color: #666; font-size: 0.9rem;">Select the appropriate format based on your analysis workflow</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 세 가지 다운로드 옵션 제공
+        col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.write("**📊 분석용 (정규화 적용)**")
+            st.markdown("**🔧 Complete Original**")
+            df_scimat = df[df['Classification'].isin(['Include (관련연구)', 'Review (검토필요)'])].copy()
+            
+            # 원본 키워드 완전 복원 (SciMAT 호환성 최우선)
+            if 'DE_Original' in df_scimat.columns:
+                df_scimat['DE'] = df_scimat['DE_Original']
+            if 'ID_Original' in df_scimat.columns:
+                df_scimat['ID'] = df_scimat['ID_Original']
+            
+            # 임시 컬럼들만 제거
+            cols_to_drop = ['Classification', 'DE_cleaned', 'ID_cleaned', 'DE_Original', 'ID_Original']
+            df_scimat_output = df_scimat.drop(columns=[col for col in cols_to_drop if col in df_scimat.columns])
+            
+            st.metric("Papers", len(df_scimat_output), delta="Original format")
+            
+            text_data_scimat = convert_df_to_scimat_format(df_scimat_output)
+            st.download_button(
+                label="📥 Download Original", 
+                data=text_data_scimat, 
+                file_name="wos_prep_original.txt", 
+                mime="text/plain",
+                key="scimat_download",
+                use_container_width=True
+            )
+            st.caption("🎯 For SciMAT manual preprocessing")
+        
+        with col2:
+            st.markdown("**⚡ Minimal Processing**")
+            df_minimal = df[df['Classification'].isin(['Include (관련연구)', 'Review (검토필요)'])].copy()
+            
+            # 최소 정제: SciMAT 그룹핑 최적화
+            if 'DE' in df_minimal.columns:
+                df_minimal['DE'] = df_minimal['DE'].apply(
+                    lambda x: '; '.join([kw.strip().lower() for kw in str(x).split(';') if kw.strip()]) if pd.notna(x) else x
+                )
+            if 'ID' in df_minimal.columns:
+                df_minimal['ID'] = df_minimal['ID'].apply(
+                    lambda x: '; '.join([kw.strip().lower() for kw in str(x).split(';') if kw.strip()]) if pd.notna(x) else x
+                )
+            
+            # 임시 컬럼들 제거
+            cols_to_drop = ['Classification', 'DE_cleaned', 'ID_cleaned', 'DE_Original', 'ID_Original']
+            df_minimal_output = df_minimal.drop(columns=[col for col in cols_to_drop if col in df_minimal.columns])
+            
+            st.metric("Papers", len(df_minimal_output), delta="Case normalized")
+            
+            text_data_minimal = convert_df_to_scimat_format(df_minimal_output)
+            st.download_button(
+                label="📥 Download Minimal", 
+                data=text_data_minimal, 
+                file_name="wos_prep_minimal.txt", 
+                mime="text/plain",
+                key="minimal_download",
+                use_container_width=True
+            )
+            st.caption("✨ Optimized for Levenshtein distance")
+        
+        with col3:
+            st.markdown("**📊 Full Normalization**")
             df_analysis = df[df['Classification'].isin(['Include (관련연구)', 'Review (검토필요)'])].copy()
             
             # 정규화된 키워드로 교체 (Include 논문만)
@@ -357,49 +499,37 @@ if uploaded_file is not None:
             cols_to_drop = ['Classification', 'DE_cleaned', 'ID_cleaned', 'DE_Original', 'ID_Original']
             df_analysis_output = df_analysis.drop(columns=[col for col in cols_to_drop if col in df_analysis.columns])
             
-            st.metric("논문 수", len(df_analysis_output))
+            st.metric("Papers", len(df_analysis_output), delta="Fully normalized")
             
             text_data_analysis = convert_df_to_scimat_format(df_analysis_output)
             st.download_button(
-                label="📥 정규화된 키워드 파일", 
+                label="📥 Download Normalized", 
                 data=text_data_analysis, 
-                file_name="wos_normalized_keywords.txt", 
+                file_name="wos_prep_normalized.txt", 
                 mime="text/plain",
-                key="analysis_download"
+                key="analysis_download",
+                use_container_width=True
             )
-            st.caption("키워드 분석 및 시각화용")
+            st.caption("📈 For final analysis & papers")
         
-        with col2:
-            st.write("**🔧 SciMAT용 (원본 구조 유지)**")
-            df_scimat = df[df['Classification'].isin(['Include (관련연구)', 'Review (검토필요)'])].copy()
-            
-            # 원본 키워드 복원 (SciMAT 호환성을 위해)
-            if 'DE_Original' in df_scimat.columns:
-                df_scimat['DE'] = df_scimat['DE_Original']
-            if 'ID_Original' in df_scimat.columns:
-                df_scimat['ID'] = df_scimat['ID_Original']
-            
-            # 임시 컬럼들만 제거
-            cols_to_drop = ['Classification', 'DE_cleaned', 'ID_cleaned', 'DE_Original', 'ID_Original']
-            df_scimat_output = df_scimat.drop(columns=[col for col in cols_to_drop if col in df_scimat.columns])
-            
-            st.metric("논문 수", len(df_scimat_output))
-            
-            text_data_scimat = convert_df_to_scimat_format(df_scimat_output)
-            st.download_button(
-                label="📥 SciMAT 호환 파일", 
-                data=text_data_scimat, 
-                file_name="wos_for_scimat_original.txt", 
-                mime="text/plain",
-                key="scimat_download"
-            )
-            st.caption("SciMAT 전용 (원본 키워드)")
-        
-        # 사용 안내
+        # 사용 안내 및 SciMAT 워크플로우 가이드
         st.info("""
-        **📋 사용 권고사항:**
-        - **SciMAT 호환 파일**: SciMAT에서 데이터 가져오기 및 전처리 기능 사용
-        - **정규화된 키워드 파일**: 키워드 분석 완료 후 시각화 및 보고서 작성용
+        **📋 SciMAT 최적화 워크플로우:**
+        
+        **1단계**: **원본 키워드** 또는 **최소 정제** 파일을 SciMAT에 업로드
+        - SciMAT의 강력한 내장 전처리 모듈 활용
+        - Levenshtein distance로 자동 그룹핑 수행
+        - 수동 그룹 조정 및 Stop group 설정
+        
+        **2단계**: SciMAT에서 Science Mapping 분석 실행
+        - 기간별 분석 설정
+        - 클러스터링 및 시각화
+        
+        **3단계**: **완전 정규화** 파일로 추가 키워드 분석
+        - 표준화된 키워드로 정밀 분석
+        - 최종 보고서 및 논문 작성
+        
+        **💡 핵심**: SciMAT 자체의 전처리 기능을 활용하여 최적의 결과 달성
         """)
         
         # 키워드 정규화 통계
@@ -407,5 +537,29 @@ if uploaded_file is not None:
             include_count = include_mask.sum()
             st.success(f"✅ 키워드 정규화 적용: {include_count}개 'Include' 논문")
         
-        st.write("**미리보기 (SciMAT 호환 파일)**")
-        st.dataframe(df_scimat_output.head(10))
+        # SciMAT 전문가 팁
+        with st.expander("💡 SciMAT 전문가 팁 - 효과적인 그룹핑 전략"):
+            st.write("""
+            **📌 SciMAT에서 효과적인 키워드 그룹핑:**
+            
+            **1. Levenshtein Distance 활용**
+            - `Group set` → `Words groups manager` → `Add` 버튼 옆 도구 활용
+            - Maximum distance 2-3으로 설정하여 유사 키워드 자동 탐지
+            - "live streaming", "live-streaming", "livestreaming" 등 자동 그룹화
+            
+            **2. 수동 그룹핑 우선순위**
+            - 의미적으로 동일한 키워드들 우선 그룹화
+            - 복수형/단수형: "consumer" ↔ "consumers"
+            - 약어/풀네임: "AI" ↔ "artificial intelligence"
+            
+            **3. Stop Group 설정**
+            - 너무 일반적인 키워드는 Stop group으로 설정
+            - "research", "analysis", "study" 등 제외
+            
+            **4. 그룹명 설정 규칙**
+            - 가장 표준적이고 명확한 용어를 그룹명으로 선택
+            - 소문자 통일 및 하이픈 대신 공백 사용 권장
+            """)
+        
+        st.write("**미리보기 (최소 정제 - SciMAT 최적화 버전)**")
+        st.dataframe(df_minimal_output.head(10))
