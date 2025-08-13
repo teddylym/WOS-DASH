@@ -207,51 +207,58 @@ def convert_df_to_scimat_format(df_to_convert):
     # 원본과 동일: UTF-8 (BOM 없음)으로 인코딩
     return "\n".join(file_content).encode('utf-8')
 
-# --- 헤더 (정사각형 그리드 레이아웃) ---
+# --- 헤더 (Streamlit 호환 레이아웃) ---
 st.markdown("""
 <div style="text-align: center; padding: 1.5rem 0 2rem 0;">
     <h1 style="color: #202124; font-size: 2.2rem; font-weight: 500; margin-bottom: 2rem; letter-spacing: -0.01em;">
         WOS Prep
     </h1>
-    
-    <!-- 정사각형 그리드 레이아웃 -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; max-width: 600px; margin: 0 auto 1.5rem auto;">
-        <!-- 데이터 분류 -->
-        <div style="aspect-ratio: 1; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 1px solid #e8eaed; display: flex; flex-direction: column; justify-content: center;">
-            <div style="color: #1a73e8; font-size: 2rem; margin-bottom: 0.8rem;">📊</div>
-            <div style="color: #3c4043; font-size: 1rem; font-weight: 500; margin-bottom: 0.3rem;">Data Classification</div>
-            <div style="color: #5f6368; font-size: 0.8rem;">Targeted paper selection</div>
-        </div>
-        
-        <!-- 키워드 정규화 -->
-        <div style="aspect-ratio: 1; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 1px solid #e8eaed; display: flex; flex-direction: column; justify-content: center;">
-            <div style="color: #34a853; font-size: 2rem; margin-bottom: 0.8rem;">⚙️</div>
-            <div style="color: #3c4043; font-size: 1rem; font-weight: 500; margin-bottom: 0.3rem;">Keyword Normalization</div>
-            <div style="color: #5f6368; font-size: 0.8rem;">AI-based standardization</div>
-        </div>
-        
-        <!-- SciMAT 호환 -->
-        <div style="aspect-ratio: 1; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 1px solid #e8eaed; display: flex; flex-direction: column; justify-content: center;">
-            <div style="color: #ea4335; font-size: 2rem; margin-bottom: 0.8rem;">🎯</div>
-            <div style="color: #3c4043; font-size: 1rem; font-weight: 500; margin-bottom: 0.3rem;">SciMAT Compatibility</div>
-            <div style="color: #5f6368; font-size: 0.8rem;">Perfect analysis integration</div>
-        </div>
-        
-        <!-- 개발자 정보 -->
-        <div style="aspect-ratio: 1; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 1px solid #e8eaed; display: flex; flex-direction: column; justify-content: center;">
-            <div style="color: #9aa0a6; font-size: 1.5rem; margin-bottom: 0.8rem;">👨‍💻</div>
-            <div style="color: #3c4043; font-size: 0.9rem; font-weight: 500; margin-bottom: 0.3rem;">T.K. Lim</div>
-            <div style="color: #5f6368; font-size: 0.75rem; margin-bottom: 0.2rem;">Hanyang Univ.</div>
-            <div style="color: #5f6368; font-size: 0.75rem;">Version 1.0.0</div>
-        </div>
+</div>
+""", unsafe_allow_html=True)
+
+# 정사각형 그리드 (Streamlit columns 사용)
+col1, col2 = st.columns(2)
+with col1:
+    st.markdown("""
+    <div style="width: 100%; height: 200px; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 1px solid #e8eaed; display: flex; flex-direction: column; justify-content: center; margin-bottom: 1rem;">
+        <div style="color: #1a73e8; font-size: 2rem; margin-bottom: 0.8rem;">📊</div>
+        <div style="color: #3c4043; font-size: 1rem; font-weight: 500; margin-bottom: 0.3rem;">Data Classification</div>
+        <div style="color: #5f6368; font-size: 0.8rem;">Targeted paper selection</div>
     </div>
+    """, unsafe_allow_html=True)
     
-    <!-- PREP 설명 -->
-    <div style="margin-top: 1.5rem;">
-        <p style="color: #3c4043; font-size: 0.95rem; font-weight: 600; margin: 0;">
-            <strong>PREP:</strong> Professional REsearch data Preprocessing for optimal SciMAT workflow
-        </p>
+    st.markdown("""
+    <div style="width: 100%; height: 200px; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 1px solid #e8eaed; display: flex; flex-direction: column; justify-content: center;">
+        <div style="color: #ea4335; font-size: 2rem; margin-bottom: 0.8rem;">🎯</div>
+        <div style="color: #3c4043; font-size: 1rem; font-weight: 500; margin-bottom: 0.3rem;">SciMAT Compatibility</div>
+        <div style="color: #5f6368; font-size: 0.8rem;">Perfect analysis integration</div>
     </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    st.markdown("""
+    <div style="width: 100%; height: 200px; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 1px solid #e8eaed; display: flex; flex-direction: column; justify-content: center; margin-bottom: 1rem;">
+        <div style="color: #34a853; font-size: 2rem; margin-bottom: 0.8rem;">⚙️</div>
+        <div style="color: #3c4043; font-size: 1rem; font-weight: 500; margin-bottom: 0.3rem;">Keyword Normalization</div>
+        <div style="color: #5f6368; font-size: 0.8rem;">AI-based standardization</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div style="width: 100%; height: 200px; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 1px solid #e8eaed; display: flex; flex-direction: column; justify-content: center;">
+        <div style="color: #9aa0a6; font-size: 1.5rem; margin-bottom: 0.8rem;">👨‍💻</div>
+        <div style="color: #3c4043; font-size: 0.9rem; font-weight: 500; margin-bottom: 0.3rem;">T.K. Lim</div>
+        <div style="color: #5f6368; font-size: 0.75rem; margin-bottom: 0.2rem;">Hanyang Univ.</div>
+        <div style="color: #5f6368; font-size: 0.75rem;">Version 1.0.0</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# PREP 설명
+st.markdown("""
+<div style="text-align: center; margin: 2rem 0;">
+    <p style="color: #3c4043; font-size: 0.95rem; font-weight: 600; margin: 0;">
+        <strong>PREP:</strong> Professional REsearch data Preprocessing for optimal SciMAT workflow
+    </p>
 </div>
 """, unsafe_allow_html=True)
 
