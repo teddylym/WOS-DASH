@@ -274,19 +274,30 @@ def normalize_keyword_phrase(phrase):
     phrase_lower = phrase.lower().strip()
     return NORMALIZATION_MAP.get(phrase_lower, phrase_lower)
 
-# --- 데이터 로드 함수 (엑셀 지원 추가) ---
+# --- 데이터 로드 함수 (개선된 엑셀 지원) ---
 def load_data(uploaded_file):
     file_name = uploaded_file.name.lower()
     
     # 엑셀 파일 처리
     if file_name.endswith(('.xlsx', '.xls')):
         try:
-            # 엑셀 파일 읽기 (첫 번째 시트)
-            df = pd.read_excel(uploaded_file, sheet_name=0)
+            # .xlsx 파일은 openpyxl 엔진 사용
+            if file_name.endswith('.xlsx'):
+                df = pd.read_excel(uploaded_file, engine='openpyxl', sheet_name=0)
+            else:
+                # .xls 파일의 경우 우선 openpyxl 시도, 실패시 안내
+                try:
+                    df = pd.read_excel(uploaded_file, engine='openpyxl', sheet_name=0)
+                except:
+                    st.error("⚠️ .xls 파일은 지원되지 않습니다. 파일을 .xlsx 형식으로 저장한 후 다시 업로드해주세요.")
+                    st.info("💡 Excel에서 '다른 이름으로 저장' → 'Excel 통합 문서 (.xlsx)' 형식을 선택하세요.")
+                    return None
+            
             if df.shape[1] > 1:
                 return df
         except Exception as e:
             st.error(f"엑셀 파일 읽기 오류: {str(e)}")
+            st.info("💡 Excel 파일을 CSV 형식으로 저장해서 업로드해보세요.")
             return None
     
     # CSV/TXT 파일 처리 (기존 로직)
@@ -636,20 +647,29 @@ st.markdown("""
 <div class="upload-zone">
     <div style="font-size: 3rem; margin-bottom: 16px; color: #003875;">📤</div>
     <h3 style="color: #212529; margin-bottom: 8px;">파일을 선택하세요</h3>
-    <p style="color: #6c757d; margin: 0;">Tab-delimited, Plain Text, 또는 Excel 형식의 WOS 데이터 파일</p>
+    <p style="color: #6c757d; margin: 0;">CSV, TXT, 또는 Excel (.xlsx) 형식의 WOS 데이터 파일</p>
 </div>
 """, unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader(
     "파일 선택",
-    type=['csv', 'txt', 'xlsx', 'xls'],
+    type=['csv', 'txt', 'xlsx'],
     label_visibility="collapsed"
 )
 
 if uploaded_file is not None:
     df = load_data(uploaded_file)
     if df is None:
-        st.error("⚠️ 파일을 읽을 수 없습니다. Web of Science에서 다운로드한 'Tab-delimited' 또는 'Plain Text' 형식의 파일이 맞는지 확인해주세요.")
+        st.error("⚠️ 파일을 읽을 수 없습니다.")
+        st.markdown("""
+        **지원되는 파일 형식:**
+        - **CSV 파일** (.csv) - 콤마로 구분된 형식
+        - **TXT 파일** (.txt) - 탭으로 구분된 WOS 형식  
+        - **Excel 파일** (.xlsx) - Excel 2007 이상 버전
+        
+        **Web of Science 다운로드 권장 형식:**
+        - 'Tab-delimited (Win)' 또는 'Plain Text' 형식을 선택하세요.
+        """)
         st.stop()
 
     column_mapping = {
