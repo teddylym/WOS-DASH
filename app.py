@@ -209,79 +209,106 @@ def convert_df_to_scimat_format(df_to_convert):
 
 # --- 헤더 ---
 st.markdown("""
-<div style="text-align: center; padding: 2rem 0 3rem 0;">
-    <h1 style="color: #1f1f1f; font-size: 2.5rem; font-weight: 600; margin-bottom: 0.5rem; letter-spacing: -0.02em;">
-        🔬 WOS Prep
-    </h1>
-    <p style="color: #5f6368; font-size: 1.1rem; margin: 0; font-weight: 400;">
-        Web of Science 데이터 전처리 및 SciMAT 호환성 도구
-    </p>
-    <div style="width: 60px; height: 3px; background: linear-gradient(90deg, #4285f4, #34a853); margin: 1.5rem auto; border-radius: 2px;"></div>
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 3rem 2rem; margin: -1rem -1rem 3rem -1rem; border-radius: 0 0 20px 20px;">
+    <div style="text-align: center; color: white;">
+        <h1 style="font-size: 2.8rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.03em;">
+            WOS Prep
+        </h1>
+        <h2 style="font-size: 1.2rem; font-weight: 300; margin-bottom: 1.5rem; opacity: 0.9;">
+            Web of Science Data Processing & SciMAT Integration Platform
+        </h2>
+        <div style="background: rgba(255,255,255,0.2); padding: 0.8rem 1.5rem; border-radius: 25px; display: inline-block; margin-bottom: 1rem;">
+            <span style="font-size: 0.95rem; font-weight: 500;">
+                한양대학교 기술경영전문대학원 | Hanyang Graduate School of Technology and Innovation Management
+            </span>
+        </div>
+        <div style="color: rgba(255,255,255,0.85); font-size: 0.9rem; font-weight: 400;">
+            Developed by 임태경 (Teddy Lym) | Version 2.1
+        </div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
-# 주요 기능 소개
+# 주요 기능 소개 - 전문적 디자인
+st.markdown("""
+<div style="margin: 2rem 0 3rem 0;">
+    <h3 style="text-align: center; color: #2c3e50; font-size: 1.4rem; font-weight: 600; margin-bottom: 2rem;">
+        Core Capabilities
+    </h3>
+</div>
+""", unsafe_allow_html=True)
+
 col1, col2, col3 = st.columns(3)
 with col1:
     st.markdown("""
-    <div style="text-align: center; padding: 1.5rem; background: #f8f9fa; border-radius: 12px; border: 1px solid #e8eaed;">
-        <div style="color: #1a73e8; font-size: 1.8rem; margin-bottom: 0.8rem;">📊</div>
-        <h4 style="color: #3c4043; margin-bottom: 0.5rem; font-weight: 500;">데이터 분류</h4>
-        <p style="color: #5f6368; font-size: 0.9rem; margin: 0;">연구 목적에 맞는 논문 자동 선별</p>
+    <div style="text-align: center; padding: 2rem 1.5rem; background: linear-gradient(145deg, #f8f9fa, #e9ecef); 
+                border-radius: 15px; border-left: 4px solid #007bff; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+        <div style="color: #007bff; font-size: 2.2rem; margin-bottom: 1rem;">📊</div>
+        <h4 style="color: #2c3e50; margin-bottom: 0.8rem; font-weight: 600; font-size: 1.1rem;">Intelligent Classification</h4>
+        <p style="color: #6c757d; font-size: 0.9rem; margin: 0; line-height: 1.5;">
+            AI-driven research paper categorization with precision filtering algorithms
+        </p>
     </div>
     """, unsafe_allow_html=True)
 
 with col2:
     st.markdown("""
-    <div style="text-align: center; padding: 1.5rem; background: #f8f9fa; border-radius: 12px; border: 1px solid #e8eaed;">
-        <div style="color: #34a853; font-size: 1.8rem; margin-bottom: 0.8rem;">⚙️</div>
-        <h4 style="color: #3c4043; margin-bottom: 0.5rem; font-weight: 500;">키워드 정규화</h4>
-        <p style="color: #5f6368; font-size: 0.9rem; margin: 0;">AI 기반 키워드 표준화</p>
+    <div style="text-align: center; padding: 2rem 1.5rem; background: linear-gradient(145deg, #f8f9fa, #e9ecef); 
+                border-radius: 15px; border-left: 4px solid #28a745; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+        <div style="color: #28a745; font-size: 2.2rem; margin-bottom: 1rem;">⚙️</div>
+        <h4 style="color: #2c3e50; margin-bottom: 0.8rem; font-weight: 600; font-size: 1.1rem;">Advanced Normalization</h4>
+        <p style="color: #6c757d; font-size: 0.9rem; margin: 0; line-height: 1.5;">
+            Machine learning-powered keyword standardization and semantic unification
+        </p>
     </div>
     """, unsafe_allow_html=True)
 
 with col3:
     st.markdown("""
-    <div style="text-align: center; padding: 1.5rem; background: #f8f9fa; border-radius: 12px; border: 1px solid #e8eaed;">
-        <div style="color: #ea4335; font-size: 1.8rem; margin-bottom: 0.8rem;">🎯</div>
-        <h4 style="color: #3c4043; margin-bottom: 0.5rem; font-weight: 500;">SciMAT 호환</h4>
-        <p style="color: #5f6368; font-size: 0.9rem; margin: 0;">완벽한 분석 도구 연동</p>
+    <div style="text-align: center; padding: 2rem 1.5rem; background: linear-gradient(145deg, #f8f9fa, #e9ecef); 
+                border-radius: 15px; border-left: 4px solid #dc3545; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+        <div style="color: #dc3545; font-size: 2.2rem; margin-bottom: 1rem;">🎯</div>
+        <h4 style="color: #2c3e50; margin-bottom: 0.8rem; font-weight: 600; font-size: 1.1rem;">SciMAT Integration</h4>
+        <p style="color: #6c757d; font-size: 0.9rem; margin: 0; line-height: 1.5;">
+            Seamless export compatibility for advanced bibliometric analysis workflows
+        </p>
     </div>
     """, unsafe_allow_html=True)
 
-st.markdown("<br>", unsafe_allow_html=True)
-
 # 키워드 정규화 기준 설명
-with st.expander("🎛️ 키워드 정규화 기준", expanded=False):
+with st.expander("🔧 Normalization Standards & Methodology", expanded=False):
     st.markdown("""
-    **적용되는 정규화 규칙:**
+    **Applied Normalization Rules:**
     
-    - **AI/ML 관련**: machine learning ← machine-learning, ML, machinelearning
-    - **인공지능**: artificial intelligence ← AI, artificial-intelligence  
-    - **딥러닝**: deep learning ← deep-learning, deep neural networks, DNN
-    - **스트리밍**: live streaming ← live-streaming, livestreaming
-    - **사용자 경험**: user experience ← user-experience, UX
-    - **연구방법론**: structural equation modeling ← SEM, PLS-SEM
-    - **전자상거래**: e commerce ← ecommerce, e-commerce, electronic commerce
+    - **AI/ML Domain**: machine learning ← machine-learning, ML, machinelearning
+    - **Artificial Intelligence**: artificial intelligence ← AI, artificial-intelligence  
+    - **Deep Learning**: deep learning ← deep-learning, deep neural networks, DNN
+    - **Streaming Technology**: live streaming ← live-streaming, livestreaming
+    - **User Experience**: user experience ← user-experience, UX
+    - **Research Methods**: structural equation modeling ← SEM, PLS-SEM
+    - **E-commerce**: e commerce ← ecommerce, e-commerce, electronic commerce
     """)
 
-# 파일 업로드
+# 파일 업로드 섹션 - 전문적 스타일
 st.markdown("""
-<div style="background: #fff; padding: 2rem; border-radius: 12px; border: 2px solid #e8eaed; margin: 2rem 0;">
-    <h3 style="color: #3c4043; margin-bottom: 1rem; font-weight: 500;">📁 데이터 업로드</h3>
+<div style="background: linear-gradient(145deg, #ffffff, #f8f9fa); padding: 2.5rem; border-radius: 15px; 
+            border: 1px solid #dee2e6; margin: 2rem 0; box-shadow: 0 8px 25px rgba(0,0,0,0.06);">
+    <h3 style="color: #2c3e50; margin-bottom: 1.5rem; font-weight: 600; font-size: 1.3rem; text-align: center;">
+        📁 Data Upload & Processing
+    </h3>
 </div>
 """, unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader(
-    "Web of Science Raw Data 파일을 업로드하세요",
+    "Upload your Web of Science raw data file",
     type=['csv', 'txt'],
-    help="Web of Science에서 다운로드한 Tab-delimited 또는 Plain Text 형식의 파일"
+    help="Please upload Tab-delimited or Plain Text format files downloaded from Web of Science database"
 )
 
 if uploaded_file is not None:
     df = load_data(uploaded_file)
     if df is None:
-        st.error("❌ 파일을 읽을 수 없습니다. Web of Science에서 다운로드한 'Tab-delimited' 또는 'Plain Text' 형식의 파일이 맞는지 확인해주세요.")
+        st.error("❌ File processing failed. Please ensure the file is in 'Tab-delimited' or 'Plain Text' format from Web of Science.")
         st.stop()
     
     # 원본 컬럼명 보존
@@ -296,7 +323,7 @@ if uploaded_file is not None:
         if old_name in df.columns:
             df.rename(columns={old_name: new_name}, inplace=True)
 
-    with st.spinner("🔄 데이터를 분석하고 있습니다..."):
+    with st.spinner("🔄 Processing and analyzing your data..."):
         # 1단계: 분류 (원본 키워드 기준)
         df['Classification'] = df.apply(classify_article, axis=1)
         
@@ -325,34 +352,111 @@ if uploaded_file is not None:
                 lambda x: clean_keyword_string(x, stop_words, lemmatizer)
             )
         
-        st.success("✅ 분석 완료!")
+        st.success("✅ Data processing completed successfully!")
         
-        # 분석 결과
+        # 분석 결과 - 전문적 레이아웃
         st.markdown("""
-        <div style="background: #fff; padding: 2rem; border-radius: 12px; border: 1px solid #e8eaed; margin: 2rem 0;">
-            <h3 style="color: #3c4043; margin-bottom: 1.5rem; font-weight: 500;">📈 분석 결과</h3>
+        <div style="background: linear-gradient(145deg, #ffffff, #f8f9fa); padding: 2.5rem; border-radius: 15px; 
+                    border: 1px solid #dee2e6; margin: 2rem 0; box-shadow: 0 8px 25px rgba(0,0,0,0.06);">
+            <h3 style="color: #2c3e50; margin-bottom: 2rem; font-weight: 600; font-size: 1.3rem; text-align: center;">
+                📈 Analysis Results & Insights
+            </h3>
         </div>
         """, unsafe_allow_html=True)
         
         # 논문 분류 결과
         classification_counts = df['Classification'].value_counts().reset_index()
         classification_counts.columns = ['분류', '논문 수']
+        total_papers = len(df)
         
         col1, col2 = st.columns([1, 1])
         with col1:
-            st.subheader("논문 분류 현황")
+            st.subheader("Research Classification Summary")
             st.dataframe(classification_counts, use_container_width=True)
         
         with col2:
-            chart = alt.Chart(classification_counts).mark_arc(innerRadius=50).encode(
+            if include_mask.any():
+                include_count = include_mask.sum()
+                st.metric("🎯 Normalized Keywords Applied", f"{include_count:,} papers")
+        
+        text_data = convert_df_to_scimat_format(df_final_output)
+        st.download_button(
+            label="📥 Download SciMAT Compatible File",
+            data=text_data,
+            file_name="wos_prep_for_scimat.txt",
+            mime="text/plain",
+            type="primary",
+            use_container_width=True
+        )
+        
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #e3f2fd, #f3e5f5); padding: 1.5rem; border-radius: 12px; 
+                    border-left: 4px solid #2196f3; margin: 1.5rem 0;">
+            <h4 style="color: #1565c0; margin-bottom: 1rem; font-weight: 600;">💡 SciMAT Integration Guide</h4>
+            <ol style="color: #424242; margin: 0; padding-left: 1.2rem;">
+                <li style="margin-bottom: 0.5rem;">Import the downloaded file into SciMAT platform</li>
+                <li style="margin-bottom: 0.5rem;">Navigate to <strong>Group set</strong> → <strong>Words groups manager</strong></li>
+                <li style="margin-bottom: 0.5rem;">Apply Levenshtein distance algorithm for automatic grouping</li>
+                <li>Manually adjust keyword groups and execute comprehensive analysis</li>
+            </ol>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 미리보기 섹션
+        st.markdown("""
+        <div style="margin: 2rem 0 1rem 0;">
+            <h3 style="color: #2c3e50; font-weight: 600; font-size: 1.2rem;">
+                📋 Processed Dataset Preview
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
+        st.dataframe(df_final_output.head(10), use_container_width=True):
+            # 도넛그래프에 중앙 텍스트 추가
+            base_chart = alt.Chart(classification_counts).add_selection(
+                alt.selection_single()
+            ).mark_arc(
+                innerRadius=60, 
+                outerRadius=120,
+                stroke='white',
+                strokeWidth=2
+            ).encode(
                 theta=alt.Theta(field="논문 수", type="quantitative"), 
-                color=alt.Color(field="분류", type="nominal", title="분류"),
+                color=alt.Color(
+                    field="분류", 
+                    type="nominal", 
+                    title="Classification",
+                    scale=alt.Scale(range=['#007bff', '#28a745', '#ffc107'])
+                ),
                 tooltip=['분류', '논문 수']
-            ).properties(title='논문 분류 분포', width=300, height=300)
-            st.altair_chart(chart, use_container_width=True)
+            ).properties(
+                title=alt.TitleParams(
+                    text='Research Distribution Overview',
+                    anchor='start',
+                    fontSize=16,
+                    fontWeight='bold'
+                ),
+                width=300, 
+                height=300
+            )
+            
+            # 중앙 텍스트 추가
+            center_text = alt.Chart(pd.DataFrame({'x': [0], 'y': [0], 'text': [f'Total\n{total_papers}\nPapers']})).mark_text(
+                align='center',
+                baseline='middle',
+                fontSize=14,
+                fontWeight='bold',
+                color='#2c3e50'
+            ).encode(
+                x=alt.value(150),  # 차트 중앙
+                y=alt.value(150),  # 차트 중앙
+                text='text:N'
+            )
+            
+            combined_chart = base_chart + center_text
+            st.altair_chart(combined_chart, use_container_width=True)
         
         # 키워드 분석
-        st.subheader("주요 키워드 분석 (관련연구)")
+        st.subheader("Key Research Topics Analysis (Relevant Studies Only)")
         all_keywords = []
         if 'DE_cleaned' in df.columns: 
             all_keywords.extend([kw.strip() for text in df.loc[include_mask, 'DE_cleaned'].dropna() for kw in text.split(';') if kw.strip()])
@@ -365,37 +469,52 @@ if uploaded_file is not None:
             top_keywords = keyword_counts.most_common(top_n)
             df_keywords = pd.DataFrame(top_keywords, columns=['키워드', '빈도'])
             
-            keyword_chart = alt.Chart(df_keywords).mark_bar(color='#1a73e8').encode(
-                x=alt.X('빈도:Q', title='빈도'), 
-                y=alt.Y('키워드:N', title='키워드', sort='-x'),
+            keyword_chart = alt.Chart(df_keywords).mark_bar(
+                color='#667eea',
+                cornerRadiusTopRight=3,
+                cornerRadiusBottomRight=3
+            ).encode(
+                x=alt.X('빈도:Q', title='Frequency'), 
+                y=alt.Y('키워드:N', title='Keywords', sort='-x'),
                 tooltip=['키워드', '빈도']
-            ).properties(title=f'상위 {top_n} 키워드', height=400)
+            ).properties(
+                title=alt.TitleParams(
+                    text=f'Top {top_n} Research Keywords Distribution',
+                    anchor='start',
+                    fontSize=16,
+                    fontWeight='bold'
+                ),
+                height=400
+            )
             st.altair_chart(keyword_chart, use_container_width=True)
             
             # 정규화 전후 비교
-            if st.checkbox("📋 정규화 전후 비교 보기"):
+            if st.checkbox("📋 Normalization Comparison Analysis"):
                 sample_data = []
                 sample_rows = df.loc[include_mask].head(3)
                 
                 for idx, row in sample_rows.iterrows():
                     if 'DE_Original' in df.columns and pd.notna(row.get('DE_Original')):
                         sample_data.append({
-                            '논문 ID': idx,
-                            '필드': 'Author Keywords (DE)',
-                            '정규화 전': str(row['DE_Original'])[:60] + "..." if len(str(row['DE_Original'])) > 60 else str(row['DE_Original']),
-                            '정규화 후': str(row['DE_cleaned'])[:60] + "..." if len(str(row['DE_cleaned'])) > 60 else str(row['DE_cleaned'])
+                            'Paper ID': idx,
+                            'Field Type': 'Author Keywords (DE)',
+                            'Before Normalization': str(row['DE_Original'])[:60] + "..." if len(str(row['DE_Original'])) > 60 else str(row['DE_Original']),
+                            'After Normalization': str(row['DE_cleaned'])[:60] + "..." if len(str(row['DE_cleaned'])) > 60 else str(row['DE_cleaned'])
                         })
                 
                 if sample_data:
                     comparison_df = pd.DataFrame(sample_data)
                     st.dataframe(comparison_df, use_container_width=True)
         else:
-            st.warning("⚠️ 관련연구로 분류된 논문에서 유효한 키워드를 찾을 수 없습니다.")
+            st.warning("⚠️ No valid keywords found in the relevant research category.")
 
-        # 데이터 다운로드
+        # 데이터 다운로드 섹션
         st.markdown("""
-        <div style="background: #fff; padding: 2rem; border-radius: 12px; border: 1px solid #e8eaed; margin: 2rem 0;">
-            <h3 style="color: #3c4043; margin-bottom: 1.5rem; font-weight: 500;">💾 SciMAT 호환 파일 다운로드</h3>
+        <div style="background: linear-gradient(145deg, #ffffff, #f8f9fa); padding: 2.5rem; border-radius: 15px; 
+                    border: 1px solid #dee2e6; margin: 2rem 0; box-shadow: 0 8px 25px rgba(0,0,0,0.06);">
+            <h3 style="color: #2c3e50; margin-bottom: 2rem; font-weight: 600; font-size: 1.3rem; text-align: center;">
+                💾 SciMAT Compatible Export
+            </h3>
         </div>
         """, unsafe_allow_html=True)
         
@@ -417,29 +536,5 @@ if uploaded_file is not None:
         
         col1, col2 = st.columns([1, 1])
         with col1:
-            st.metric("📊 최종 분석 대상 논문 수", len(df_final_output))
-        with col2:
-            if include_mask.any():
-                include_count = include_mask.sum()
-                st.metric("🎯 키워드 정규화 적용", f"{include_count}개 논문")
-        
-        text_data = convert_df_to_scimat_format(df_final_output)
-        st.download_button(
-            label="📥 SciMAT 호환 파일 다운로드",
-            data=text_data,
-            file_name="wos_prep_for_scimat.txt",
-            mime="text/plain",
-            type="primary",
-            use_container_width=True
-        )
-        
-        st.info("""
-        **💡 SciMAT 사용 가이드:**
-        1. 다운로드한 파일을 SciMAT에 업로드
-        2. `Group set` → `Words groups manager`에서 Levenshtein distance로 자동 그룹핑
-        3. 수동으로 키워드 그룹 조정 후 분석 실행
-        """)
-        
-        # 미리보기
-        st.subheader("📋 처리된 데이터 미리보기")
-        st.dataframe(df_final_output.head(10), use_container_width=True)
+            st.metric("📊 Final Analysis Dataset", f"{len(df_final_output):,} papers")
+        with col2
