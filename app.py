@@ -436,8 +436,17 @@ def classify_article(row):
     if research_keyword_count >= 2:
         return 'Include (관련연구)'
     
-    # 6. 순수 기술 키워드가 2개 이상이면 → 제외
+    # 5단계: 순수 기술 키워드가 2개 이상이거나 P2P + optimization/overlay 조합이면 → 제외
     if tech_keyword_count >= 2:
+        return 'Exclude (제외연구)'
+    
+    # P2P 특별 처리: P2P + 시스템 최적화/오버레이 조합은 확실히 제외
+    p2p_tech_combinations = [
+        'p2p overlay', 'p2p optimization', 'overlay network', 'peer overlay',
+        'p2p system', 'streaming overlay', 'overlay topology', 'network overlay'
+    ]
+    p2p_tech_present = any(combo in full_text for combo in p2p_tech_combinations)
+    if p2p_tech_present:
         return 'Exclude (제외연구)'
     
     # 7. 제목에 라이브스트리밍/방송이 있으면 → 포함 (주제로 다루는 경우)
@@ -807,32 +816,82 @@ if uploaded_file is not None:
         st.dataframe(classification_counts_df, use_container_width=True, hide_index=True)
 
     with col2:
-        # 도넛 차트 (한양대 색상)
-        domain = ['Include (관련연구)', 'Review (검토필요)', 'Exclude (제외연구)']
-        range_ = ['#003875', '#0056b3', '#6c757d']
-
+        # 도넛 차트 (한양대 색상) - 색상 강제 적용
+        chart_data = classification_counts_df.copy()
+        
+        # 색상 매핑 강제 설정
+        color_mapping = {
+            'Include (관련연구)': '#003875',
+            'Review (검토필요)': '#0056b3', 
+            'Exclude (제외연구)': '#6c757d'
+        }
+        
+        # 색상 컬럼 추가
+        chart_data['색상'] = chart_data['분류'].map(color_mapping)
+        
         selection = alt.selection_point(fields=['분류'], on='mouseover', nearest=True)
 
-        base = alt.Chart(classification_counts_df).encode(
+        base = alt.Chart(chart_data).encode(
             theta=alt.Theta(field="논문 수", type="quantitative", stack=True),
-            color=alt.Color(field="분류", type="nominal", title="Classification",
-                           scale=alt.Scale(domain=domain, range=range_),
-                           legend=alt.Legend(orient="right", titleColor="#212529", labelColor="#495057")),
-            opacity=alt.condition(selection, alt.value(1), alt.value(0.8))
+            color=alt.Color(
+                field="분류", 
+                type="nominal", 
+                title="Classification",
+                scale=alt.Scale(
+                    domain=['Include (관련연구)', 'Review (검토필요)', 'Exclude (제외연구)'],
+                    range=['#003875', '#0056b3', '#6c757d']
+                ),
+                legend=alt.Legend(
+                    orient="right", 
+                    titleColor="#212529", 
+                    labelColor="#495057",
+                    titleFontSize=12,
+                    labelFontSize=11
+                )
+            ),
+            opacity=alt.condition(selection, alt.value(1.0), alt.value(0.8)),
+            stroke=alt.value('#ffffff'),
+            strokeWidth=alt.value(2)
         ).add_params(selection)
 
         pie = base.mark_arc(outerRadius=120, innerRadius=70)
+        
+        # 중앙 텍스트 - 총 논문 수
         text_total = alt.Chart(pd.DataFrame([{'value': f'{total_papers}'}])).mark_text(
-            align='center', baseline='middle', fontSize=35, fontWeight='bold', color='#003875'
+            align='center', 
+            baseline='middle', 
+            fontSize=32, 
+            fontWeight='bold', 
+            color='#003875'
         ).encode(text='value:N')
+        
+        # 중앙 라벨
         text_label = alt.Chart(pd.DataFrame([{'value': 'Total Papers'}])).mark_text(
-            align='center', baseline='middle', fontSize=14, dy=-25, color='#495057'
+            align='center', 
+            baseline='middle', 
+            fontSize=12, 
+            dy=-25, 
+            color='#495057',
+            fontWeight='normal'
         ).encode(text='value:N')
 
         chart = (pie + text_total + text_label).properties(
-            title=alt.TitleParams(text='논문 분류 분포', anchor='middle', fontSize=16, fontWeight=500, color="#212529"),
-            width=300, height=300
-        ).configure_view(strokeWidth=0)
+            title=alt.TitleParams(
+                text='논문 분류 분포', 
+                anchor='middle', 
+                fontSize=14, 
+                fontWeight=500, 
+                color="#212529"
+            ),
+            width=300, 
+            height=300
+        ).configure_view(
+            strokeWidth=0
+        ).configure_title(
+            fontSize=14,
+            color='#212529'
+        )
+        
         st.altair_chart(chart, use_container_width=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
