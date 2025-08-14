@@ -404,21 +404,16 @@ def convert_df_to_scimat_format(df_to_convert):
         file_content.append("ER")
     return "\n".join(file_content).encode('utf-8')
 
-# --- 메인 헤더 (한양대 로고 포함) ---
+# --- 메인 헤더 (한양대 브랜딩) ---
 st.markdown("""
 <div style="position: relative; text-align: center; padding: 2rem 0 3rem 0; background: linear-gradient(135deg, #003875, #0056b3); color: white; border-radius: 16px; margin-bottom: 2rem; box-shadow: 0 8px 32px rgba(0,56,117,0.3);">
-    <div style="position: absolute; top: 1rem; left: 2rem; display: flex; align-items: center;">
-        <div style="width: 60px; height: 60px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
-            <div style="width: 50px; height: 50px; background: #003875; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">HYU</div>
-        </div>
-        <div style="color: white;">
-            <div style="font-size: 14px; font-weight: 600; margin-bottom: 2px;">HANYANG UNIVERSITY</div>
-            <div style="font-size: 12px; opacity: 0.9;">Technology Management Research</div>
-        </div>
+    <div style="position: absolute; top: 1rem; left: 2rem; color: white;">
+        <div style="font-size: 14px; font-weight: 600; margin-bottom: 2px;">HANYANG UNIVERSITY</div>
+        <div style="font-size: 12px; opacity: 0.9;">Technology Management Research</div>
+        <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">mot.hanyang.ac.kr</div>
     </div>
     <div style="position: absolute; top: 1rem; right: 2rem; text-align: right; color: rgba(255,255,255,0.9); font-size: 0.85rem;">
         <p style="margin: 0;"><strong>Developed by:</strong> 임태경 (Teddy Lym)</p>
-        <p style="margin: 0;">Hanyang University</p>
     </div>
     <h1 style="font-size: 3.5rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.02em;">
         WOS Prep
@@ -430,21 +425,21 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- 주요 기능 소개 (개선된 디자인) ---
+# --- 주요 기능 소개 (개선된 아이콘) ---
 st.markdown("""
 <div class="feature-grid">
     <div class="feature-card">
-        <div class="feature-icon">📊</div>
+        <div class="feature-icon">🔍</div>
         <div class="feature-title">데이터 분류</div>
         <div class="feature-desc">연구 목적에 맞는 논문 자동 선별</div>
     </div>
     <div class="feature-card">
-        <div class="feature-icon">⚙️</div>
+        <div class="feature-icon">🏷️</div>
         <div class="feature-title">키워드 정규화</div>
         <div class="feature-desc">AI 기반 키워드 표준화</div>
     </div>
     <div class="feature-card">
-        <div class="feature-icon">🎯</div>
+        <div class="feature-icon">🔗</div>
         <div class="feature-title">SciMAT 호환</div>
         <div class="feature-desc">완벽한 분석 도구 연동</div>
     </div>
@@ -698,21 +693,43 @@ if uploaded_file is not None:
     if 'NR' in df.columns:
         df_cited = df.copy()
         df_cited['NR'] = pd.to_numeric(df_cited['NR'], errors='coerce').fillna(0)
-        df_cited = df_cited[df_cited['NR'] > 0].sort_values(by='NR', ascending=False).head(5)
         
-        if len(df_cited) > 0:
-            df_cited['Author_Display'] = df_cited['AU'].apply(lambda x: str(x).split(';')[0] if pd.notna(x) else 'N/A')
-            df_cited['Title_Display'] = df_cited['TI'].apply(lambda x: str(x)[:50] + '...' if len(str(x)) > 50 else str(x))
-            df_cited['Label'] = df_cited['Title_Display'] + ' (' + df_cited['Author_Display'] + ')'
+        # NR > 0인 논문만 필터링하고 상위 5개 선택
+        df_cited_filtered = df_cited[df_cited['NR'] > 0]
+        
+        if len(df_cited_filtered) > 0:
+            df_cited_top = df_cited_filtered.nlargest(5, 'NR')
+            
+            df_cited_top['Author_Display'] = df_cited_top['AU'].apply(
+                lambda x: str(x).split(';')[0] if pd.notna(x) else 'Unknown Author'
+            )
+            df_cited_top['Title_Display'] = df_cited_top['TI'].apply(
+                lambda x: (str(x)[:60] + '...') if pd.notna(x) and len(str(x)) > 60 else str(x) if pd.notna(x) else 'No Title'
+            )
+            df_cited_top['Label'] = df_cited_top.apply(
+                lambda row: f"{row['Title_Display']} ({row['Author_Display']})", axis=1
+            )
 
-            selection_cited = alt.selection_point(fields=['Label'], on='mouseover', nearest=True, empty='none')
-
-            cited_chart = alt.Chart(df_cited).mark_bar(color='#003875', cornerRadiusEnd=4).encode(
-                x=alt.X('NR:Q', title='참고문헌 수'),
+            # 차트 생성
+            cited_chart = alt.Chart(df_cited_top).mark_bar(
+                color='#003875', 
+                cornerRadiusEnd=4,
+                size=30
+            ).encode(
+                x=alt.X('NR:Q', title='참고문헌 수', scale=alt.Scale(zero=True)),
                 y=alt.Y('Label:N', title='논문 제목 및 저자', sort='-x'),
-                tooltip=['TI', 'AU', 'NR'],
-                opacity=alt.condition(selection_cited, alt.value(1), alt.value(0.8))
-            ).add_params(selection_cited).properties(height=300)
+                tooltip=[
+                    alt.Tooltip('TI:N', title='논문 제목'),
+                    alt.Tooltip('Author_Display:N', title='저자'),
+                    alt.Tooltip('NR:Q', title='참고문헌 수')
+                ]
+            ).properties(
+                height=300,
+                width=600
+            ).resolve_scale(
+                y='independent'
+            )
+            
             st.altair_chart(cited_chart, use_container_width=True)
         else:
             st.info("📊 참고문헌 수가 기록된 논문이 없습니다.")
