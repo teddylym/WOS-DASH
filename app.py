@@ -299,38 +299,48 @@ def load_data(uploaded_file):
 
     return None
 
-# --- SciMAT 기반 향상된 분류 알고리즘 (수정된 버전) ---
+# --- SciMAT 기반 향상된 분류 알고리즘 (더 엄격한 버전) ---
 def classify_article(row):
-    """SciMAT 방법론을 적용한 균형잡힌 논문 분류"""
+    """SciMAT 방법론을 적용한 더 엄격한 논문 분류"""
     
-    # 핵심 라이브스트리밍 키워드 (더 구체적으로)
+    # 핵심 라이브스트리밍 + 상거래/마케팅 키워드
+    livestreaming_commerce_keywords = [
+        'live streaming commerce', 'social commerce', 'livestreaming commerce',
+        'purchase intention', 'customer engagement', 'consumer behavior',
+        'influencer marketing', 'brand engagement', 'online shopping',
+        'digital marketing', 'e-commerce', 'viewer engagement'
+    ]
+    
+    # 라이브스트리밍 키워드 (단독으로는 불충분)
     livestreaming_keywords = [
-        'live streaming', 'livestreaming', 'live-streaming', 'live broadcast',
-        'streaming platform', 'twitch', 'youtube live', 'facebook live'
+        'live streaming', 'livestreaming', 'live-streaming', 'live broadcast'
     ]
     
-    # 상거래/마케팅 관련 키워드
-    commerce_keywords = [
-        'e-commerce', 'social commerce', 'online shopping', 'purchase intention',
-        'customer engagement', 'consumer behavior', 'digital marketing',
-        'influencer marketing', 'brand engagement'
-    ]
-    
-    # 일반 포함 키워드 (사용자 중심)
-    inclusion_keywords = [
-        'user', 'viewer', 'audience', 'consumer', 'participant', 'customer',
-        'behavior', 'experience', 'engagement', 'interaction', 'motivation', 
+    # 사용자/행동 관련 키워드
+    user_behavior_keywords = [
+        'user', 'viewer', 'audience', 'consumer', 'customer', 'participant',
+        'behavior', 'experience', 'engagement', 'interaction', 'motivation',
         'psychology', 'social', 'community', 'marketing', 'business'
     ]
     
-    # 기술적 제외 키워드 (더 포괄적으로 - 원래대로)
-    exclusion_keywords = [
-        'protocol', 'network coding', 'wimax', 'ieee 802.16', 'mac layer', 
-        'packet dropping', 'bandwidth', 'fec', 'arq', 'goodput', 
-        'sensor data', 'geoscience', 'environmental data', 'wlan', 'ofdm', 
-        'error correction', 'tcp', 'udp', 'network traffic', 'routing',
-        'antenna', 'signal processing', 'wireless sensor', 'hardware',
-        'fpga', 'vlsi', 'circuit', 'coding theory', 'modulation'
+    # 기술적 제외 키워드 (더 강화)
+    strong_tech_keywords = [
+        'protocol', 'network coding', 'tcp', 'udp', 'bandwidth', 'throughput',
+        'p2p', 'peer-to-peer', 'packet', 'routing', 'algorithm', 'optimization',
+        'qoe', 'quality of experience', 'bitrate', 'codec', 'encoding'
+    ]
+    
+    # 시스템/하드웨어 키워드
+    system_keywords = [
+        'system', 'architecture', 'platform', 'framework', 'implementation',
+        'performance', 'latency', 'delay', 'synchronization', 'scalable',
+        'cloud', 'server', 'network', 'wireless', 'mobile'
+    ]
+    
+    # 의료/교육 기술 키워드
+    medical_tech_keywords = [
+        'medical', 'education', 'surgical', 'clinical', 'laboratory',
+        'wearable', 'augmented reality', 'virtual reality', 'covid-19'
     ]
     
     # 텍스트 전처리 및 추출
@@ -341,44 +351,55 @@ def classify_article(row):
     abstract = str(row.get('AB', '')).lower()
     full_text = ' '.join([title, source_title, author_keywords, keywords_plus, abstract])
     
-    # 1단계: 라이브스트리밍 직접 언급 시 강력한 포함
-    livestream_found = any(keyword in full_text for keyword in livestreaming_keywords)
-    commerce_found = any(keyword in full_text for keyword in commerce_keywords)
-    
-    if livestream_found and commerce_found:
-        return 'Include (관련연구)'
-    elif livestream_found:
-        # 라이브스트리밍이 있지만 상거래가 없으면 기술적 내용 확인
-        tech_exclude_count = sum(1 for keyword in exclusion_keywords if keyword in full_text)
-        if tech_exclude_count >= 2:
-            return 'Exclude (제외연구)'
+    # 1단계: 라이브스트리밍 + 상거래 직접 조합 확인
+    commerce_found = any(keyword in full_text for keyword in livestreaming_commerce_keywords)
+    if commerce_found:
         return 'Include (관련연구)'
     
-    # 2단계: 기술적 제외 키워드 우선 검사
-    tech_exclude_count = sum(1 for keyword in exclusion_keywords if keyword in full_text)
-    if tech_exclude_count >= 3:  # 3개 이상의 기술 키워드
+    # 2단계: 강한 기술적 제외 확인
+    strong_tech_count = sum(1 for keyword in strong_tech_keywords if keyword in full_text)
+    system_count = sum(1 for keyword in system_keywords if keyword in full_text)
+    medical_count = sum(1 for keyword in medical_tech_keywords if keyword in full_text)
+    
+    # 기술적 특성이 강한 경우 제외
+    if strong_tech_count >= 2:  # 2개 이상의 강한 기술 키워드
         return 'Exclude (제외연구)'
-    elif tech_exclude_count >= 2:  # 2개의 기술 키워드
-        # 사용자 중심 키워드로 재검증
-        user_include_count = sum(1 for keyword in inclusion_keywords if keyword in full_text)
-        if user_include_count >= 3:
-            return 'Review (검토필요)'
-        else:
+    elif strong_tech_count >= 1 and system_count >= 2:  # 기술+시스템 조합
+        return 'Exclude (제외연구)'
+    elif medical_count >= 2:  # 의료/교육 기술
+        return 'Exclude (제외연구)'
+    elif system_count >= 3:  # 3개 이상의 시스템 키워드
+        return 'Exclude (제외연구)'
+    
+    # 3단계: P2P, 네트워크 관련 강한 제외
+    if 'p2p' in full_text or 'peer-to-peer' in full_text:
+        user_count = sum(1 for keyword in user_behavior_keywords if keyword in full_text)
+        if user_count < 2:  # 사용자 관련 키워드가 적으면 제외
             return 'Exclude (제외연구)'
     
-    # 3단계: 일반 포함 키워드 검사
-    inclusion_count = sum(1 for keyword in inclusion_keywords if keyword in full_text)
-    if inclusion_count >= 3:
+    # 4단계: 라이브스트리밍이 있지만 사용자 중심이 아닌 경우
+    livestream_found = any(keyword in full_text for keyword in livestreaming_keywords)
+    if livestream_found:
+        user_count = sum(1 for keyword in user_behavior_keywords if keyword in full_text)
+        tech_total = strong_tech_count + system_count
+        
+        if tech_total >= 2 and user_count <= 1:  # 기술적이고 사용자 중심이 아님
+            return 'Exclude (제외연구)'
+        elif user_count >= 2:  # 사용자 중심
+            return 'Include (관련연구)'
+        else:
+            return 'Review (검토필요)'
+    
+    # 5단계: 일반적인 사용자 중심 키워드 확인
+    user_count = sum(1 for keyword in user_behavior_keywords if keyword in full_text)
+    tech_total = strong_tech_count + system_count
+    
+    if user_count >= 3 and tech_total <= 1:
         return 'Include (관련연구)'
-    elif inclusion_count >= 1:
+    elif tech_total >= 2:
+        return 'Exclude (제외연구)'
+    else:
         return 'Review (검토필요)'
-    
-    # 4단계: 단일 기술 키워드가 있는 경우
-    if tech_exclude_count == 1:
-        return 'Review (검토필요)'
-    
-    # 5단계: 기본 분류
-    return 'Review (검토필요)'
 
 # --- 제외 이유 분석 함수 (SciMAT 기반 개선) ---
 def get_detailed_exclusion_reason(row):
