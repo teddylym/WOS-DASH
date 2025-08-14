@@ -1053,29 +1053,17 @@ if uploaded_file is not None:
         st.markdown('<div class="chart-title">제외된 논문 상세 목록 (SciMAT 신뢰도 기반)</div>', unsafe_allow_html=True)
         
         # 필터링 옵션
-        col1, col2 = st.columns(2)
-        with col1:
-            unique_levels = list(set([d['제외 수준'] for d in display_data]))
-            level_filter = st.selectbox(
-                "제외 수준별 필터:",
-                ['전체'] + sorted(unique_levels),
-                key="level_filter"
-            )
-        
-        with col2:
-            unique_years = sorted(list(set([d['연도'] for d in display_data if d['연도'] != 'N/A'])))
-            year_filter = st.selectbox(
-                "연도별 필터:",
-                ['전체'] + unique_years,
-                key="year_filter"
-            )
+        unique_levels = list(set([d['제외 수준'] for d in display_data]))
+        level_filter = st.selectbox(
+            "제외 수준별 필터:",
+            ['전체'] + sorted(unique_levels),
+            key="level_filter"
+        )
         
         # 필터 적용
         filtered_data = excluded_df.copy()
         if level_filter != '전체':
             filtered_data = filtered_data[filtered_data['제외 수준'] == level_filter]
-        if year_filter != '전체':
-            filtered_data = filtered_data[filtered_data['연도'] == year_filter]
         
         # 개선된 테이블 표시
         if len(filtered_data) > 0:
