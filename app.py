@@ -443,14 +443,14 @@ if uploaded_file is not None:
             
             base_chart = alt.Chart(top_keywords_df).encode(
                 y=y_encoding,
-                opacity=alt.condition(selection_keyword, alt.value(1), alt.value(0.7))
+                x=x_encoding,
+                opacity=alt.condition(selection_keyword, alt.value(1), alt.value(0.7)),
+                tooltip=['키워드', '빈도']
             ).add_params(selection_keyword)
 
-            line = base_chart.mark_rule(size=2).encode(x=x_encoding)
+            line = base_chart.mark_rule(size=2)
             
             point = base_chart.mark_point(filled=True, size=100).encode(
-                x=x_encoding,
-                tooltip=['키워드', '빈도'],
                 color=alt.condition(
                     alt.FieldOneOfPredicate(field='키워드', oneOf=top_3_keywords),
                     alt.value('#d62728'),
@@ -458,25 +458,12 @@ if uploaded_file is not None:
                 )
             )
             
-            text = base_chart.mark_text(
-                align='left',
-                baseline='middle',
-                dx=7
-            ).encode(
-                text='키워드:N',
-                x=alt.value(0) # Start text at the y-axis
-            )
-
-            final_chart = alt.layer(line, point, text).configure_axis(
+            final_chart = (line + point).properties(
+                title=f'상위 {top_n} 키워드', height=500
+            ).configure_axis(
                 grid=False
-            ).configure_axisY(
-                labels=False,
-                ticks=False,
-                domain=False
             ).configure_view(
                 strokeWidth=0
-            ).properties(
-                title=f'상위 {top_n} 키워드', height=500
             )
 
             st.altair_chart(final_chart, use_container_width=True)
