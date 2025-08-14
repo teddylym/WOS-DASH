@@ -857,7 +857,7 @@ if uploaded_file is not None:
         <h4 style="color: #003875; margin-bottom: 16px;">💡 SciMAT 사용 가이드:</h4>
         <ol style="line-height: 1.8; color: #495057;">
             <li>다운로드한 <code>wos_prep_for_scimat.txt</code> 파일을 SciMAT에 업로드합니다.</li>
-            <li><code>Group set</code> → <code>Words groups manager</code>에서 Levenshtein distance를 활용해 유사 키워드를 자동으로 그룹핑합니다.</li>
+            <li><code>Group set</code> &rarr; <code>Words groups manager</code>에서 Levenshtein distance를 활용해 유사 키워드를 자동으로 그룹핑합니다.</li>
             <li>수동으로 키워드 그룹을 최종 조정한 후 분석을 실행합니다.</li>
         </ol>
     </div>
