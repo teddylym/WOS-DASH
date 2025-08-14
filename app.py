@@ -842,23 +842,34 @@ if uploaded_file is not None:
             
             return '; '.join(found_reasons) if found_reasons else '기타 기술적 내용'
 
-        # 상위 10개 제외된 논문 선택
-        excluded_sample = excluded_papers.head(10).copy()
+        # 상위 30개 제외된 논문 선택
+        excluded_sample = excluded_papers.head(30).copy()
         excluded_sample['제외이유'] = excluded_sample.apply(get_exclusion_reason, axis=1)
         
         # 표시할 데이터 준비
         display_data = []
         for idx, row in excluded_sample.iterrows():
-            title = str(row.get('TI', 'No Title'))[:80] + ('...' if len(str(row.get('TI', ''))) > 80 else '')
-            keywords = str(row.get('DE', 'No Keywords'))[:60] + ('...' if len(str(row.get('DE', ''))) > 60 else '')
+            title = str(row.get('TI', 'No Title'))
+            keywords = str(row.get('DE', 'No Keywords'))
             author = str(row.get('AU', 'Unknown')).split(';')[0] if pd.notna(row.get('AU')) else 'Unknown'
+            year = str(row.get('PY', 'N/A'))
+            
+            # 제목과 키워드에서 제외 키워드 찾기
+            exclusion_keywords = ['protocol', 'network coding', 'wimax', 'ieee 802.16', 'mac layer', 'packet dropping', 'bandwidth', 'fec', 'arq', 'goodput', 'sensor data', 'geoscience', 'environmental data', 'wlan', 'ofdm', 'error correction', 'tcp', 'udp', 'network traffic']
+            found_keywords = []
+            full_text = (title + ' ' + keywords).lower()
+            for keyword in exclusion_keywords:
+                if keyword in full_text:
+                    found_keywords.append(keyword)
             
             display_data.append({
                 '순번': len(display_data) + 1,
                 '논문 제목': title,
                 '저자': author,
+                '연도': year,
                 '키워드': keywords,
-                '제외 이유': row['제외이유']
+                '제외 이유': row['제외이유'],
+                '발견된 제외 키워드': '; '.join(found_keywords[:3]) if found_keywords else '기타'
             })
         
         excluded_df = pd.DataFrame(display_data)
