@@ -316,7 +316,7 @@ def load_data(uploaded_file):
 
 # --- 완전히 단순화된 분류 알고리즘 ---
 def classify_article(row):
-    """단순하고 확실한 기준으로 분류"""
+    """개선된 분류 알고리즘 - 라이브스트리밍 상거래 우선 포함"""
     
     # 텍스트 추출
     title = str(row.get('TI', '')).lower()
@@ -325,63 +325,81 @@ def classify_article(row):
     abstract = str(row.get('AB', '')).lower()
     full_text = ' '.join([title, author_keywords, keywords_plus, abstract])
     
-    # 1단계: 확실한 포함 - 라이브스트리밍 상거래/구매/판매
-    definite_include = [
-        'live streaming commerce', 'livestreaming commerce', 'live-streaming commerce',
-        'purchase', 'buying', 'shopping', 'sales', 'sell', 'consumer',
-        'customer', 'purchase behavior', 'purchase intention', 'buying behavior',
-        'consumer behavior', 'sales performance', 'virtual gift', 'gifting',
-        'commercial', 'business model', 'marketing', 'brand', 'advertising'
+    # 1단계: 라이브스트리밍 존재 여부 확인
+    livestreaming_keywords = ['live streaming', 'livestreaming', 'live-streaming', 'live stream']
+    livestreaming_present = any(ls in full_text for ls in livestreaming_keywords)
+    
+    # 2단계: 상거래/비즈니스 키워드 확인 (확장)
+    commerce_keywords = [
+        # 전자상거래 관련
+        'e-commerce', 'ecommerce', 'e commerce', 'electronic commerce',
+        'online shopping', 'online retail', 'digital commerce',
+        
+        # 구매/판매 행동
+        'purchase', 'buying', 'shopping', 'sales', 'sell', 'selling',
+        'purchase behavior', 'purchase intention', 'buying behavior',
+        'consumer behavior', 'consumer', 'customer',
+        
+        # 비즈니스 모델
+        'business model', 'marketing', 'brand', 'advertising', 'promotion',
+        'commercial', 'monetization', 'revenue',
+        
+        # 라이브 커머스 특화
+        'virtual gift', 'gifting', 'donation', 'tipping',
+        'live commerce', 'live shopping', 'social commerce',
+        
+        # 산업/정책 관련
+        'industry', 'policy', 'regulation', 'economic'
     ]
     
-    livestreaming_present = any(ls in full_text for ls in ['live streaming', 'livestreaming', 'live-streaming'])
-    commerce_present = any(word in full_text for word in definite_include)
-    
-    if livestreaming_present and commerce_present:
-        return 'Include (관련연구)'
-    
-    # 2단계: 확실한 제외 - 순수 기술 논문
-    definite_exclude = [
-        'p2p', 'peer-to-peer', 'protocol', 'tcp', 'udp', 'bandwidth allocation',
-        'network coding', 'synchronization algorithm', 'encoding', 'codec',
-        'video compression', 'multipath transmission', 'routing algorithm'
+    # 3단계: 사용자 행동/참여 키워드 (라이브스트리밍 맥락에서)
+    user_behavior_keywords = [
+        'engagement', 'interaction', 'user behavior', 'viewer',
+        'audience', 'community', 'social', 'motivation',
+        'experience', 'adoption', 'intention', 'attitude'
     ]
     
-    tech_count = sum(1 for word in definite_exclude if word in full_text)
-    if tech_count >= 2:
-        return 'Exclude (제외연구)'
-    
-    # 3단계: 의료/교육 기술
-    medical_education = ['medical', 'surgical', 'clinical', 'hospital', 'patient', 'surgery']
-    if any(word in full_text for word in medical_education):
-        return 'Exclude (제외연구)'
-    
-    # 4단계: VR/AR 기술
-    vr_ar = ['virtual reality', 'augmented reality', 'vr', 'ar', '360-degree']
-    if any(word in full_text for word in vr_ar):
-        return 'Exclude (제외연구)'
-    
-    # 5단계: 라이브스트리밍 + 사용자 관련
-    user_related = [
-        'user', 'viewer', 'audience', 'engagement', 'behavior', 'motivation',
-        'experience', 'interaction', 'social', 'community', 'platform'
+    # 4단계: 확실한 제외 - 순수 기술 논문
+    tech_exclude_keywords = [
+        'p2p', 'peer-to-peer', 'protocol', 'tcp', 'udp', 
+        'bandwidth allocation', 'network coding', 'synchronization algorithm',
+        'encoding', 'codec', 'video compression', 'multipath transmission',
+        'routing algorithm', 'packet', 'latency', 'throughput'
     ]
     
+    # 5단계: 의료/교육 기술 (라이브스트리밍이 아닌 맥락)
+    medical_education_keywords = [
+        'medical', 'surgical', 'clinical', 'hospital', 'patient', 'surgery',
+        'healthcare', 'treatment'
+    ]
+    
+    # 키워드 매칭 횟수 계산
+    commerce_count = sum(1 for word in commerce_keywords if word in full_text)
+    user_behavior_count = sum(1 for word in user_behavior_keywords if word in full_text)
+    tech_exclude_count = sum(1 for word in tech_exclude_keywords if word in full_text)
+    medical_count = sum(1 for word in medical_education_keywords if word in full_text)
+    
+    # 분류 로직
     if livestreaming_present:
-        user_count = sum(1 for word in user_related if word in full_text)
-        if user_count >= 2:
+        # 라이브스트리밍이 있는 경우
+        if commerce_count >= 1:
+            # 상거래 키워드가 1개 이상 → 무조건 포함
             return 'Include (관련연구)'
-        elif tech_count >= 1:
+        elif user_behavior_count >= 2:
+            # 사용자 행동 키워드가 2개 이상 → 포함
+            return 'Include (관련연구)'
+        elif tech_exclude_count >= 2:
+            # 기술 키워드가 2개 이상 → 제외
+            return 'Exclude (제외연구)'
+        elif medical_count >= 1:
+            # 의료 키워드가 있으면 → 제외
             return 'Exclude (제외연구)'
         else:
+            # 경계선 → 검토 필요
             return 'Review (검토필요)'
-    
-    # 6단계: 라이브스트리밍이 없는 경우
-    if not livestreaming_present:
+    else:
+        # 라이브스트리밍이 없으면 → 제외
         return 'Exclude (제외연구)'
-    
-    # 7단계: 기본값
-    return 'Review (검토필요)'
 
 # --- 제외 이유 분석 함수 (SciMAT 기반 개선) ---
 def get_detailed_exclusion_reason(row):
