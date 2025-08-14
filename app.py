@@ -316,7 +316,7 @@ def load_data(uploaded_file):
 
 # --- 완전히 단순화된 분류 알고리즘 ---
 def classify_article(row):
-    """개선된 분류 알고리즘 - 라이브스트리밍 상거래 우선 포함"""
+    """라이브스트리밍 자체를 연구하는 논문인지 판단하는 분류 알고리즘"""
     
     # 텍스트 추출
     title = str(row.get('TI', '')).lower()
@@ -325,81 +325,97 @@ def classify_article(row):
     abstract = str(row.get('AB', '')).lower()
     full_text = ' '.join([title, author_keywords, keywords_plus, abstract])
     
-    # 1단계: 라이브스트리밍 존재 여부 확인
+    # 1단계: 라이브스트리밍 키워드 존재 확인
     livestreaming_keywords = ['live streaming', 'livestreaming', 'live-streaming', 'live stream']
     livestreaming_present = any(ls in full_text for ls in livestreaming_keywords)
     
-    # 2단계: 상거래/비즈니스 키워드 확인 (확장)
-    commerce_keywords = [
-        # 전자상거래 관련
-        'e-commerce', 'ecommerce', 'e commerce', 'electronic commerce',
-        'online shopping', 'online retail', 'digital commerce',
+    if not livestreaming_present:
+        return 'Exclude (제외연구)'
+    
+    # 2단계: 제목에서 라이브스트리밍이 주요 주제인지 확인
+    title_livestreaming = any(ls in title for ls in livestreaming_keywords)
+    
+    # 3단계: 라이브스트리밍 연구 관련 키워드 (주제로서)
+    livestreaming_research_keywords = [
+        # 라이브스트리밍 플랫폼/서비스 연구
+        'live streaming platform', 'live streaming service', 'live streaming market',
+        'live streaming industry', 'live streaming business', 'live streaming commerce',
+        'live streaming e-commerce', 'live streaming adoption', 'live streaming behavior',
         
-        # 구매/판매 행동
-        'purchase', 'buying', 'shopping', 'sales', 'sell', 'selling',
-        'purchase behavior', 'purchase intention', 'buying behavior',
-        'consumer behavior', 'consumer', 'customer',
+        # 라이브스트리밍 사용자/시청자 연구
+        'live streaming viewer', 'live streaming audience', 'live streaming engagement',
+        'live streaming interaction', 'live streaming community', 'live streaming experience',
+        'live streaming motivation', 'live streaming intention', 'live streaming usage',
         
-        # 비즈니스 모델
-        'business model', 'marketing', 'brand', 'advertising', 'promotion',
-        'commercial', 'monetization', 'revenue',
+        # 라이브스트리밍 현상/효과 연구
+        'live streaming effect', 'live streaming impact', 'live streaming influence',
+        'live streaming phenomenon', 'live streaming trend', 'live streaming analysis',
         
-        # 라이브 커머스 특화
-        'virtual gift', 'gifting', 'donation', 'tipping',
-        'live commerce', 'live shopping', 'social commerce',
-        
-        # 산업/정책 관련
-        'industry', 'policy', 'regulation', 'economic'
+        # 특정 분야 라이브스트리밍 (주제가 라이브스트리밍)
+        'travel live streaming', 'tourism live streaming', 'gaming live streaming',
+        'educational live streaming', 'fitness live streaming'
     ]
     
-    # 3단계: 사용자 행동/참여 키워드 (라이브스트리밍 맥락에서)
-    user_behavior_keywords = [
-        'engagement', 'interaction', 'user behavior', 'viewer',
-        'audience', 'community', 'social', 'motivation',
-        'experience', 'adoption', 'intention', 'attitude'
+    # 4단계: 단순 기술 구현/최적화 키워드 (제외 대상)
+    pure_tech_keywords = [
+        # 네트워크/시스템 기술
+        'p2p', 'peer-to-peer', 'protocol', 'tcp', 'udp', 'network optimization',
+        'bandwidth allocation', 'network coding', 'routing algorithm', 'overlay network',
+        'distributed system', 'packet', 'latency optimization', 'throughput',
+        
+        # 하드웨어/인프라 기술
+        '5g mobile communication', 'streaming media technology', 'video compression',
+        'encoding optimization', 'codec', 'hardware implementation', 'vlsi',
+        
+        # 단순 도구/시스템 구현
+        'streaming technology', 'streaming system implementation', 'video streaming solution'
     ]
     
-    # 4단계: 확실한 제외 - 순수 기술 논문
-    tech_exclude_keywords = [
-        'p2p', 'peer-to-peer', 'protocol', 'tcp', 'udp', 
-        'bandwidth allocation', 'network coding', 'synchronization algorithm',
-        'encoding', 'codec', 'video compression', 'multipath transmission',
-        'routing algorithm', 'packet', 'latency', 'throughput'
+    # 5단계: 교육 도구로서만 사용되는 경우 (라이브스트리밍이 연구 주제가 아님)
+    education_tool_keywords = [
+        'distance education', 'online learning tool', 'educational technology',
+        'e-learning platform', 'remote learning', 'virtual classroom',
+        'programming education', 'field-based learning', 'higher education tool'
     ]
     
-    # 5단계: 의료/교육 기술 (라이브스트리밍이 아닌 맥락)
-    medical_education_keywords = [
-        'medical', 'surgical', 'clinical', 'hospital', 'patient', 'surgery',
-        'healthcare', 'treatment'
-    ]
+    # 키워드 매칭 계산
+    research_keyword_count = sum(1 for keyword in livestreaming_research_keywords if keyword in full_text)
+    tech_keyword_count = sum(1 for keyword in pure_tech_keywords if keyword in full_text)
+    education_tool_count = sum(1 for keyword in education_tool_keywords if keyword in full_text)
     
-    # 키워드 매칭 횟수 계산
-    commerce_count = sum(1 for word in commerce_keywords if word in full_text)
-    user_behavior_count = sum(1 for word in user_behavior_keywords if word in full_text)
-    tech_exclude_count = sum(1 for word in tech_exclude_keywords if word in full_text)
-    medical_count = sum(1 for word in medical_education_keywords if word in full_text)
+    # 저자 키워드에서 라이브스트리밍 관련 키워드 비중 확인
+    author_kw_livestreaming = False
+    if 'DE' in row.index and pd.notna(row['DE']):
+        author_kw_text = str(row['DE']).lower()
+        author_kw_livestreaming = any(ls in author_kw_text for ls in livestreaming_keywords)
     
     # 분류 로직
-    if livestreaming_present:
-        # 라이브스트리밍이 있는 경우
-        if commerce_count >= 1:
-            # 상거래 키워드가 1개 이상 → 무조건 포함
-            return 'Include (관련연구)'
-        elif user_behavior_count >= 2:
-            # 사용자 행동 키워드가 2개 이상 → 포함
-            return 'Include (관련연구)'
-        elif tech_exclude_count >= 2:
-            # 기술 키워드가 2개 이상 → 제외
-            return 'Exclude (제외연구)'
-        elif medical_count >= 1:
-            # 의료 키워드가 있으면 → 제외
-            return 'Exclude (제외연구)'
-        else:
-            # 경계선 → 검토 필요
-            return 'Review (검토필요)'
-    else:
-        # 라이브스트리밍이 없으면 → 제외
+    # 1. 제목에 라이브스트리밍이 있고, 연구 키워드가 있으면 → 포함
+    if title_livestreaming and research_keyword_count >= 1:
+        return 'Include (관련연구)'
+    
+    # 2. 저자 키워드에 라이브스트리밍이 있고, 순수 기술이 아니면 → 포함
+    if author_kw_livestreaming and tech_keyword_count < 2:
+        return 'Include (관련연구)'
+    
+    # 3. 라이브스트리밍 연구 키워드가 2개 이상이면 → 포함
+    if research_keyword_count >= 2:
+        return 'Include (관련연구)'
+    
+    # 4. 순수 기술 키워드가 2개 이상이면 → 제외
+    if tech_keyword_count >= 2:
         return 'Exclude (제외연구)'
+    
+    # 5. 교육 도구로만 사용되는 경우 → 제외
+    if education_tool_count >= 2 and research_keyword_count == 0:
+        return 'Exclude (제외연구)'
+    
+    # 6. 제목에 라이브스트리밍이 있으면 → 포함 (라이브스트리밍이 주제)
+    if title_livestreaming:
+        return 'Include (관련연구)'
+    
+    # 7. 애매한 경우 → 검토 필요
+    return 'Review (검토필요)'
 
 # --- 제외 이유 분석 함수 (SciMAT 기반 개선) ---
 def get_detailed_exclusion_reason(row):
