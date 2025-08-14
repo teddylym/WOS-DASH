@@ -239,38 +239,24 @@ def build_normalization_map():
     """Cobo(2012)의 개념 단위 통합 원칙에 기반한 정규화 사전"""
     base_map = {
         # AI/ML 관련
-        "machine learning": ["machine-learning", "ml"],
-        "artificial intelligence": ["ai"],
-        "deep learning": ["deep-learning", "deep neural networks", "dnn"],
-        "neural networks": ["neural network", "nn"],
-        "natural language processing": ["nlp"],
-        "computer vision": ["cv"],
-        "reinforcement learning": ["rl"],
-
+        "machine learning": ["machine-learning", "ml"], "artificial intelligence": ["ai"],
+        "deep learning": ["deep-learning", "deep neural networks", "dnn"], "neural networks": ["neural network", "nn"],
+        "natural language processing": ["nlp"], "computer vision": ["cv"], "reinforcement learning": ["rl"],
         # 스트리밍/미디어 관련
         "live streaming": ["live-streaming", "livestreaming", "real time streaming", "live broadcast"],
-        "video streaming": ["video-streaming"],
-        "social media": ["social-media"],
-        "user experience": ["user-experience", "ux"],
-        "user behavior": ["user-behavior", "consumer behavior"],
-        "content creation": ["content-creation"],
-        "digital marketing": ["digital-marketing"],
+        "video streaming": ["video-streaming"], "social media": ["social-media"],
+        "user experience": ["user-experience", "ux"], "user behavior": ["user-behavior", "consumer behavior"],
+        "content creation": ["content-creation"], "digital marketing": ["digital-marketing"],
         "e commerce": ["ecommerce", "e-commerce", "electronic commerce", "live commerce", "live shopping", "social commerce"],
-
         # 연구방법론 관련
-        "data mining": ["data-mining"],
-        "big data": ["big-data"],
-        "data analysis": ["data-analysis"],
-        "sentiment analysis": ["sentiment-analysis"],
-        "statistical analysis": ["statistical-analysis"],
+        "data mining": ["data-mining"], "big data": ["big-data"], "data analysis": ["data-analysis"],
+        "sentiment analysis": ["sentiment-analysis"], "statistical analysis": ["statistical-analysis"],
         "structural equation modeling": ["sem", "pls-sem"],
-        
         # 기술 관련
-        "cloud computing": ["cloud-computing"],
-        "internet of things": ["iot"],
+        "cloud computing": ["cloud-computing"], "internet of things": ["iot"],
         "mobile applications": ["mobile app", "mobile apps"],
     }
-    # 빠른 조회를 위한 역방향 맵 생성 (variation -> standard_form)
+    # 빠른 조회를 위한 역방향 맵 생성
     reverse_map = {}
     for standard_form, variations in base_map.items():
         for variation in variations:
@@ -298,56 +284,68 @@ def load_data(uploaded_file):
         except Exception: continue
     return None
 
-# --- 핵심 기능 함수 ---
+# --- [핵심 수정] 개선된 논문 분류 함수 (보수적 알고리즘) ---
 def classify_article(row):
-    inclusion_keywords = ['user', 'viewer', 'audience', 'streamer', 'consumer', 'participant', 'behavior', 'experience', 'engagement', 'interaction', 'motivation', 'psychology', 'social', 'community', 'cultural', 'society', 'commerce', 'marketing', 'business', 'brand', 'purchase', 'monetization', 'education', 'learning', 'influencer']
-    exclusion_keywords = ['protocol', 'network coding', 'wimax', 'ieee 802.16', 'mac layer', 'packet dropping', 'bandwidth', 'fec', 'arq', 'goodput', 'sensor data', 'geoscience', 'environmental data', 'wlan', 'ofdm', 'error correction', 'tcp', 'udp', 'network traffic']
+    # 1. 강력한 포함 키워드 (이 키워드가 있으면 우선적으로 '관련연구'로 분류)
+    strong_inclusion_keywords = [
+        'live streaming', 'livestreaming', 'live-streaming', 'live commerce',
+        'consumer behavior', 'user behavior', 'user engagement', 'purchase intention',
+        'social commerce', 'influencer', 'viewer engagement', 'e-commerce'
+    ]
+    
+    # 2. 일반 포함 키워드
+    inclusion_keywords = [
+        'user', 'viewer', 'audience', 'streamer', 'consumer', 'participant', 'experience',
+        'interaction', 'motivation', 'psychology', 'social', 'community', 'cultural',
+        'society', 'marketing', 'business', 'brand', 'monetization', 'education', 'learning'
+    ]
+    
+    # 3. 명확하고 구체적인 제외 키워드
+    exclusion_keywords = [
+        'protocol', 'network coding', 'wimax', 'ieee 802.16', 'mac layer',
+        'packet dropping', 'bandwidth', 'forward error correction', 'fec', 'arq', 'goodput',
+        'sensor data', 'geoscience', 'environmental data', 'wlan',
+        'ofdm', 'error correction', 'tcp', 'udp', 'network traffic'
+    ]
+
     title = str(row.get('TI', '')).lower()
     source_title = str(row.get('SO', '')).lower()
     author_keywords = str(row.get('DE', '')).lower()
     keywords_plus = str(row.get('ID', '')).lower()
     abstract = str(row.get('AB', '')).lower()
     full_text = ' '.join([title, source_title, author_keywords, keywords_plus, abstract])
-    if any(keyword in full_text for keyword in exclusion_keywords): return 'Exclude (제외연구)'
-    if any(keyword in full_text for keyword in inclusion_keywords): return 'Include (관련연구)'
+    words = set(re.findall(r'\b\w+\b', full_text))
+
+    # --- 새로운 분류 로직 ---
+    if any(keyword in full_text for keyword in strong_inclusion_keywords):
+        return 'Include (관련연구)'
+    if any(f' {keyword} ' in f' {full_text} ' for keyword in exclusion_keywords):
+        return 'Exclude (제외연구)'
+    if any(keyword in words for keyword in inclusion_keywords):
+        return 'Include (관련연구)'
     return 'Review (검토필요)'
 
-# --- [핵심 수정] 개선된 키워드 전처리 함수 ---
+# --- 개선된 키워드 전처리 함수 ---
 def clean_keyword_string(keywords_str, stop_words, lemmatizer, normalization_map):
     if pd.isna(keywords_str) or not isinstance(keywords_str, str):
         return ""
-
     all_keywords = keywords_str.split(';')
     cleaned_keywords = set()
-
     for keyword in all_keywords:
         keyword_clean = keyword.strip().lower()
-        if not keyword_clean:
-            continue
-
-        # 1단계: 개념 정규화 (Normalization Map으로 변환 시도)
+        if not keyword_clean: continue
         normalized_phrase = normalization_map.get(keyword_clean, keyword_clean)
-        
-        # 2단계: 문자 정제 및 표제어 추출 (Cleaning & Lemmatization)
-        normalized_phrase = normalized_phrase.replace('-', ' ')
+        normalized_phrase = normalized_phrase.replace('-', ' ').replace('_', ' ')
         normalized_phrase = re.sub(r'[^a-z\s]', '', normalized_phrase)
-        
         words = normalized_phrase.split()
-        filtered_words = []
-        for word in words:
-            if word and len(word) > 2 and word not in stop_words:
-                lemmatized_word = lemmatizer.lemmatize(word)
-                filtered_words.append(lemmatized_word)
-
+        filtered_words = [lemmatizer.lemmatize(w) for w in words if w and len(w) > 2 and w not in stop_words]
         if filtered_words:
             final_keyword = " ".join(filtered_words)
             cleaned_keywords.add(final_keyword)
-            
     return '; '.join(sorted(list(cleaned_keywords)))
 
 # --- SCIMAT 형식 변환 함수 (기존과 동일) ---
 def convert_df_to_scimat_format(df_to_convert):
-    # ... (이전과 동일한 SciMAT 변환 로직) ...
     wos_field_order = ['PT', 'AU', 'AF', 'TI', 'SO', 'LA', 'DT', 'DE', 'ID', 'AB', 'C1', 'C3', 'RP', 'EM', 'RI', 'OI', 'FU', 'FX', 'CR', 'NR', 'TC', 'Z9', 'U1', 'U2', 'PU', 'PI', 'PA', 'SN', 'EI', 'J9', 'JI', 'PD', 'PY', 'VL', 'IS', 'BP', 'EP', 'DI', 'EA', 'PG', 'WC', 'WE', 'SC', 'GA', 'UT', 'PM', 'OA', 'DA']
     file_content = ["FN Clarivate Analytics Web of Science", "VR 1.0"]
     multi_line_fields = ['AU', 'AF', 'DE', 'ID', 'C1', 'C3', 'CR']
@@ -379,21 +377,57 @@ st.markdown("""
     <div style="position: absolute; top: 1rem; right: 2rem; text-align: right; color: rgba(255,255,255,0.9); font-size: 0.85rem;">
         <p style="margin: 0;"><strong>Developed by:</strong> 임태경 (Teddy Lym)</p>
     </div>
-    <h1 style="font-size: 3.5rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.02em;">
-        WOS Prep
-    </h1>
-    <p style="font-size: 1.3rem; margin: 0; font-weight: 400; opacity: 0.95;">
-        Professional Tool for Web of Science Data Pre-processing
-    </p>
+    <h1 style="font-size: 3.5rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.02em;">WOS Prep</h1>
+    <p style="font-size: 1.3rem; margin: 0; font-weight: 400; opacity: 0.95;">Professional Tool for Web of Science Data Pre-processing</p>
     <div style="width: 100px; height: 4px; background-color: rgba(255,255,255,0.3); margin: 2rem auto; border-radius: 2px;"></div>
 </div>
 """, unsafe_allow_html=True)
 
-# (이하 모든 UI 코드 및 로직은 첨부된 '5차 최적화 코드'와 동일하게 유지됩니다)
-# ...
-# ... (기존 UI 코드 전체를 여기에 붙여넣으십시오) ...
-# ...
-if __name__ == '__main__':
-    # Streamlit UI 및 실행 로직
-    # (여기에 '5차 최적화 코드'의 UI 및 실행 로직 부분을 붙여넣습니다)
-    pass # 예시
+# --- 파일 업로드 섹션 ---
+uploaded_file = st.file_uploader(
+    "Tab-delimited 또는 Plain Text 형식의 WOS 데이터 파일을 업로드하세요.",
+    type=['csv', 'txt'],
+    label_visibility="collapsed"
+)
+
+if uploaded_file is not None:
+    df = load_data(uploaded_file)
+    if df is None:
+        st.error("⚠️ 파일을 읽을 수 없습니다. Web of Science에서 다운로드한 'Tab-delimited' 또는 'Plain Text' 형식의 파일이 맞는지 확인해주세요.")
+        st.stop()
+
+    column_mapping = {
+        'Authors': 'AU', 'Article Title': 'TI', 'Source Title': 'SO', 'Author Keywords': 'DE',
+        'Keywords Plus': 'ID', 'Abstract': 'AB', 'Cited References': 'CR', 'Publication Year': 'PY',
+        'Times Cited, All Databases': 'TC', 'Cited Reference Count': 'NR', 'Times Cited, WoS Core': 'Z9'
+    }
+    for old_name, new_name in column_mapping.items():
+        if old_name in df.columns:
+            df.rename(columns={old_name: new_name}, inplace=True)
+
+    with st.spinner("🔄 데이터를 분석하고 있습니다..."):
+        df['Classification'] = df.apply(classify_article, axis=1)
+        
+        if 'DE' in df.columns: df['DE_Original'] = df['DE'].copy()
+        if 'ID' in df.columns: df['ID_Original'] = df['ID'].copy()
+
+        stop_words = set(stopwords.words('english'))
+        custom_stop_words = {'study', 'research', 'analysis', 'results', 'paper', 'article', 'using', 'based', 'approach', 'method', 'system', 'model'}
+        stop_words.update(custom_stop_words)
+        lemmatizer = WordNetLemmatizer()
+        include_mask = df['Classification'] == 'Include (관련연구)'
+
+        if 'DE' in df.columns:
+            df['DE_cleaned'] = df['DE'].copy()
+            df.loc[include_mask, 'DE_cleaned'] = df.loc[include_mask, 'DE'].apply(lambda x: clean_keyword_string(x, stop_words, lemmatizer, NORMALIZATION_MAP))
+        if 'ID' in df.columns:
+            df['ID_cleaned'] = df['ID'].copy()
+            df.loc[include_mask, 'ID_cleaned'] = df.loc[include_mask, 'ID'].apply(lambda x: clean_keyword_string(x, stop_words, lemmatizer, NORMALIZATION_MAP))
+
+    st.success("✅ 분석 완료!")
+
+    # --- 분석 결과 요약 ---
+    # ... (이전과 동일한 UI 코드) ...
+
+    # --- 최종 파일 생성 및 다운로드 ---
+    # ... (이전과 동일한 UI 코드) ...
