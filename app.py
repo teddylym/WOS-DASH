@@ -274,8 +274,22 @@ def normalize_keyword_phrase(phrase):
     phrase_lower = phrase.lower().strip()
     return NORMALIZATION_MAP.get(phrase_lower, phrase_lower)
 
-# --- 데이터 로드 함수 ---
+# --- 데이터 로드 함수 (엑셀 지원 추가) ---
 def load_data(uploaded_file):
+    file_name = uploaded_file.name.lower()
+    
+    # 엑셀 파일 처리
+    if file_name.endswith(('.xlsx', '.xls')):
+        try:
+            # 엑셀 파일 읽기 (첫 번째 시트)
+            df = pd.read_excel(uploaded_file, sheet_name=0)
+            if df.shape[1] > 1:
+                return df
+        except Exception as e:
+            st.error(f"엑셀 파일 읽기 오류: {str(e)}")
+            return None
+    
+    # CSV/TXT 파일 처리 (기존 로직)
     file_bytes = uploaded_file.getvalue()
     encodings_to_try = ['utf-8-sig', 'utf-8', 'latin1', 'cp949']
 
@@ -622,13 +636,13 @@ st.markdown("""
 <div class="upload-zone">
     <div style="font-size: 3rem; margin-bottom: 16px; color: #003875;">📤</div>
     <h3 style="color: #212529; margin-bottom: 8px;">파일을 선택하세요</h3>
-    <p style="color: #6c757d; margin: 0;">Tab-delimited 또는 Plain Text 형식의 WOS 데이터 파일</p>
+    <p style="color: #6c757d; margin: 0;">Tab-delimited, Plain Text, 또는 Excel 형식의 WOS 데이터 파일</p>
 </div>
 """, unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader(
     "파일 선택",
-    type=['csv', 'txt'],
+    type=['csv', 'txt', 'xlsx', 'xls'],
     label_visibility="collapsed"
 )
 
