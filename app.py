@@ -194,9 +194,13 @@ def convert_df_to_scimat_format(df_to_convert):
         file_content.append("ER")
     return "\n".join(file_content).encode('utf-8')
 
-# --- 헤더 ---
+# --- 헤더 및 개발자 정보 ---
 st.markdown("""
-<div style="text-align: center; padding: 1rem 0 2rem 0;">
+<div style="position: relative; text-align: center; padding: 1rem 0 2rem 0;">
+    <div style="position: absolute; top: 0; right: 0; text-align: right; color: #6c757d; font-size: 0.8rem;">
+        <p style="margin: 0;"><strong>Developed by:</strong> 임태경 (Teddy Lym)</p>
+        <p style="margin: 0;">Hanyang University</p>
+    </div>
     <h1 style="color: #212529; font-size: 2.8rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.05em;">
         WOS Prep
     </h1>
@@ -207,7 +211,8 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- 주요 기능 소개 (아이콘 복원) ---
+
+# --- 주요 기능 소개 ---
 col1, col2, col3 = st.columns(3)
 with col1:
     st.markdown("""
@@ -271,7 +276,7 @@ if uploaded_file is not None:
     column_mapping = {
         'Authors': 'AU', 'Article Title': 'TI', 'Source Title': 'SO', 'Author Keywords': 'DE',
         'Keywords Plus': 'ID', 'Abstract': 'AB', 'Cited References': 'CR', 'Publication Year': 'PY',
-        'Times Cited, All Databases': 'TC', 'Times Cited, WoS Core': 'Z9'
+        'Times Cited, All Databases': 'TC', 'Cited Reference Count': 'NR', 'Times Cited, WoS Core': 'Z9'
     }
     for old_name, new_name in column_mapping.items():
         if old_name in df.columns:
@@ -320,16 +325,15 @@ if uploaded_file is not None:
             domain = ['Include (관련연구)', 'Review (검토필요)', 'Exclude (제외연구)']
             range_ = ['#d62728', '#1f77b4', '#7f7f7f']  # Red, Blue, Grey
 
-            # 마우스오버 효과
-            selection = alt.selection_single(fields=['분류'], on='mouseover', nearest=True)
+            selection = alt.selection_point(fields=['분류'], on='mouseover', nearest=True)
 
             base = alt.Chart(classification_counts).encode(
                 theta=alt.Theta(field="논문 수", type="quantitative", stack=True),
                 color=alt.Color(field="분류", type="nominal", title="Classification",
                                scale=alt.Scale(domain=domain, range=range_),
                                legend=alt.Legend(orient="right", titleColor="#212529", labelColor="#495057")),
-                opacity=alt.condition(selection, alt.value(1), alt.value(0.7)) # 마우스오버 시 투명도 조절
-            ).add_selection(selection)
+                opacity=alt.condition(selection, alt.value(1), alt.value(0.7))
+            ).add_params(selection)
 
             pie = base.mark_arc(outerRadius=120, innerRadius=70)
             text_total = alt.Chart(pd.DataFrame([{'value': f'{total_papers}'}])).mark_text(
@@ -377,14 +381,14 @@ if uploaded_file is not None:
                 ).encode(x='Year:O', y='Count:Q')
                 show_projection_caption = True
             
-            selection_trend = alt.selection_single(fields=['Year'], on='mouseover', nearest=True, empty='none')
+            selection_trend = alt.selection_point(fields=['Year'], on='mouseover', nearest=True, empty='none')
             
             line_chart = alt.Chart(yearly_counts).mark_line(point=True).encode(
                 x=alt.X('Year:O', title='발행 연도'),
                 y=alt.Y('Count:Q', title='논문 수'),
                 tooltip=['Year', 'Count'],
                 opacity=alt.condition(selection_trend, alt.value(1), alt.value(0.7))
-            ).add_selection(selection_trend)
+            ).add_params(selection_trend)
             
             trend_chart = (line_chart + projection_layer).properties(title="연도별 논문 발행 수", height=300)
             st.altair_chart(trend_chart, use_container_width=True)
@@ -394,27 +398,27 @@ if uploaded_file is not None:
             st.warning("⚠️ 발행 연도(PY) 데이터가 없어 연구 동향을 분석할 수 없습니다.")
 
         # --- 주요 인용 논문 분석 ---
-        st.markdown("###### **주요 인용 논문 (Top 5)**")
-        if 'TC' in df.columns:
+        st.markdown("###### **주요 인용 논문 (Top 5, 참고문헌 수 기준)**")
+        if 'NR' in df.columns:
             df_cited = df.copy()
-            df_cited['TC'] = pd.to_numeric(df_cited['TC'], errors='coerce').fillna(0)
-            df_cited = df_cited.sort_values(by='TC', ascending=False).head(5)
+            df_cited['NR'] = pd.to_numeric(df_cited['NR'], errors='coerce').fillna(0)
+            df_cited = df_cited.sort_values(by='NR', ascending=False).head(5)
             
             df_cited['Author_Display'] = df_cited['AU'].apply(lambda x: str(x).split(';')[0] if pd.notna(x) else 'N/A')
             df_cited['Title_Display'] = df_cited['TI'].apply(lambda x: str(x)[:50] + '...' if len(str(x)) > 50 else str(x))
             df_cited['Label'] = df_cited['Title_Display'] + ' (' + df_cited['Author_Display'] + ')'
 
-            selection_cited = alt.selection_single(fields=['Label'], on='mouseover', nearest=True, empty='none')
+            selection_cited = alt.selection_point(fields=['Label'], on='mouseover', nearest=True, empty='none')
 
             cited_chart = alt.Chart(df_cited).mark_bar().encode(
-                x=alt.X('TC:Q', title='피인용 횟수'),
+                x=alt.X('NR:Q', title='참고문헌 수'),
                 y=alt.Y('Label:N', title='논문 제목 및 저자', sort='-x'),
-                tooltip=['TI', 'AU', 'TC'],
+                tooltip=['TI', 'AU', 'NR'],
                 opacity=alt.condition(selection_cited, alt.value(1), alt.value(0.7))
-            ).add_selection(selection_cited).properties(height=300)
+            ).add_params(selection_cited).properties(height=300)
             st.altair_chart(cited_chart, use_container_width=True)
         else:
-            st.warning("⚠️ 피인용 횟수(TC) 데이터가 없어 주요 인용 논문을 분석할 수 없습니다.")
+            st.warning("⚠️ 참고문헌 수(NR) 데이터가 없어 주요 인용 논문을 분석할 수 없습니다.")
             
         st.divider()
 
@@ -432,7 +436,7 @@ if uploaded_file is not None:
             top_keywords_df = pd.DataFrame(keyword_counts.most_common(top_n), columns=['키워드', '빈도'])
             top_3_keywords = top_keywords_df['키워드'].head(3).tolist()
             
-            selection_keyword = alt.selection_single(fields=['키워드'], on='mouseover', nearest=True, empty='none')
+            selection_keyword = alt.selection_point(fields=['키워드'], on='mouseover', nearest=True, empty='none')
 
             y_encoding = alt.Y('키워드:N', title='키워드', sort=alt.SortField(field='빈도', order='descending'))
             x_encoding = alt.X('빈도:Q', title='빈도', scale=alt.Scale(zero=True))
@@ -442,7 +446,7 @@ if uploaded_file is not None:
                 x=x_encoding,
                 opacity=alt.condition(selection_keyword, alt.value(1), alt.value(0.7)),
                 tooltip=['키워드', '빈도']
-            ).add_selection(selection_keyword)
+            ).add_params(selection_keyword)
 
             line = base_chart.mark_rule(size=2)
             point = base_chart.mark_point(filled=True, size=150).encode(
@@ -452,10 +456,25 @@ if uploaded_file is not None:
                     alt.value('#4c78a8')
                 )
             )
+            
+            # 키워드 텍스트 추가
+            text = base_chart.mark_text(
+                align='left',
+                baseline='middle',
+                dx=10,
+                color='black'
+            ).encode(
+                text='키워드:N'
+            )
+
             lollipop_chart = (line + point).properties(
                 title=f'상위 {top_n} 키워드', height=500
-            ).configure_axis(grid=False).configure_view(strokeWidth=0)
-            st.altair_chart(lollipop_chart, use_container_width=True)
+            ).configure_axis(grid=False, labels=False, title=None).configure_view(strokeWidth=0) # y축 라벨 숨김
+            
+            # 텍스트와 차트 레이어링
+            final_chart = alt.layer(lollipop_chart, text).configure_axis(grid=False).configure_view(strokeWidth=0)
+
+            st.altair_chart(final_chart, use_container_width=True)
 
             if st.checkbox("📋 정규화 전후 비교 보기 (샘플)"):
                 sample_data = []
@@ -509,18 +528,5 @@ if uploaded_file is not None:
         3. 수동으로 키워드 그룹을 최종 조정한 후 분석을 실행합니다.
         """)
 
-# --- 개발자 정보 및 버전 (영문명 병기) ---
-st.divider()
-st.markdown("""
-<div style="text-align: center; color: #6c757d; font-size: 0.85rem; padding-top: 2rem; padding-bottom: 1rem;">
-    <p style="margin-bottom: 0.25rem;">
-        <strong>Developed by:</strong> 임태경 (Teddy Lym), 한양대학교 기술경영전문대학원
-    </p>
-    <p style="margin-bottom: 0.25rem; font-size: 0.8rem;">
-        Graduate School of Technology & Innovation Management, Hanyang University
-    </p>
-    <p style="margin: 0; font-size: 0.8rem;">
-        <strong>Version:</strong> 1.3.0 | A Tool for Academic Research
-    </p>
-</div>
-""", unsafe_allow_html=True)
+# --- 하단 여백 ---
+st.markdown("<br><br>", unsafe_allow_html=True)
