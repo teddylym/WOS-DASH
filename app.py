@@ -808,11 +808,115 @@ if uploaded_file is not None:
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- 처리된 데이터 미리보기 ---
+    # --- 제외된 연구 분석 ---
     st.markdown("""
     <div class="section-header">
-        <div class="section-title">📋 Processed Data Preview</div>
-        <div class="section-subtitle">처리된 데이터 상위 10개 미리보기</div>
+        <div class="section-title">🚫 Excluded Studies Analysis</div>
+        <div class="section-subtitle">제외된 연구 상위 10개 및 제외 이유 분석</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 제외된 연구 데이터 준비
+    excluded_papers = df[df['Classification'] == 'Exclude (제외연구)'].copy()
+    
+    if len(excluded_papers) > 0:
+        # 제외 이유 분석 함수
+        def get_exclusion_reason(row):
+            exclusion_keywords = {
+                '네트워크 기술': ['protocol', 'network coding', 'wimax', 'ieee 802.16', 'mac layer', 'wlan', 'ofdm'],
+                '데이터 전송': ['packet dropping', 'bandwidth', 'fec', 'arq', 'goodput', 'tcp', 'udp', 'network traffic'],
+                '오류 정정': ['error correction', 'coding theory', 'channel coding'],
+                '센서/환경': ['sensor data', 'geoscience', 'environmental data', 'remote sensing'],
+                '하드웨어': ['hardware', 'circuit', 'antenna', 'signal processing']
+            }
+            
+            title = str(row.get('TI', '')).lower()
+            keywords = str(row.get('DE', '')).lower() + ' ' + str(row.get('ID', '')).lower()
+            abstract = str(row.get('AB', '')).lower()
+            full_text = ' '.join([title, keywords, abstract])
+            
+            found_reasons = []
+            for category, keywords_list in exclusion_keywords.items():
+                if any(keyword in full_text for keyword in keywords_list):
+                    found_reasons.append(category)
+            
+            return '; '.join(found_reasons) if found_reasons else '기타 기술적 내용'
+
+        # 상위 10개 제외된 논문 선택
+        excluded_sample = excluded_papers.head(10).copy()
+        excluded_sample['제외이유'] = excluded_sample.apply(get_exclusion_reason, axis=1)
+        
+        # 표시할 데이터 준비
+        display_data = []
+        for idx, row in excluded_sample.iterrows():
+            title = str(row.get('TI', 'No Title'))[:80] + ('...' if len(str(row.get('TI', ''))) > 80 else '')
+            keywords = str(row.get('DE', 'No Keywords'))[:60] + ('...' if len(str(row.get('DE', ''))) > 60 else '')
+            author = str(row.get('AU', 'Unknown')).split(';')[0] if pd.notna(row.get('AU')) else 'Unknown'
+            
+            display_data.append({
+                '순번': len(display_data) + 1,
+                '논문 제목': title,
+                '저자': author,
+                '키워드': keywords,
+                '제외 이유': row['제외이유']
+            })
+        
+        excluded_df = pd.DataFrame(display_data)
+        
+        # 제외 이유별 통계
+        exclusion_stats = excluded_sample['제외이유'].value_counts().reset_index()
+        exclusion_stats.columns = ['제외 이유', '논문 수']
+        
+        col1, col2 = st.columns([0.3, 0.7])
+        
+        with col1:
+            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+            st.markdown('<div class="chart-title">제외 이유별 분포</div>', unsafe_allow_html=True)
+            st.dataframe(exclusion_stats, use_container_width=True, hide_index=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with col2:
+            # 제외 이유 차트
+            exclusion_chart = alt.Chart(exclusion_stats).mark_bar(
+                color='#dc3545', cornerRadiusEnd=4
+            ).encode(
+                x=alt.X('논문 수:Q', title='논문 수'),
+                y=alt.Y('제외 이유:N', title='제외 이유', sort='-x'),
+                tooltip=['제외 이유', '논문 수']
+            ).properties(height=250)
+            
+            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+            st.altair_chart(exclusion_chart, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # 제외된 논문 상세 목록
+        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+        st.markdown('<div class="chart-title">제외된 논문 상세 목록</div>', unsafe_allow_html=True)
+        st.dataframe(excluded_df, use_container_width=True, hide_index=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # 제외 기준 설명
+        st.markdown("""
+        <div class="info-panel">
+            <h4 style="color: #003875; margin-bottom: 16px;">💡 제외 기준 설명:</h4>
+            <ul style="line-height: 1.8; color: #495057;">
+                <li><strong>네트워크 기술:</strong> 프로토콜, 네트워크 코딩, WiMAX, IEEE 802.16 등 순수 기술적 내용</li>
+                <li><strong>데이터 전송:</strong> 패킷 드롭, 대역폭, FEC, ARQ 등 데이터 전송 기술</li>
+                <li><strong>오류 정정:</strong> 에러 정정, 채널 코딩 등 신호처리 기술</li>
+                <li><strong>센서/환경:</strong> 센서 데이터, 지구과학, 환경 데이터 등 비관련 분야</li>
+                <li><strong>하드웨어:</strong> 하드웨어, 회로, 안테나 등 물리적 구성요소</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    else:
+        st.info("📊 제외된 연구가 없습니다.")
+
+    # --- 처리된 데이터 미리보기 (간소화) ---
+    st.markdown("""
+    <div class="section-header">
+        <div class="section-title">📋 Final Dataset Summary</div>
+        <div class="section-subtitle">최종 분석 대상 데이터 요약</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -824,9 +928,36 @@ if uploaded_file is not None:
     cols_to_drop = ['Classification', 'DE_cleaned', 'ID_cleaned', 'DE_Original', 'ID_Original']
     df_final_output = df_final.drop(columns=[col for col in cols_to_drop if col in df_final.columns], errors='ignore')
     
-    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.dataframe(df_final_output.head(10), use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # 최종 데이터셋 요약 정보
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">✅</div>
+            <div class="metric-value">{len(df_final_output):,}</div>
+            <div class="metric-label">최종 분석 대상</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        include_count = len(df[df['Classification'] == 'Include (관련연구)'])
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">🎯</div>
+            <div class="metric-value">{include_count:,}</div>
+            <div class="metric-label">관련 연구</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        review_count = len(df[df['Classification'] == 'Review (검토필요)'])
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">🔍</div>
+            <div class="metric-value">{review_count:,}</div>
+            <div class="metric-label">검토 필요</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     # --- SciMAT 호환 파일 다운로드 ---
     st.markdown("""
