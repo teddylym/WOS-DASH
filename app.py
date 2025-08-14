@@ -34,14 +34,14 @@ st.markdown("""
     }
     
     .metric-card:hover {
-        box-shadow: 0 4px 20px rgba(0,150,255,0.15);
-        border-color: #0096FF;
+        box-shadow: 0 4px 20px rgba(0,56,117,0.15);
+        border-color: #003875;
     }
     
     .metric-value {
         font-size: 2.8rem;
         font-weight: 700;
-        color: #0096FF;
+        color: #003875;
         margin: 0;
         line-height: 1;
     }
@@ -54,7 +54,7 @@ st.markdown("""
     }
     
     .metric-icon {
-        background: linear-gradient(135deg, #0096FF, #00d4ff);
+        background: linear-gradient(135deg, #003875, #0056b3);
         color: white;
         width: 48px;
         height: 48px;
@@ -80,17 +80,17 @@ st.markdown("""
         font-weight: 600;
         color: #212529;
         margin-bottom: 16px;
-        border-bottom: 2px solid #0096FF;
+        border-bottom: 2px solid #003875;
         padding-bottom: 8px;
     }
     
     .section-header {
-        background: linear-gradient(135deg, #0096FF, #00d4ff);
+        background: linear-gradient(135deg, #003875, #0056b3);
         color: white;
         padding: 20px 24px;
         border-radius: 12px;
         margin: 24px 0 16px 0;
-        box-shadow: 0 4px 16px rgba(0,150,255,0.2);
+        box-shadow: 0 4px 16px rgba(0,56,117,0.2);
     }
     
     .section-title {
@@ -106,8 +106,8 @@ st.markdown("""
     }
     
     .info-panel {
-        background: #e3f2fd;
-        border: 1px solid #0096FF;
+        background: #e8f0fe;
+        border: 1px solid #003875;
         border-radius: 8px;
         padding: 16px;
         margin: 16px 0;
@@ -132,14 +132,14 @@ st.markdown("""
     
     .feature-card:hover {
         transform: translateY(-4px);
-        box-shadow: 0 8px 24px rgba(0,150,255,0.15);
-        border-color: #0096FF;
+        box-shadow: 0 8px 24px rgba(0,56,117,0.15);
+        border-color: #003875;
     }
     
     .feature-icon {
         font-size: 3rem;
         margin-bottom: 16px;
-        background: linear-gradient(135deg, #0096FF, #00d4ff);
+        background: linear-gradient(135deg, #003875, #0056b3);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -160,7 +160,7 @@ st.markdown("""
     
     .upload-zone {
         background: white;
-        border: 2px dashed #0096FF;
+        border: 2px dashed #003875;
         border-radius: 12px;
         padding: 40px;
         text-align: center;
@@ -170,11 +170,11 @@ st.markdown("""
     
     .upload-zone:hover {
         background: #f8f9fa;
-        border-color: #0066cc;
+        border-color: #0056b3;
     }
     
     .progress-indicator {
-        background: linear-gradient(90deg, #0096FF, #00d4ff);
+        background: linear-gradient(90deg, #003875, #0056b3);
         height: 4px;
         border-radius: 2px;
         margin: 16px 0;
@@ -187,7 +187,7 @@ st.markdown("""
     }
     
     .download-button {
-        background: linear-gradient(135deg, #0096FF, #00d4ff) !important;
+        background: linear-gradient(135deg, #003875, #0056b3) !important;
         color: white !important;
         border: none !important;
         border-radius: 8px !important;
@@ -198,7 +198,7 @@ st.markdown("""
     
     .download-button:hover {
         transform: translateY(-2px) !important;
-        box-shadow: 0 8px 24px rgba(0,150,255,0.3) !important;
+        box-shadow: 0 8px 24px rgba(0,56,117,0.3) !important;
     }
     
     .stMetric {
@@ -404,9 +404,18 @@ def convert_df_to_scimat_format(df_to_convert):
         file_content.append("ER")
     return "\n".join(file_content).encode('utf-8')
 
-# --- 메인 헤더 ---
+# --- 메인 헤더 (한양대 로고 포함) ---
 st.markdown("""
-<div style="position: relative; text-align: center; padding: 2rem 0 3rem 0; background: linear-gradient(135deg, #0096FF, #00d4ff); color: white; border-radius: 16px; margin-bottom: 2rem; box-shadow: 0 8px 32px rgba(0,150,255,0.3);">
+<div style="position: relative; text-align: center; padding: 2rem 0 3rem 0; background: linear-gradient(135deg, #003875, #0056b3); color: white; border-radius: 16px; margin-bottom: 2rem; box-shadow: 0 8px 32px rgba(0,56,117,0.3);">
+    <div style="position: absolute; top: 1rem; left: 2rem; display: flex; align-items: center;">
+        <div style="width: 60px; height: 60px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+            <div style="width: 50px; height: 50px; background: #003875; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">HYU</div>
+        </div>
+        <div style="color: white;">
+            <div style="font-size: 14px; font-weight: 600; margin-bottom: 2px;">HANYANG UNIVERSITY</div>
+            <div style="font-size: 12px; opacity: 0.9;">Technology Management Research</div>
+        </div>
+    </div>
     <div style="position: absolute; top: 1rem; right: 2rem; text-align: right; color: rgba(255,255,255,0.9); font-size: 0.85rem;">
         <p style="margin: 0;"><strong>Developed by:</strong> 임태경 (Teddy Lym)</p>
         <p style="margin: 0;">Hanyang University</p>
@@ -446,7 +455,7 @@ st.markdown("""
 with st.expander("ℹ️ 키워드 정규화 기준 상세", expanded=False):
     st.markdown("""
     <div class="info-panel">
-        <h4 style="color: #0096FF; margin-bottom: 16px;">적용되는 정규화 규칙:</h4>
+        <h4 style="color: #003875; margin-bottom: 16px;">적용되는 정규화 규칙:</h4>
         <ul style="line-height: 1.8; color: #495057;">
             <li><strong>AI/ML 관련:</strong> machine learning ← machine-learning, ML, machinelearning</li>
             <li><strong>인공지능:</strong> artificial intelligence ← AI, artificial-intelligence</li>
@@ -469,7 +478,7 @@ st.markdown("""
 
 st.markdown("""
 <div class="upload-zone">
-    <div style="font-size: 3rem; margin-bottom: 16px; color: #0096FF;">📤</div>
+    <div style="font-size: 3rem; margin-bottom: 16px; color: #003875;">📤</div>
     <h3 style="color: #212529; margin-bottom: 8px;">파일을 선택하세요</h3>
     <p style="color: #6c757d; margin: 0;">Tab-delimited 또는 Plain Text 형식의 WOS 데이터 파일</p>
 </div>
@@ -597,9 +606,9 @@ if uploaded_file is not None:
         st.dataframe(classification_counts_df, use_container_width=True, hide_index=True)
 
     with col2:
-        # 도넛 차트 (개선된 색상)
+        # 도넛 차트 (한양대 색상)
         domain = ['Include (관련연구)', 'Review (검토필요)', 'Exclude (제외연구)']
-        range_ = ['#0096FF', '#00d4ff', '#6c757d']
+        range_ = ['#003875', '#0056b3', '#6c757d']
 
         selection = alt.selection_point(fields=['분류'], on='mouseover', nearest=True)
 
@@ -613,7 +622,7 @@ if uploaded_file is not None:
 
         pie = base.mark_arc(outerRadius=120, innerRadius=70)
         text_total = alt.Chart(pd.DataFrame([{'value': f'{total_papers}'}])).mark_text(
-            align='center', baseline='middle', fontSize=35, fontWeight='bold', color='#0096FF'
+            align='center', baseline='middle', fontSize=35, fontWeight='bold', color='#003875'
         ).encode(text='value:N')
         text_label = alt.Chart(pd.DataFrame([{'value': 'Total Papers'}])).mark_text(
             align='center', baseline='middle', fontSize=14, dy=-25, color='#495057'
@@ -663,7 +672,7 @@ if uploaded_file is not None:
         selection_trend = alt.selection_point(fields=['Year'], on='mouseover', nearest=True, empty='none')
         
         line_chart = alt.Chart(yearly_counts).mark_line(
-            point={'size': 80, 'filled': True}, strokeWidth=3, color='#0096FF'
+            point={'size': 80, 'filled': True}, strokeWidth=3, color='#003875'
         ).encode(
             x=alt.X('Year:O', title='발행 연도'),
             y=alt.Y('Count:Q', title='논문 수'),
@@ -689,21 +698,24 @@ if uploaded_file is not None:
     if 'NR' in df.columns:
         df_cited = df.copy()
         df_cited['NR'] = pd.to_numeric(df_cited['NR'], errors='coerce').fillna(0)
-        df_cited = df_cited.sort_values(by='NR', ascending=False).head(5)
+        df_cited = df_cited[df_cited['NR'] > 0].sort_values(by='NR', ascending=False).head(5)
         
-        df_cited['Author_Display'] = df_cited['AU'].apply(lambda x: str(x).split(';')[0] if pd.notna(x) else 'N/A')
-        df_cited['Title_Display'] = df_cited['TI'].apply(lambda x: str(x)[:50] + '...' if len(str(x)) > 50 else str(x))
-        df_cited['Label'] = df_cited['Title_Display'] + ' (' + df_cited['Author_Display'] + ')'
+        if len(df_cited) > 0:
+            df_cited['Author_Display'] = df_cited['AU'].apply(lambda x: str(x).split(';')[0] if pd.notna(x) else 'N/A')
+            df_cited['Title_Display'] = df_cited['TI'].apply(lambda x: str(x)[:50] + '...' if len(str(x)) > 50 else str(x))
+            df_cited['Label'] = df_cited['Title_Display'] + ' (' + df_cited['Author_Display'] + ')'
 
-        selection_cited = alt.selection_point(fields=['Label'], on='mouseover', nearest=True, empty='none')
+            selection_cited = alt.selection_point(fields=['Label'], on='mouseover', nearest=True, empty='none')
 
-        cited_chart = alt.Chart(df_cited).mark_bar(color='#0096FF', cornerRadiusEnd=4).encode(
-            x=alt.X('NR:Q', title='참고문헌 수'),
-            y=alt.Y('Label:N', title='논문 제목 및 저자', sort='-x'),
-            tooltip=['TI', 'AU', 'NR'],
-            opacity=alt.condition(selection_cited, alt.value(1), alt.value(0.8))
-        ).add_params(selection_cited).properties(height=300)
-        st.altair_chart(cited_chart, use_container_width=True)
+            cited_chart = alt.Chart(df_cited).mark_bar(color='#003875', cornerRadiusEnd=4).encode(
+                x=alt.X('NR:Q', title='참고문헌 수'),
+                y=alt.Y('Label:N', title='논문 제목 및 저자', sort='-x'),
+                tooltip=['TI', 'AU', 'NR'],
+                opacity=alt.condition(selection_cited, alt.value(1), alt.value(0.8))
+            ).add_params(selection_cited).properties(height=300)
+            st.altair_chart(cited_chart, use_container_width=True)
+        else:
+            st.info("📊 참고문헌 수가 기록된 논문이 없습니다.")
     else:
         st.warning("⚠️ 참고문헌 수(NR) 데이터가 없어 주요 인용 논문을 분석할 수 없습니다.")
         
@@ -744,8 +756,8 @@ if uploaded_file is not None:
         point = base_chart.mark_point(filled=True, size=120).encode(
             color=alt.condition(
                 alt.FieldOneOfPredicate(field='키워드', oneOf=top_3_keywords),
-                alt.value('#0096FF'),
-                alt.value('#00d4ff')
+                alt.value('#003875'),
+                alt.value('#0056b3')
             )
         )
         
@@ -759,7 +771,7 @@ if uploaded_file is not None:
         if st.checkbox("🔍 정규화 전후 비교 보기 (샘플)", key="comparison_check"):
             st.markdown("""
             <div class="comparison-panel">
-                <h4 style="color: #0096FF; margin-bottom: 16px;">키워드 정규화 효과 비교</h4>
+                <h4 style="color: #003875; margin-bottom: 16px;">키워드 정규화 효과 비교</h4>
             """, unsafe_allow_html=True)
             
             sample_data = []
@@ -842,10 +854,17 @@ if uploaded_file is not None:
     # 사용 가이드 (개선된 디자인)
     st.markdown("""
     <div class="info-panel">
-        <h4 style="color: #0096FF; margin-bottom: 16px;">💡 SciMAT 사용 가이드:</h4>
+        <h4 style="color: #003875; margin-bottom: 16px;">💡 SciMAT 사용 가이드:</h4>
         <ol style="line-height: 1.8; color: #495057;">
             <li>다운로드한 <code>wos_prep_for_scimat.txt</code> 파일을 SciMAT에 업로드합니다.</li>
             <li><code>Group set</code> → <code>Words groups manager</code>에서 Levenshtein distance를 활용해 유사 키워드를 자동으로 그룹핑합니다.</li>
+            <li>수동으로 키워드 그룹을 최종 조정한 후 분석을 실행합니다.</li>
+        </ol>
+    </div>
+    """, unsafe_allow_html=True)
+
+# --- 하단 여백 ---
+st.markdown("<br><br>", unsafe_allow_html=True)<code>Group set</code> → <code>Words groups manager</code>에서 Levenshtein distance를 활용해 유사 키워드를 자동으로 그룹핑합니다.</li>
             <li>수동으로 키워드 그룹을 최종 조정한 후 분석을 실행합니다.</li>
         </ol>
     </div>
