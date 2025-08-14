@@ -316,17 +316,75 @@ def load_data(uploaded_file):
 
 # --- 핵심 기능 함수 ---
 def classify_article(row):
-    inclusion_keywords = ['user', 'viewer', 'audience', 'streamer', 'consumer', 'participant', 'behavior', 'experience', 'engagement', 'interaction', 'motivation', 'psychology', 'social', 'community', 'cultural', 'society', 'commerce', 'marketing', 'business', 'brand', 'purchase', 'monetization', 'education', 'learning', 'influencer']
-    exclusion_keywords = ['protocol', 'network coding', 'wimax', 'ieee 802.16', 'mac layer', 'packet dropping', 'bandwidth', 'fec', 'arq', 'goodput', 'sensor data', 'geoscience', 'environmental data', 'wlan', 'ofdm', 'error correction', 'tcp', 'udp', 'network traffic']
+    """향상된 논문 분류 알고리즘 - 맥락 기반 분석"""
+    
+    # 강력한 포함 키워드 (라이브스트리밍 생태계)
+    strong_inclusion_keywords = [
+        'live streaming', 'livestreaming', 'live-streaming', 
+        'customer engagement', 'purchase intention', 'consumer behavior',
+        'social commerce', 'e-commerce', 'digital marketing',
+        'user experience', 'viewer engagement', 'audience engagement',
+        'influencer marketing', 'social media marketing'
+    ]
+    
+    # 맥락적 포함 키워드 (사용자 중심)
+    contextual_inclusion = [
+        'user', 'viewer', 'audience', 'consumer', 'customer', 'participant',
+        'engagement', 'experience', 'behavior', 'behaviour', 'interaction', 
+        'motivation', 'psychology', 'social', 'community', 'cultural',
+        'business', 'commerce', 'marketing', 'brand', 'purchase', 'buying',
+        'monetization', 'education', 'learning', 'influencer'
+    ]
+    
+    # 기술적 제외 키워드 (맥락 고려)
+    technical_exclusion_keywords = {
+        # 네트워크 프로토콜 (순수 기술)
+        'network_protocol': ['mac protocol', 'routing protocol', 'network protocol design'],
+        
+        # 신호처리 (하드웨어 중심)
+        'signal_processing': ['signal processing algorithm', 'modulation scheme', 'channel estimation'],
+        
+        # 하드웨어 구현
+        'hardware': ['fpga implementation', 'asic design', 'hardware optimization'],
+        
+        # 저수준 네트워크
+        'low_level_network': ['phy layer', 'mac layer optimization', 'packet scheduling algorithm'],
+        
+        # 순수 성능 분석 (기술적)
+        'pure_performance': ['throughput optimization', 'latency minimization', 'bandwidth allocation algorithm']
+    }
+    
     title = str(row.get('TI', '')).lower()
-    source_title = str(row.get('SO', '')).lower()
-    author_keywords = str(row.get('DE', '')).lower()
-    keywords_plus = str(row.get('ID', '')).lower()
     abstract = str(row.get('AB', '')).lower()
-    full_text = ' '.join([title, source_title, author_keywords, keywords_plus, abstract])
-    if any(keyword in full_text for keyword in exclusion_keywords): return 'Exclude (제외연구)'
-    if any(keyword in full_text for keyword in inclusion_keywords): return 'Include (관련연구)'
-    return 'Review (검토필요)'
+    keywords = str(row.get('DE', '')).lower()
+    keywords_plus = str(row.get('ID', '')).lower()
+    
+    full_text = ' '.join([title, abstract, keywords, keywords_plus])
+    
+    # 1단계: 강력한 포함 키워드 체크
+    strong_inclusion_count = sum(1 for keyword in strong_inclusion_keywords if keyword in full_text)
+    if strong_inclusion_count >= 1:
+        return 'Include (관련연구)'
+    
+    # 2단계: 맥락적 분석
+    contextual_score = sum(1 for keyword in contextual_inclusion if keyword in full_text)
+    
+    # 3단계: 기술적 제외 체크 (엄격한 기준)
+    technical_exclusion_count = 0
+    for category, tech_keywords in technical_exclusion_keywords.items():
+        for tech_keyword in tech_keywords:
+            if tech_keyword in full_text:
+                technical_exclusion_count += 1
+    
+    # 4단계: 분류 결정
+    if technical_exclusion_count >= 2:  # 엄격한 기준
+        return 'Exclude (제외연구)'
+    elif contextual_score >= 3:
+        return 'Include (관련연구)'
+    elif contextual_score >= 1:
+        return 'Review (검토필요)'
+    else:
+        return 'Exclude (제외연구)'
 
 def clean_keyword_string(keywords_str, stop_words, lemmatizer):
     """개선된 키워드 정규화 및 정제 처리"""
@@ -863,9 +921,17 @@ if uploaded_file is not None:
             excluded_sample = excluded_papers.head(30).copy()
             display_count = min(30, len(excluded_papers))
         
-        # 표시할 데이터 준비
-        display_data = []
-        for idx, row in excluded_sample.iterrows():
+        # SciMAT 방식의 알고리즘 검증 메트릭 계산
+        exclusion_details = [get_detailed_exclusion_reason(row) for _, row in excluded_sample.iterrows()]
+        
+        # 신뢰도 기반 통계
+        high_confidence = len([d for d in exclusion_details if d['confidence_score'] >= 0.7])
+        medium_confidence = len([d for d in exclusion_details if 0.4 <= d['confidence_score'] < 0.7])
+        low_confidence = len([d for d in exclusion_details if d['confidence_score'] < 0.4])
+        
+        # 제외 수준별 통계
+        exclusion_levels = [d['exclusion_level'] for d in exclusion_details]
+        level_stats = pd.Series(exclusion_levels).value_counts()
             exclusion_info = get_detailed_exclusion_reason(row)
             
             title = str(row.get('TI', 'No Title'))
@@ -891,10 +957,10 @@ if uploaded_file is not None:
         
         excluded_df = pd.DataFrame(display_data)
         
-        # 알고리즘 작동 현황 요약
+        # SciMAT 스타일 알고리즘 성과 측정
         st.markdown("""
         <div class="chart-container">
-            <div class="chart-title">🔍 알고리즘 작동 검증 결과</div>
+            <div class="chart-title">🔍 SciMAT 방식 알고리즘 성과 분석</div>
         """, unsafe_allow_html=True)
         
         col1, col2, col3, col4 = st.columns(4)
@@ -909,38 +975,43 @@ if uploaded_file is not None:
             </div>
             """, unsafe_allow_html=True)
         
-        # 제외 키워드가 발견된 논문 수
-        keyword_detected = len([d for d in display_data if d['탐지된 제외 키워드'] != '기타 키워드'])
         with col2:
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-icon">✅</div>
-                <div class="metric-value">{keyword_detected}</div>
-                <div class="metric-label">키워드 탐지 성공</div>
+                <div class="metric-icon">🎯</div>
+                <div class="metric-value">{high_confidence}</div>
+                <div class="metric-label">고신뢰도 제외</div>
             </div>
             """, unsafe_allow_html=True)
         
-        # 정확도 계산
-        accuracy = (keyword_detected / display_count * 100) if display_count > 0 else 0
         with col3:
+            avg_confidence = sum([d['confidence_score'] for d in exclusion_details]) / len(exclusion_details) if exclusion_details else 0
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-icon">📊</div>
-                <div class="metric-value">{accuracy:.1f}%</div>
-                <div class="metric-label">알고리즘 정확도</div>
+                <div class="metric-value">{avg_confidence:.2f}</div>
+                <div class="metric-label">평균 신뢰도</div>
             </div>
             """, unsafe_allow_html=True)
         
-        # 주요 제외 카테고리 수
-        unique_categories = len(set([d['제외 분류'] for d in display_data]))
         with col4:
+            strong_exclusions = len([d for d in exclusion_details if '강한 제외' in d['exclusion_level']])
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-icon">🏷️</div>
-                <div class="metric-value">{unique_categories}</div>
-                <div class="metric-label">제외 카테고리 수</div>
+                <div class="metric-icon">⚡</div>
+                <div class="metric-value">{strong_exclusions}</div>
+                <div class="metric-label">강한 제외 논문</div>
             </div>
             """, unsafe_allow_html=True)
+        
+        # 제외 수준별 분포 표시
+        if len(level_stats) > 0:
+            st.markdown("#### 📋 제외 수준별 분포")
+            level_df = pd.DataFrame({
+                '제외 수준': level_stats.index,
+                '논문 수': level_stats.values
+            })
+            st.dataframe(level_df, use_container_width=True, hide_index=True)
         
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1016,8 +1087,10 @@ if uploaded_file is not None:
         <th style="padding: 12px; border-bottom: 2px solid #dee2e6; text-align: left; width: 15%;">저자</th>
         <th style="padding: 12px; border-bottom: 2px solid #dee2e6; text-align: center; width: 8%;">연도</th>
         <th style="padding: 12px; border-bottom: 2px solid #dee2e6; text-align: left; width: 25%;">저자 키워드</th>
-        <th style="padding: 12px; border-bottom: 2px solid #dee2e6; text-align: left; width: 15%;">제외 분류</th>
-        <th style="padding: 12px; border-bottom: 2px solid #dee2e6; text-align: left; width: 15%;">탐지된 제외 키워드</th>
+        <th style="padding: 12px; border-bottom: 2px solid #dee2e6; text-align: left; width: 12%;">제외 분류</th>
+        <th style="padding: 12px; border-bottom: 2px solid #dee2e6; text-align: left; width: 12%;">탐지된 제외 키워드</th>
+        <th style="padding: 12px; border-bottom: 2px solid #dee2e6; text-align: left; width: 10%;">제외 수준</th>
+        <th style="padding: 12px; border-bottom: 2px solid #dee2e6; text-align: center; width: 8%;">신뢰도</th>
         </tr>
         </thead>
         <tbody>
@@ -1042,6 +1115,8 @@ if uploaded_file is not None:
             </td>
             <td style="padding: 12px;">{row['제외 분류']}</td>
             <td style="padding: 12px;">{row['탐지된 제외 키워드']}</td>
+            <td style="padding: 12px; font-weight: bold; color: {'#d32f2f' if '강한' in row['제외 수준'] else '#f57c00' if '중간' in row['제외 수준'] else '#388e3c'};">{row['제외 수준']}</td>
+            <td style="padding: 12px; text-align: center; font-weight: bold;">{row['신뢰도 점수']}</td>
             </tr>
             """
         
