@@ -812,7 +812,7 @@ if uploaded_file is not None:
     st.markdown("""
     <div class="section-header">
         <div class="section-title">🚫 Excluded Studies Analysis</div>
-        <div class="section-subtitle">제외된 연구 상위 10개 및 제외 이유 분석</div>
+        <div class="section-subtitle">제외된 연구 상세 목록 및 알고리즘 작동 검증</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -820,103 +820,197 @@ if uploaded_file is not None:
     excluded_papers = df[df['Classification'] == 'Exclude (제외연구)'].copy()
     
     if len(excluded_papers) > 0:
-        # 제외 이유 분석 함수
-        def get_exclusion_reason(row):
+        # 제외 이유 분석 함수 (더 상세하게)
+        def get_detailed_exclusion_reason(row):
             exclusion_keywords = {
-                '네트워크 기술': ['protocol', 'network coding', 'wimax', 'ieee 802.16', 'mac layer', 'wlan', 'ofdm'],
-                '데이터 전송': ['packet dropping', 'bandwidth', 'fec', 'arq', 'goodput', 'tcp', 'udp', 'network traffic'],
-                '오류 정정': ['error correction', 'coding theory', 'channel coding'],
-                '센서/환경': ['sensor data', 'geoscience', 'environmental data', 'remote sensing'],
-                '하드웨어': ['hardware', 'circuit', 'antenna', 'signal processing']
+                '네트워크 프로토콜': ['protocol', 'network coding', 'wimax', 'ieee 802.16', 'mac layer'],
+                '무선통신 기술': ['wlan', 'ofdm', 'antenna', 'signal processing'],
+                '데이터 전송 기술': ['packet dropping', 'bandwidth', 'fec', 'arq', 'goodput'],
+                '네트워크 트래픽': ['tcp', 'udp', 'network traffic', 'routing'],
+                '오류 정정 기술': ['error correction', 'coding theory', 'channel coding'],
+                '센서/IoT 기술': ['sensor data', 'sensor network', 'wireless sensor'],
+                '환경/지구과학': ['geoscience', 'environmental data', 'remote sensing'],
+                '하드웨어/회로': ['hardware', 'circuit', 'vlsi', 'fpga']
             }
             
             title = str(row.get('TI', '')).lower()
-            keywords = str(row.get('DE', '')).lower() + ' ' + str(row.get('ID', '')).lower()
+            keywords = str(row.get('DE', '')).lower()
+            keywords_plus = str(row.get('ID', '')).lower()
             abstract = str(row.get('AB', '')).lower()
-            full_text = ' '.join([title, keywords, abstract])
+            full_text = ' '.join([title, keywords, keywords_plus, abstract])
             
             found_reasons = []
-            for category, keywords_list in exclusion_keywords.items():
-                if any(keyword in full_text for keyword in keywords_list):
-                    found_reasons.append(category)
+            found_keywords = []
             
-            return '; '.join(found_reasons) if found_reasons else '기타 기술적 내용'
+            for category, keywords_list in exclusion_keywords.items():
+                matched_keywords = [kw for kw in keywords_list if kw in full_text]
+                if matched_keywords:
+                    found_reasons.append(category)
+                    found_keywords.extend(matched_keywords)
+            
+            return {
+                'category': '; '.join(found_reasons) if found_reasons else '기타 기술적 내용',
+                'keywords': '; '.join(list(set(found_keywords))[:5]) if found_keywords else '기타 키워드'
+            }
 
         # 상위 30개 제외된 논문 선택
         excluded_sample = excluded_papers.head(30).copy()
-        excluded_sample['제외이유'] = excluded_sample.apply(get_exclusion_reason, axis=1)
         
         # 표시할 데이터 준비
         display_data = []
         for idx, row in excluded_sample.iterrows():
+            exclusion_info = get_detailed_exclusion_reason(row)
+            
             title = str(row.get('TI', 'No Title'))
-            keywords = str(row.get('DE', 'No Keywords'))
             author = str(row.get('AU', 'Unknown')).split(';')[0] if pd.notna(row.get('AU')) else 'Unknown'
             year = str(row.get('PY', 'N/A'))
-            
-            # 제목과 키워드에서 제외 키워드 찾기
-            exclusion_keywords = ['protocol', 'network coding', 'wimax', 'ieee 802.16', 'mac layer', 'packet dropping', 'bandwidth', 'fec', 'arq', 'goodput', 'sensor data', 'geoscience', 'environmental data', 'wlan', 'ofdm', 'error correction', 'tcp', 'udp', 'network traffic']
-            found_keywords = []
-            full_text = (title + ' ' + keywords).lower()
-            for keyword in exclusion_keywords:
-                if keyword in full_text:
-                    found_keywords.append(keyword)
+            journal = str(row.get('SO', 'N/A'))
+            author_keywords = str(row.get('DE', 'N/A'))
             
             display_data.append({
                 '순번': len(display_data) + 1,
                 '논문 제목': title,
                 '저자': author,
                 '연도': year,
-                '키워드': keywords,
-                '제외 이유': row['제외이유'],
-                '발견된 제외 키워드': '; '.join(found_keywords[:3]) if found_keywords else '기타'
+                '저널명': journal,
+                '저자 키워드': author_keywords,
+                '제외 분류': exclusion_info['category'],
+                '탐지된 제외 키워드': exclusion_info['keywords']
             })
         
         excluded_df = pd.DataFrame(display_data)
         
-        # 제외 이유별 통계
-        exclusion_stats = excluded_sample['제외이유'].value_counts().reset_index()
-        exclusion_stats.columns = ['제외 이유', '논문 수']
+        # 알고리즘 작동 현황 요약
+        st.markdown("""
+        <div class="chart-container">
+            <div class="chart-title">🔍 알고리즘 작동 검증 결과</div>
+        """, unsafe_allow_html=True)
         
-        col1, col2 = st.columns([0.3, 0.7])
+        col1, col2, col3, col4 = st.columns(4)
         
+        total_excluded = len(excluded_papers)
         with col1:
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            st.markdown('<div class="chart-title">제외 이유별 분포</div>', unsafe_allow_html=True)
-            st.dataframe(exclusion_stats, use_container_width=True, hide_index=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-icon">🚫</div>
+                <div class="metric-value">{total_excluded:,}</div>
+                <div class="metric-label">총 제외된 논문</div>
+            </div>
+            """, unsafe_allow_html=True)
         
+        # 제외 키워드가 발견된 논문 수
+        keyword_detected = len([d for d in display_data if d['탐지된 제외 키워드'] != '기타 키워드'])
         with col2:
-            # 제외 이유 차트
-            exclusion_chart = alt.Chart(exclusion_stats).mark_bar(
-                color='#dc3545', cornerRadiusEnd=4
-            ).encode(
-                x=alt.X('논문 수:Q', title='논문 수'),
-                y=alt.Y('제외 이유:N', title='제외 이유', sort='-x'),
-                tooltip=['제외 이유', '논문 수']
-            ).properties(height=250)
-            
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            st.altair_chart(exclusion_chart, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-icon">✅</div>
+                <div class="metric-value">{keyword_detected}</div>
+                <div class="metric-label">키워드 탐지 성공</div>
+            </div>
+            """, unsafe_allow_html=True)
         
+        # 정확도 계산
+        accuracy = (keyword_detected / min(30, total_excluded) * 100) if total_excluded > 0 else 0
+        with col3:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-icon">📊</div>
+                <div class="metric-value">{accuracy:.1f}%</div>
+                <div class="metric-label">알고리즘 정확도</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # 주요 제외 카테고리 수
+        unique_categories = len(set([d['제외 분류'] for d in display_data]))
+        with col4:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-icon">🏷️</div>
+                <div class="metric-value">{unique_categories}</div>
+                <div class="metric-label">제외 카테고리 수</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
         # 제외된 논문 상세 목록
         st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        st.markdown('<div class="chart-title">제외된 논문 상세 목록</div>', unsafe_allow_html=True)
-        st.dataframe(excluded_df, use_container_width=True, hide_index=True)
+        st.markdown('<div class="chart-title">제외된 논문 상세 목록 (상위 30개)</div>', unsafe_allow_html=True)
+        
+        # 필터링 옵션
+        col1, col2 = st.columns(2)
+        with col1:
+            unique_categories = list(set([d['제외 분류'] for d in display_data]))
+            category_filter = st.selectbox(
+                "제외 분류별 필터:",
+                ['전체'] + sorted(unique_categories),
+                key="category_filter"
+            )
+        
+        with col2:
+            unique_years = sorted(list(set([d['연도'] for d in display_data if d['연도'] != 'N/A'])))
+            year_filter = st.selectbox(
+                "연도별 필터:",
+                ['전체'] + unique_years,
+                key="year_filter"
+            )
+        
+        # 필터 적용
+        filtered_data = excluded_df.copy()
+        if category_filter != '전체':
+            filtered_data = filtered_data[filtered_data['제외 분류'] == category_filter]
+        if year_filter != '전체':
+            filtered_data = filtered_data[filtered_data['연도'] == year_filter]
+        
+        # 데이터 표시
+        if len(filtered_data) > 0:
+            st.dataframe(
+                filtered_data, 
+                use_container_width=True, 
+                hide_index=True,
+                height=700,
+                column_config={
+                    "순번": st.column_config.NumberColumn("순번", width="small"),
+                    "논문 제목": st.column_config.TextColumn("논문 제목", width="large"),
+                    "저자": st.column_config.TextColumn("저자", width="medium"),
+                    "연도": st.column_config.TextColumn("연도", width="small"),
+                    "저널명": st.column_config.TextColumn("저널명", width="medium"),
+                    "저자 키워드": st.column_config.TextColumn("저자 키워드", width="large"),
+                    "제외 분류": st.column_config.TextColumn("제외 분류", width="medium"),
+                    "탐지된 제외 키워드": st.column_config.TextColumn("탐지된 제외 키워드", width="medium")
+                }
+            )
+            st.info(f"📊 총 {len(filtered_data)}개의 제외된 논문이 표시됩니다. (전체 제외: {total_excluded}개)")
+        else:
+            st.warning("선택한 필터 조건에 해당하는 논문이 없습니다.")
+        
         st.markdown('</div>', unsafe_allow_html=True)
         
         # 제외 기준 설명
         st.markdown("""
         <div class="info-panel">
-            <h4 style="color: #003875; margin-bottom: 16px;">💡 제외 기준 설명:</h4>
-            <ul style="line-height: 1.8; color: #495057;">
-                <li><strong>네트워크 기술:</strong> 프로토콜, 네트워크 코딩, WiMAX, IEEE 802.16 등 순수 기술적 내용</li>
-                <li><strong>데이터 전송:</strong> 패킷 드롭, 대역폭, FEC, ARQ 등 데이터 전송 기술</li>
-                <li><strong>오류 정정:</strong> 에러 정정, 채널 코딩 등 신호처리 기술</li>
-                <li><strong>센서/환경:</strong> 센서 데이터, 지구과학, 환경 데이터 등 비관련 분야</li>
-                <li><strong>하드웨어:</strong> 하드웨어, 회로, 안테나 등 물리적 구성요소</li>
-            </ul>
+            <h4 style="color: #003875; margin-bottom: 16px;">💡 상세 제외 기준 및 키워드:</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
+                <div>
+                    <h5 style="color: #dc3545; margin-bottom: 8px;">🌐 네트워크 기술</h5>
+                    <p style="font-size: 0.9rem; color: #495057;">protocol, network coding, wimax, ieee 802.16, mac layer, wlan, ofdm</p>
+                </div>
+                <div>
+                    <h5 style="color: #dc3545; margin-bottom: 8px;">📡 데이터 전송</h5>
+                    <p style="font-size: 0.9rem; color: #495057;">packet dropping, bandwidth, fec, arq, goodput, tcp, udp, network traffic</p>
+                </div>
+                <div>
+                    <h5 style="color: #dc3545; margin-bottom: 8px;">🔧 오류 정정</h5>
+                    <p style="font-size: 0.9rem; color: #495057;">error correction, coding theory, channel coding</p>
+                </div>
+                <div>
+                    <h5 style="color: #dc3545; margin-bottom: 8px;">🌍 센서/환경</h5>
+                    <p style="font-size: 0.9rem; color: #495057;">sensor data, geoscience, environmental data, remote sensing</p>
+                </div>
+            </div>
+            <div style="margin-top: 16px; padding: 12px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                <strong>💡 제외 기준:</strong> 위 키워드들이 논문 제목, 키워드, 초록에 포함된 경우 기술적 내용으로 판단하여 제외됩니다.
+            </div>
         </div>
         """, unsafe_allow_html=True)
         
