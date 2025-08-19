@@ -10,7 +10,7 @@ import io
 
 # --- 페이지 설정 ---
 st.set_page_config(
-    page_title="WOS Prep | Professional Edition",
+    page_title="WOS Prep | SciMAT Compatible Edition",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -113,6 +113,14 @@ st.markdown("""
         margin: 16px 0;
     }
     
+    .warning-panel {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 16px 0;
+    }
+    
     .feature-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -204,77 +212,7 @@ def download_nltk_resources():
     nltk.download('stopwords', quiet=True)
 download_nltk_resources()
 
-# --- 키워드 정규화 사전 (확장된 라이브 스트리밍 버전) ---
-def build_normalization_map():
-    """라이브 스트리밍 연구 특화 정규화 사전"""
-    base_map = {
-        # === 라이브 스트리밍 핵심 용어 ===
-        "live streaming": ["live-streaming", "live_streaming", "livestreaming", "live stream", "live streams", "real time streaming"],
-        "live commerce": ["live-commerce", "live_commerce", "livestream commerce", "streaming commerce", "live shopping", "live selling"],
-        "live broadcasting": ["live-broadcasting", "live_broadcasting", "live broadcast", "live broadcasts"],
-        "video streaming": ["video-streaming", "video_streaming", "videostreaming", "video stream"],
-        "streaming platform": ["streaming-platform", "streaming_platform", "stream platform", "streaming platforms"],
-        "streaming service": ["streaming-service", "streaming_service", "stream service", "streaming services"],
-        
-        # === 사용자 행동 관련 ===
-        "user behavior": ["user-behavior", "user_behavior", "userbehavior", "user behaviour"],
-        "viewer behavior": ["viewer-behavior", "viewer_behavior", "viewer behaviour"],
-        "consumer behavior": ["consumer-behavior", "consumer_behavior", "consumer behaviour"],
-        "streaming behavior": ["streaming-behavior", "streaming_behavior"],
-        "user experience": ["user-experience", "user_experience", "ux", "userexperience"],
-        "user engagement": ["user-engagement", "user_engagement", "userengagement"],
-        
-        # === AI/ML 관련 ===
-        "machine learning": ["machine-learning", "machine_learning", "ml", "machinelearning"],
-        "artificial intelligence": ["ai", "artificial-intelligence", "artificial_intelligence", "artificialintelligence"],
-        "deep learning": ["deep-learning", "deep_learning", "deep neural networks", "deep neural network", "dnn", "deeplearning"],
-        "neural networks": ["neural-networks", "neural_networks", "neuralnetworks", "neural network", "nn"],
-        "natural language processing": ["nlp", "natural-language-processing", "natural_language_processing"],
-        "computer vision": ["computer-vision", "computer_vision", "computervision", "cv"],
-        "reinforcement learning": ["reinforcement-learning", "reinforcement_learning", "rl"],
-
-        # === 소셜 미디어/플랫폼 ===
-        "social media": ["social-media", "social_media", "socialmedia"],
-        "social platform": ["social-platform", "social_platform", "socialplatform"],
-        "digital platform": ["digital-platform", "digital_platform", "digitalplatform"],
-        "content creation": ["content-creation", "content_creation", "contentcreation"],
-        "digital marketing": ["digital-marketing", "digital_marketing", "digitalmarketing"],
-        "e commerce": ["ecommerce", "e-commerce", "e_commerce", "electronic commerce"],
-
-        # === 연구방법론 관련 ===
-        "data mining": ["data-mining", "data_mining", "datamining"],
-        "big data": ["big-data", "big_data", "bigdata"],
-        "data analysis": ["data-analysis", "data_analysis", "dataanalysis"],
-        "sentiment analysis": ["sentiment-analysis", "sentiment_analysis", "sentimentanalysis"],
-        "statistical analysis": ["statistical-analysis", "statistical_analysis", "statisticalanalysis"],
-        "structural equation modeling": ["sem", "pls-sem", "pls sem", "structural equation model"],
-
-        # === 기술 관련 ===
-        "cloud computing": ["cloud-computing", "cloud_computing", "cloudcomputing"],
-        "internet of things": ["iot", "internet-of-things", "internet_of_things"],
-        "mobile applications": ["mobile-applications", "mobile_applications", "mobile apps", "mobile app"],
-        "web development": ["web-development", "web_development", "webdevelopment"],
-        "software engineering": ["software-engineering", "software_engineering", "softwareengineering"]
-    }
-
-    # 역방향 매핑 생성 (variation -> standard_form)
-    reverse_map = {}
-    for standard_form, variations in base_map.items():
-        for variation in variations:
-            reverse_map[variation.lower()] = standard_form
-        # 표준 형태도 자기 자신으로 매핑
-        reverse_map[standard_form.lower()] = standard_form
-
-    return reverse_map
-
-NORMALIZATION_MAP = build_normalization_map()
-
-def normalize_keyword_phrase(phrase):
-    """구문 단위 키워드 정규화"""
-    phrase_lower = phrase.lower().strip()
-    return NORMALIZATION_MAP.get(phrase_lower, phrase_lower)
-
-# --- 데이터 로드 함수 (기존과 동일) ---
+# --- 데이터 로드 함수 ---
 def load_data(uploaded_file):
     file_bytes = uploaded_file.getvalue()
     encodings_to_try = ['utf-8-sig', 'utf-8', 'latin1', 'cp949']
@@ -299,44 +237,28 @@ def load_data(uploaded_file):
 
     return None
 
-# --- 개선된 논문 분류 함수 ---
+# --- 라이브 스트리밍 특화 분류 함수 (기존과 동일) ---
 def classify_article(row):
-    """
-    라이브 스트리밍 연구를 위한 개선된 분류 알고리즘
-    - 포괄적 연구 범위 적용
-    - 기술적 기반 연구 포함
-    - 명확한 제외 기준만 적용
-    """
+    """라이브 스트리밍 연구를 위한 포괄적 분류"""
     
-    # === 1단계: 핵심 포함 키워드 (확장) ===
+    # 핵심 포함 키워드
     core_inclusion_keywords = [
-        # 직접적 라이브 스트리밍
         'live streaming', 'livestreaming', 'live stream', 'live broadcast', 'live video',
         'real time streaming', 'real-time streaming', 'streaming platform', 'streaming service',
-        
-        # 라이브 커머스 및 상업적 활용
         'live commerce', 'live shopping', 'live selling', 'livestream commerce',
         'social commerce', 'live marketing', 'streaming monetization',
-        
-        # 사용자 및 사회적 측면
         'streamer', 'viewer', 'audience engagement', 'streaming audience', 'live audience',
         'streaming behavior', 'viewer behavior', 'streaming experience', 'live interaction',
         'streaming community', 'online community', 'digital community',
-        
-        # 플랫폼 관련
         'twitch', 'youtube live', 'facebook live', 'instagram live', 'tiktok live',
         'streaming media', 'video streaming', 'audio streaming', 'multimedia streaming',
-        
-        # 교육 및 엔터테인먼트
         'live learning', 'streaming education', 'online education', 'e-learning',
         'gaming stream', 'esports', 'live gaming', 'streaming content',
-        
-        # 비즈니스 및 마케팅
         'influencer marketing', 'content creator', 'digital marketing', 'brand engagement',
         'consumer behavior', 'purchase intention', 'social influence'
     ]
     
-    # === 2단계: 기술적 포함 키워드 ===
+    # 기술적 포함 키워드
     technical_inclusion_keywords = [
         'real time video', 'real-time video', 'video compression', 'video encoding',
         'adaptive streaming', 'video quality', 'streaming quality', 'latency',
@@ -347,26 +269,19 @@ def classify_article(row):
         'mobile broadcast', 'smartphone streaming'
     ]
     
-    # === 3단계: 명확한 제외 키워드 (최소화) ===
+    # 명확한 제외 키워드 (최소화)
     clear_exclusion_keywords = [
-        # 순수 네트워크 프로토콜
         'routing protocol', 'network topology', 'packet routing', 'mac protocol', 
         'ieee 802.11', 'wimax protocol', 'lte protocol',
-        
-        # 하드웨어 설계
         'vlsi design', 'circuit design', 'antenna design', 'rf circuit',
         'hardware implementation', 'fpga implementation', 'asic design',
-        
-        # 물리계층 신호처리
         'signal processing algorithm', 'modulation scheme', 'channel estimation',
         'beamforming', 'mimo antenna', 'ofdm modulation',
-        
-        # 비관련 도메인
         'satellite communication', 'underwater communication', 'space communication',
         'biomedical signal', 'medical imaging', 'radar system'
     ]
     
-    # === 4단계: 텍스트 추출 ===
+    # 텍스트 추출
     title = str(row.get('TI', '')).lower()
     source_title = str(row.get('SO', '')).lower()
     author_keywords = str(row.get('DE', '')).lower()
@@ -374,26 +289,20 @@ def classify_article(row):
     abstract = str(row.get('AB', '')).lower()
     full_text = ' '.join([title, source_title, author_keywords, keywords_plus, abstract])
     
-    # === 5단계: 분류 로직 ===
-    
-    # 1차: 명확한 제외 대상
+    # 분류 로직
     if any(keyword in full_text for keyword in clear_exclusion_keywords):
         return 'Exclude (기술적 비관련)'
     
-    # 2차: 핵심 라이브 스트리밍 연구
     if any(keyword in full_text for keyword in core_inclusion_keywords):
         return 'Include (핵심연구)'
     
-    # 3차: 기술적 기반 연구
     if any(keyword in full_text for keyword in technical_inclusion_keywords):
-        # 추가 검증: 라이브 스트리밍 연관성
         live_indicators = ['live', 'real time', 'real-time', 'streaming', 'broadcast', 'interactive']
         if any(indicator in full_text for indicator in live_indicators):
             return 'Include (기술기반)'
         else:
             return 'Review (기술검토)'
     
-    # 4차: 일반적 관련성
     general_keywords = [
         'social media', 'social network', 'online platform', 'digital platform',
         'user experience', 'user behavior', 'consumer behavior', 'online behavior',
@@ -404,61 +313,63 @@ def classify_article(row):
     if any(keyword in full_text for keyword in general_keywords):
         return 'Review (일반관련)'
     
-    # 5차: 기타
     return 'Review (검토필요)'
 
-def clean_keyword_string(keywords_str, stop_words, lemmatizer):
-    """SciMAT 최적화된 키워드 정제 처리"""
-    if pd.isna(keywords_str) or not isinstance(keywords_str, str):
+# --- SciMAT 호환성 최우선 키워드 처리 ---
+def scimat_compatible_keyword_processing(keywords_str):
+    """
+    SciMAT 호환성을 위한 최소한의 키워드 처리
+    - 다양성 보존 (정규화 최소화)
+    - 기본 정리만 수행
+    - Word Group 기능이 작동할 수 있도록 원시성 유지
+    """
+    if pd.isna(keywords_str) or not isinstance(keywords_str, str) or not keywords_str.strip():
         return ""
-
-    # SciMAT 호환 특수문자 처리
-    keywords_str = re.sub(r'[^\w\s\-;]', '', keywords_str)  # 기본 특수문자 제거
-    keywords_str = re.sub(r'\s+', ' ', keywords_str)        # 다중 공백 정리
     
-    all_keywords = keywords_str.split(';')
-    cleaned_keywords = set()
-
-    for keyword in all_keywords:
-        if not keyword.strip():
-            continue
-
-        # 1단계: 기본 정제
-        keyword_clean = keyword.strip().lower()
-        keyword_clean = re.sub(r'[^a-z\s\-_]', '', keyword_clean)
-        keyword_clean = re.sub(r'\s+', ' ', keyword_clean).strip()
+    # 1. 기본 분리
+    if ';' in keywords_str:
+        keywords_list = keywords_str.split(';')
+    elif ',' in keywords_str:
+        keywords_list = keywords_str.split(',')
+    else:
+        keywords_list = [keywords_str]
+    
+    # 2. 최소한의 정리만 수행
+    cleaned_keywords = []
+    for keyword in keywords_list:
+        keyword = keyword.strip()
         
-        # 길이 제한 (SciMAT 권장)
-        if len(keyword_clean) < 3 or len(keyword_clean) > 50:
+        # 빈 키워드 제거
+        if not keyword:
             continue
+        
+        # 길이 제한만 적용 (SciMAT 기본 요구사항)
+        if len(keyword) < 2 or len(keyword) > 100:
+            continue
+        
+        # 극심한 특수문자만 제거 (SciMAT 파싱 오류 방지용)
+        keyword = re.sub(r'[^\w\s\-\.&\(\)]', '', keyword)  # 기본 문자만 유지
+        keyword = re.sub(r'\s+', ' ', keyword).strip()  # 다중 공백 정리
+        
+        if keyword:
+            # 원본 형태 최대한 보존 (대소문자, 띄어쓰기 등)
+            cleaned_keywords.append(keyword)
+    
+    # 3. 중복 제거 (대소문자 구분하여 다양성 보존)
+    # 완전히 동일한 것만 제거
+    seen = set()
+    final_keywords = []
+    for kw in cleaned_keywords:
+        if kw.lower() not in seen:
+            seen.add(kw.lower())
+            final_keywords.append(kw)
+    
+    # 4. SciMAT 표준 구분자로 연결
+    return '; '.join(final_keywords)
 
-        # 2단계: 구문 단위 정규화
-        normalized_phrase = normalize_keyword_phrase(keyword_clean)
-
-        # 3단계: 단어별 처리 (구문 정규화가 안된 경우)
-        if normalized_phrase == keyword_clean.lower():
-            keyword_clean = keyword_clean.replace('-', ' ').replace('_', ' ')
-            words = keyword_clean.split()
-
-            filtered_words = []
-            for word in words:
-                if word and len(word) > 2 and word not in stop_words:
-                    lemmatized_word = lemmatizer.lemmatize(word)
-                    filtered_words.append(lemmatized_word)
-
-            if filtered_words:
-                reconstructed_phrase = " ".join(filtered_words)
-                final_keyword = normalize_keyword_phrase(reconstructed_phrase)
-                if final_keyword and len(final_keyword) > 2:
-                    cleaned_keywords.add(final_keyword)
-        else:
-            if normalized_phrase and len(normalized_phrase) > 2:
-                cleaned_keywords.add(normalized_phrase)
-
-    return '; '.join(sorted(list(cleaned_keywords)))
-
-# --- SCIMAT 형식 변환 함수 (기존과 동일) ---
+# --- SCIMAT 형식 변환 함수 ---
 def convert_df_to_scimat_format(df_to_convert):
+    """SciMAT 호환 WOS 형식으로 변환"""
     wos_field_order = [
         'PT', 'AU', 'AF', 'TI', 'SO', 'LA', 'DT', 'DE', 'ID', 'AB', 'C1', 'C3', 'RP',
         'EM', 'RI', 'OI', 'FU', 'FX', 'CR', 'NR', 'TC', 'Z9', 'U1', 'U2', 'PU', 'PI', 'PA',
@@ -485,14 +396,62 @@ def convert_df_to_scimat_format(df_to_convert):
                 if items:
                     file_content.append(f"{tag} {items[0]}")
                     for item in items[1:]:
-                        file_content.append(f"  {item}")
+                        file_content.append(f"   {item}")
             else:
                 file_content.append(f"{tag} {value}")
 
         file_content.append("ER")
     return "\n".join(file_content).encode('utf-8')
 
-# --- 메인 헤더 (기존과 동일) ---
+# --- SciMAT 호환성 진단 함수 ---
+def diagnose_scimat_readiness(df):
+    """SciMAT 준비도 진단"""
+    issues = []
+    recommendations = []
+    
+    # 1. 필수 필드 확인
+    if 'DE' not in df.columns and 'ID' not in df.columns:
+        issues.append("❌ 키워드 필드 없음: DE 또는 ID 필드 필요")
+    
+    # 2. 키워드 필드 분석
+    for field in ['DE', 'ID']:
+        if field in df.columns:
+            valid_keywords = df[field].dropna()
+            valid_keywords = valid_keywords[valid_keywords != '']
+            
+            if len(valid_keywords) == 0:
+                issues.append(f"❌ {field} 필드에 유효한 키워드 없음")
+                continue
+            
+            # 키워드 다양성 확인
+            all_keywords = []
+            for keywords_str in valid_keywords:
+                keywords_list = str(keywords_str).split(';')
+                all_keywords.extend([kw.strip().lower() for kw in keywords_list if kw.strip()])
+            
+            unique_keywords = len(set(all_keywords))
+            total_keywords = len(all_keywords)
+            diversity_ratio = unique_keywords / total_keywords if total_keywords > 0 else 0
+            
+            if diversity_ratio < 0.3:
+                issues.append(f"⚠️ {field} 키워드 다양성 부족 ({diversity_ratio:.1%})")
+                recommendations.append(f"💡 {field} 키워드 정규화 강도를 낮춰 다양성 확보")
+            
+            # 평균 키워드 수 확인
+            keyword_counts = []
+            for keywords_str in valid_keywords.head(100):  # 샘플 100개
+                count = len([kw.strip() for kw in str(keywords_str).split(';') if kw.strip()])
+                keyword_counts.append(count)
+            
+            avg_keywords = sum(keyword_counts) / len(keyword_counts) if keyword_counts else 0
+            
+            if avg_keywords < 2:
+                issues.append(f"⚠️ {field} 평균 키워드 수 부족 ({avg_keywords:.1f}개)")
+                recommendations.append(f"💡 {field} 키워드 삭제 기준 완화 필요")
+    
+    return issues, recommendations
+
+# --- 메인 헤더 ---
 st.markdown("""
 <div style="position: relative; text-align: center; padding: 2rem 0 3rem 0; background: linear-gradient(135deg, #003875, #0056b3); color: white; border-radius: 16px; margin-bottom: 2rem; box-shadow: 0 8px 32px rgba(0,56,117,0.3);">
     <div style="position: absolute; top: 1rem; left: 2rem; color: white;">
@@ -507,7 +466,7 @@ st.markdown("""
         WOS Prep
     </h1>
     <p style="font-size: 1.3rem; margin: 0; font-weight: 400; opacity: 0.95;">
-        Professional Tool for Web of Science Data Pre-processing (Live Streaming Research Optimized)
+        SciMAT Compatible Edition for Live Streaming Research
     </p>
     <div style="width: 100px; height: 4px; background-color: rgba(255,255,255,0.3); margin: 2rem auto; border-radius: 2px;"></div>
 </div>
@@ -517,70 +476,41 @@ st.markdown("""
 st.markdown("""
 <div class="feature-grid">
     <div class="feature-card">
-        <div class="feature-icon">🔍</div>
-        <div class="feature-title">라이브 스트리밍 특화 분류</div>
-        <div class="feature-desc">29년 진화 연구를 위한 포괄적 논문 선별</div>
-    </div>
-    <div class="feature-card">
-        <div class="feature-icon">🏷️</div>
-        <div class="feature-title">SciMAT 최적화</div>
-        <div class="feature-desc">안정적인 분석을 위한 키워드 전처리</div>
-    </div>
-    <div class="feature-card">
         <div class="feature-icon">🔗</div>
-        <div class="feature-title">계량서지학 지원</div>
-        <div class="feature-desc">지식 구조 진화 분석 완벽 지원</div>
+        <div class="feature-title">SciMAT 호환성 최우선</div>
+        <div class="feature-desc">Word Group 기능이 정상 작동하도록 설계</div>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon">🔍</div>
+        <div class="feature-title">라이브 스트리밍 특화</div>
+        <div class="feature-desc">29년 연구 진화 분석을 위한 포괄적 분류</div>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <div class="feature-title">최소 전처리</div>
+        <div class="feature-desc">키워드 다양성 보존으로 그룹핑 효과 극대화</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# --- 키워드 정규화 기준 설명 ---
-with st.expander("ℹ️ 라이브 스트리밍 특화 정규화 기준", expanded=False):
-    st.markdown("""
-    <div class="info-panel">
-        <h4 style="color: #003875; margin-bottom: 16px;">적용되는 정규화 규칙:</h4>
-        <ul style="line-height: 1.8; color: #495057;">
-            <li><strong>라이브 스트리밍:</strong> live streaming ← live-streaming, livestreaming, real time streaming</li>
-            <li><strong>라이브 커머스:</strong> live commerce ← live-commerce, livestream commerce, live shopping</li>
-            <li><strong>스트리밍 플랫폼:</strong> streaming platform ← streaming-platform, stream platform</li>
-            <li><strong>사용자 행동:</strong> user behavior ← user-behavior, userbehavior, user behaviour</li>
-            <li><strong>AI/ML 용어:</strong> machine learning ← machine-learning, ML, machinelearning</li>
-            <li><strong>연구방법론:</strong> structural equation modeling ← SEM, PLS-SEM</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
-
-# --- 개선된 분류 기준 설명 ---
-with st.expander("🎯 개선된 분류 기준 (라이브 스트리밍 연구 특화)", expanded=False):
-    st.markdown("""
-    <div class="info-panel">
-        <h4 style="color: #003875; margin-bottom: 16px;">포괄적 연구 범위:</h4>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
-            <div>
-                <h5 style="color: #28a745; margin-bottom: 8px;">✅ Include (핵심연구)</h5>
-                <p style="font-size: 0.9rem; color: #495057;">라이브 스트리밍, 라이브 커머스, 사용자 행동, 스트리밍 플랫폼 등</p>
-            </div>
-            <div>
-                <h5 style="color: #17a2b8; margin-bottom: 8px;">🔧 Include (기술기반)</h5>
-                <p style="font-size: 0.9rem; color: #495057;">실시간 비디오, 적응형 스트리밍, CDN, WebRTC 등</p>
-            </div>
-            <div>
-                <h5 style="color: #ffc107; margin-bottom: 8px;">📝 Review (일반관련)</h5>
-                <p style="font-size: 0.9rem; color: #495057;">소셜 미디어, 디지털 마케팅, 온라인 플랫폼 등</p>
-            </div>
-            <div>
-                <h5 style="color: #dc3545; margin-bottom: 8px;">❌ Exclude (기술적 비관련)</h5>
-                <p style="font-size: 0.9rem; color: #495057;">순수 하드웨어, 네트워크 프로토콜, 신호처리 등</p>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+# --- SciMAT 호환성 안내 ---
+st.markdown("""
+<div class="warning-panel">
+    <h4 style="color: #856404; margin-bottom: 16px;">🎯 SciMAT 호환성 전략</h4>
+    <ul style="line-height: 1.8; color: #856404;">
+        <li><strong>키워드 다양성 보존:</strong> 정규화보다는 원본 형태 유지 우선</li>
+        <li><strong>최소 전처리:</strong> SciMAT 파싱 오류만 방지하는 수준</li>
+        <li><strong>Word Group 최적화:</strong> 유사 키워드가 존재해야 그룹핑 가능</li>
+        <li><strong>세미콜론 구분자:</strong> SciMAT 표준 구분자 엄격 준수</li>
+    </ul>
+</div>
+""", unsafe_allow_html=True)
 
 # --- 파일 업로드 섹션 ---
 st.markdown("""
 <div class="section-header">
     <div class="section-title">📁 데이터 업로드</div>
-    <div class="section-subtitle">Web of Science Raw Data 파일을 업로드하여 분석을 시작하세요.</div>
+    <div class="section-subtitle">Web of Science Raw Data 파일을 업로드하여 SciMAT 호환 분석을 시작하세요.</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -616,37 +546,75 @@ if uploaded_file is not None:
     # 프로그레스 인디케이터
     st.markdown('<div class="progress-indicator"></div>', unsafe_allow_html=True)
     
-    with st.spinner("🔄 데이터를 분석하고 있습니다... 잠시만 기다려주세요."):
-        # 1단계: 분류
+    with st.spinner("🔄 SciMAT 호환성을 고려하여 데이터를 처리하고 있습니다..."):
+        # 1단계: 논문 분류
         df['Classification'] = df.apply(classify_article, axis=1)
 
-        # 원본 키워드 백업
+        # 2단계: 원본 백업
         if 'DE' in df.columns: df['DE_Original'] = df['DE'].copy()
         if 'ID' in df.columns: df['ID_Original'] = df['ID'].copy()
 
-        # 2단계: 키워드 정규화
-        stop_words = set(stopwords.words('english'))
-        custom_stop_words = {'study', 'research', 'analysis', 'results', 'paper', 'article', 'using', 'based', 'approach', 'method', 'system', 'model'}
-        stop_words.update(custom_stop_words)
-        lemmatizer = WordNetLemmatizer()
-        
-        # Include 분류된 논문만 키워드 정규화
+        # 3단계: SciMAT 호환 키워드 처리 (포함된 논문만)
         include_mask = df['Classification'].str.contains('Include', na=False)
 
         if 'DE' in df.columns:
-            df['DE_cleaned'] = df['DE'].copy()
-            df.loc[include_mask, 'DE_cleaned'] = df.loc[include_mask, 'DE'].apply(lambda x: clean_keyword_string(x, stop_words, lemmatizer))
+            df['DE_processed'] = df['DE'].copy()
+            df.loc[include_mask, 'DE_processed'] = df.loc[include_mask, 'DE'].apply(scimat_compatible_keyword_processing)
+        
         if 'ID' in df.columns:
-            df['ID_cleaned'] = df['ID'].copy()
-            df.loc[include_mask, 'ID_cleaned'] = df.loc[include_mask, 'ID'].apply(lambda x: clean_keyword_string(x, stop_words, lemmatizer))
+            df['ID_processed'] = df['ID'].copy()
+            df.loc[include_mask, 'ID_processed'] = df.loc[include_mask, 'ID'].apply(scimat_compatible_keyword_processing)
 
-    st.success("✅ 분석 완료!")
+    st.success("✅ SciMAT 호환 처리 완료!")
+
+    # --- SciMAT 준비도 진단 ---
+    st.markdown("""
+    <div class="section-header">
+        <div class="section-title">🔍 SciMAT 준비도 진단</div>
+        <div class="section-subtitle">SciMAT Word Group 기능 작동 가능성 검증</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 진단 실행
+    df_for_diagnosis = df.copy()
+    if 'DE_processed' in df_for_diagnosis.columns:
+        df_for_diagnosis['DE'] = df_for_diagnosis['DE_processed']
+    if 'ID_processed' in df_for_diagnosis.columns:
+        df_for_diagnosis['ID'] = df_for_diagnosis['ID_processed']
+
+    issues, recommendations = diagnose_scimat_readiness(df_for_diagnosis)
+
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+        st.markdown('<div class="chart-title">⚠️ 발견된 문제점</div>', unsafe_allow_html=True)
+        
+        if issues:
+            for issue in issues:
+                st.markdown(f"- {issue}")
+        else:
+            st.markdown("✅ **문제점 없음** - SciMAT에서 정상 작동 예상")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+        st.markdown('<div class="chart-title">💡 개선 권장사항</div>', unsafe_allow_html=True)
+        
+        if recommendations:
+            for rec in recommendations:
+                st.markdown(f"- {rec}")
+        else:
+            st.markdown("🎯 **추가 개선 불필요** - 현재 상태가 최적")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # --- 분석 결과 요약 ---
     st.markdown("""
     <div class="section-header">
-        <div class="section-title">📈 Stats Overview</div>
-        <div class="section-subtitle">분석 결과 주요 지표</div>
+        <div class="section-title">📈 분석 결과 요약</div>
+        <div class="section-subtitle">처리 결과 및 SciMAT 준비 현황</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -686,19 +654,24 @@ if uploaded_file is not None:
         """, unsafe_allow_html=True)
     
     with col4:
-        # 키워드 수 계산
-        keyword_count = 0
-        if 'DE_cleaned' in df.columns:
+        # 키워드 다양성 계산
+        diversity_score = 0
+        if 'DE_processed' in df.columns:
             all_keywords = []
-            for text in df.loc[include_mask, 'DE_cleaned'].dropna():
-                all_keywords.extend([kw.strip() for kw in text.split(';') if kw.strip()])
-            keyword_count = len(set(all_keywords))
+            for text in df.loc[include_mask, 'DE_processed'].dropna():
+                keywords = [kw.strip().lower() for kw in text.split(';') if kw.strip()]
+                all_keywords.extend(keywords)
+            
+            if all_keywords:
+                unique_count = len(set(all_keywords))
+                total_count = len(all_keywords)
+                diversity_score = (unique_count / total_count * 100) if total_count > 0 else 0
         
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-icon">🔤</div>
-            <div class="metric-value">{keyword_count:,}</div>
-            <div class="metric-label">Unique Keywords</div>
+            <div class="metric-icon">🎯</div>
+            <div class="metric-value">{diversity_score:.1f}%</div>
+            <div class="metric-label">Keyword Diversity</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -743,10 +716,57 @@ if uploaded_file is not None:
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- 연도별 연구 동향 그래프 ---
+    # --- 키워드 처리 전후 비교 ---
     st.markdown("""
     <div class="chart-container">
-        <div class="chart-title">Research Trend Analysis</div>
+        <div class="chart-title">Keyword Processing Comparison (SciMAT Compatibility Focus)</div>
+    """, unsafe_allow_html=True)
+    
+    if st.checkbox("🔍 키워드 처리 전후 비교 보기 (샘플)", key="comparison_check"):
+        sample_data = []
+        sample_rows = df.loc[include_mask].head(5)
+        
+        for idx, row in sample_rows.iterrows():
+            if 'DE_Original' in df.columns and pd.notna(row.get('DE_Original')):
+                original = str(row['DE_Original'])[:100] + "..." if len(str(row['DE_Original'])) > 100 else str(row['DE_Original'])
+                processed = str(row.get('DE_processed', ''))[:100] + "..." if len(str(row.get('DE_processed', ''))) > 100 else str(row.get('DE_processed', ''))
+                
+                # 키워드 수 계산
+                original_count = len([k.strip() for k in str(row['DE_Original']).split(';') if k.strip()]) if pd.notna(row['DE_Original']) else 0
+                processed_count = len([k.strip() for k in str(row.get('DE_processed', '')).split(';') if k.strip()]) if row.get('DE_processed') else 0
+                
+                sample_data.append({
+                    '논문 ID': f"#{idx}",
+                    '필드': 'DE (Author Keywords)',
+                    '원본 키워드': original,
+                    '처리 후 키워드': processed,
+                    '원본 수': original_count,
+                    '처리 후 수': processed_count,
+                    '보존율': f"{(processed_count/original_count*100):.1f}%" if original_count > 0 else "0%"
+                })
+        
+        if sample_data:
+            comparison_df = pd.DataFrame(sample_data)
+            st.dataframe(comparison_df, use_container_width=True, hide_index=True)
+            
+            # 보존율 통계
+            preservation_rates = [float(d['보존율'].replace('%', '')) for d in sample_data if d['보존율'] != '0%']
+            if preservation_rates:
+                avg_preservation = sum(preservation_rates) / len(preservation_rates)
+                
+                if avg_preservation >= 90:
+                    st.success(f"✅ 우수한 키워드 보존율: 평균 {avg_preservation:.1f}% (SciMAT Word Group 정상 작동 예상)")
+                elif avg_preservation >= 70:
+                    st.warning(f"⚠️ 양호한 키워드 보존율: 평균 {avg_preservation:.1f}% (SciMAT에서 일부 그룹핑 제한 가능)")
+                else:
+                    st.error(f"❌ 낮은 키워드 보존율: 평균 {avg_preservation:.1f}% (Word Group 기능 제한적)")
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- 연도별 연구 동향 ---
+    st.markdown("""
+    <div class="chart-container">
+        <div class="chart-title">Research Trend Analysis (1996-2024)</div>
     """, unsafe_allow_html=True)
     
     df_trend = df.copy()
@@ -772,104 +792,51 @@ if uploaded_file is not None:
         
         trend_chart = line_chart.properties(height=350)
         st.altair_chart(trend_chart, use_container_width=True)
+        
+        # 변곡점 분석
+        if len(yearly_counts) >= 10:
+            st.markdown("""
+            <div class="info-panel">
+                <h4 style="color: #003875; margin-bottom: 12px;">📈 29년 연구 진화 패턴</h4>
+                <p style="margin: 4px 0; color: #495057;">• <strong>1996-2006 (태동기):</strong> 기술적 기반 연구 중심</p>
+                <p style="margin: 4px 0; color: #495057;">• <strong>2007-2016 (형성기):</strong> 플랫폼 등장과 사용자 연구 시작</p>
+                <p style="margin: 4px 0; color: #495057;">• <strong>2017-2021 (확산기):</strong> 소셜 미디어와 상업적 활용 급증</p>
+                <p style="margin: 4px 0; color: #495057;">• <strong>2022-2024 (성숙기):</strong> 라이브 커머스와 메타버스 융합</p>
+            </div>
+            """, unsafe_allow_html=True)
     else:
         st.warning("⚠️ 발행 연도(PY) 데이터가 없어 연구 동향을 분석할 수 없습니다.")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- 주요 키워드 분석 ---
-    st.markdown("""
-    <div class="chart-container">
-        <div class="chart-title">Top Keywords Analysis (Included Studies Only)</div>
-    """, unsafe_allow_html=True)
-    
-    all_keywords = []
-    if 'DE_cleaned' in df.columns:
-        all_keywords.extend([kw.strip() for text in df.loc[include_mask, 'DE_cleaned'].dropna() for kw in text.split(';') if kw.strip()])
-    if 'ID_cleaned' in df.columns:
-        all_keywords.extend([kw.strip() for text in df.loc[include_mask, 'ID_cleaned'].dropna() for kw in text.split(';') if kw.strip()])
-
-    if all_keywords:
-        keyword_counts = Counter(all_keywords)
-        top_n = 20
-        top_keywords_df = pd.DataFrame(keyword_counts.most_common(top_n), columns=['키워드', '빈도'])
-        top_3_keywords = top_keywords_df['키워드'].head(3).tolist()
-        
-        selection_keyword = alt.selection_point(fields=['키워드'], on='mouseover', nearest=True, empty='none')
-
-        y_encoding = alt.Y('키워드:N', title=None, sort=alt.SortField(field='빈도', order='descending'))
-        x_encoding = alt.X('빈도:Q', title='빈도', scale=alt.Scale(zero=True))
-        
-        base_chart = alt.Chart(top_keywords_df).encode(
-            y=y_encoding,
-            x=x_encoding,
-            opacity=alt.condition(selection_keyword, alt.value(1), alt.value(0.8)),
-            tooltip=['키워드', '빈도']
-        ).add_params(selection_keyword)
-
-        line = base_chart.mark_rule(size=3, color='#dee2e6')
-        
-        point = base_chart.mark_point(filled=True, size=120).encode(
-            color=alt.condition(
-                alt.FieldOneOfPredicate(field='키워드', oneOf=top_3_keywords),
-                alt.value('#003875'),
-                alt.value('#0056b3')
-            )
-        )
-        
-        final_chart = (line + point).properties(height=500).configure_axis(
-            grid=False
-        ).configure_view(strokeWidth=0)
-
-        st.altair_chart(final_chart, use_container_width=True)
-
-        # 정규화 전후 비교
-        if st.checkbox("🔍 정규화 전후 비교 보기 (샘플)", key="comparison_check"):
-            st.markdown("""
-            <div class="comparison-panel">
-                <h4 style="color: #003875; margin-bottom: 16px;">키워드 정규화 효과 비교</h4>
-            """, unsafe_allow_html=True)
-            
-            sample_data = []
-            sample_rows = df.loc[include_mask].head(3)
-            for idx, row in sample_rows.iterrows():
-                if 'DE_Original' in df.columns and pd.notna(row.get('DE_Original')):
-                    sample_data.append({
-                        '논문 ID': idx, '필드': 'Author Keywords (DE)',
-                        '정규화 전': str(row['DE_Original']), '정규화 후': str(row['DE_cleaned'])
-                    })
-            if sample_data:
-                st.dataframe(pd.DataFrame(sample_data), use_container_width=True, hide_index=True)
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-    else:
-        st.warning("⚠️ 포함된 연구에서 유효한 키워드를 찾을 수 없습니다.")
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # --- 처리된 데이터 미리보기 ---
+    # --- 최종 데이터셋 준비 ---
     st.markdown("""
     <div class="section-header">
-        <div class="section-title">📋 Final Dataset Summary</div>
-        <div class="section-subtitle">최종 분석 대상 데이터 요약</div>
+        <div class="section-title">💾 SciMAT 호환 파일 다운로드</div>
+        <div class="section-subtitle">Word Group 기능 최적화된 최종 데이터셋</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # 최종 데이터셋 준비 (Include + Review)
+    # 최종 데이터셋 준비
     df_final = df[~df['Classification'].str.contains('Exclude', na=False)].copy()
-    if 'DE' in df_final.columns:
-        df_final['DE'] = df_final['DE_cleaned']
-    if 'ID' in df_final.columns:
-        df_final['ID'] = df_final['ID_cleaned']
-    cols_to_drop = ['Classification', 'DE_cleaned', 'ID_cleaned', 'DE_Original', 'ID_Original']
-    df_final_output = df_final.drop(columns=[col for col in cols_to_drop if col in df_final.columns], errors='ignore')
     
-    # 최종 데이터셋 요약 정보
+    # 처리된 키워드 적용
+    if 'DE_processed' in df_final.columns:
+        df_final['DE'] = df_final['DE_processed']
+    if 'ID_processed' in df_final.columns:
+        df_final['ID'] = df_final['ID_processed']
+    
+    # 불필요한 컬럼 제거
+    cols_to_drop = ['Classification', 'DE_processed', 'ID_processed', 'DE_Original', 'ID_Original']
+    df_final_output = df_final.drop(columns=[col for col in cols_to_drop if col in df_final.columns], errors='ignore')
+
+    # 최종 통계
     col1, col2, col3 = st.columns(3)
+    
     with col1:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-icon">✅</div>
+            <div class="metric-icon">📋</div>
             <div class="metric-value">{len(df_final_output):,}</div>
             <div class="metric-label">최종 분석 대상</div>
         </div>
@@ -879,9 +846,9 @@ if uploaded_file is not None:
         include_count = len(df[df['Classification'].str.contains('Include', na=False)])
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-icon">🎯</div>
+            <div class="metric-icon">✅</div>
             <div class="metric-value">{include_count:,}</div>
-            <div class="metric-label">포함된 연구</div>
+            <div class="metric-label">핵심 + 기술기반</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -891,41 +858,56 @@ if uploaded_file is not None:
         <div class="metric-card">
             <div class="metric-icon">📝</div>
             <div class="metric-value">{review_count:,}</div>
-            <div class="metric-label">검토 필요</div>
+            <div class="metric-label">검토 대상</div>
         </div>
         """, unsafe_allow_html=True)
 
-    # --- SciMAT 호환 파일 다운로드 ---
-    st.markdown("""
-    <div class="section-header">
-        <div class="section-title">💾 Export to SciMAT</div>
-        <div class="section-subtitle">SciMAT 호환 파일 다운로드 및 최종 결과</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # 다운로드 버튼
+    # SciMAT 호환 파일 다운로드
     text_data = convert_df_to_scimat_format(df_final_output)
-    st.download_button(
-        label="🔥 SciMAT 호환 포맷 파일 다운로드 (.txt)",
-        data=text_data,
-        file_name="live_streaming_research_for_scimat.txt",
-        mime="text/plain",
-        type="primary",
-        use_container_width=True
-    )
     
-    # 사용 가이드
+    col1, col2 = st.columns([0.7, 0.3])
+    
+    with col1:
+        st.download_button(
+            label="🔥 SciMAT 호환 파일 다운로드 (.txt)",
+            data=text_data,
+            file_name="live_streaming_scimat_compatible.txt",
+            mime="text/plain",
+            type="primary",
+            use_container_width=True
+        )
+    
+    with col2:
+        # 테스트 파일 다운로드 (50개 샘플)
+        df_test = df_final_output.head(50)
+        test_data = convert_df_to_scimat_format(df_test)
+        
+        st.download_button(
+            label="🧪 테스트 파일 (50개)",
+            data=test_data,
+            file_name="test_scimat_50papers.txt",
+            mime="text/plain",
+            use_container_width=True
+        )
+
+    # SciMAT 사용 가이드
     st.markdown("""
     <div class="info-panel">
-        <h4 style="color: #003875; margin-bottom: 16px;">💡 SciMAT 사용 가이드:</h4>
+        <h4 style="color: #003875; margin-bottom: 16px;">🎯 SciMAT 사용 가이드 (호환성 우선)</h4>
         <ol style="line-height: 1.8; color: #495057;">
-            <li>다운로드한 <code>live_streaming_research_for_scimat.txt</code> 파일을 SciMAT에 업로드합니다.</li>
-            <li><code>Group set</code> → <code>Words groups manager</code>에서 Levenshtein distance를 활용해 유사 키워드를 자동으로 그룹핑합니다.</li>
-            <li>수동으로 키워드 그룹을 최종 조정한 후 분석을 실행합니다.</li>
-            <li>29년간(1996-2024) 라이브 스트리밍 연구의 지식 구조 진화와 변곡점을 분석합니다.</li>
+            <li><strong>테스트 우선:</strong> 먼저 <code>test_scimat_50papers.txt</code> 파일로 SciMAT에서 정상 작동 확인</li>
+            <li><strong>Word Group 확인:</strong> <code>Group set → Words groups manager</code>에서 키워드 목록이 나타나는지 검증</li>
+            <li><strong>자동 그룹핑:</strong> Levenshtein distance로 유사 키워드 자동 그룹화 시도</li>
+            <li><strong>수동 조정:</strong> 라이브 스트리밍 특화 키워드 그룹 수동 생성</li>
+            <li><strong>전체 분석:</strong> 테스트 성공 시 전체 파일로 29년 진화 분석 실행</li>
         </ol>
-        <div style="margin-top: 16px; padding: 12px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
-            <strong>🎯 연구 성과:</strong> 이 데이터셋은 라이브 스트리밍 분야 최초의 종합적 지식 구조 진화 분석을 가능하게 합니다.
+        
+        <div style="margin-top: 16px; padding: 12px; background: #d1ecf1; border-left: 4px solid #17a2b8; border-radius: 4px;">
+            <strong>💡 핵심 포인트:</strong> 이 파일은 키워드 다양성을 최대한 보존하여 SciMAT Word Group 기능이 정상 작동하도록 설계되었습니다.
+        </div>
+        
+        <div style="margin-top: 12px; padding: 12px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
+            <strong>🎯 예상 결과:</strong> 라이브 스트리밍 연구 분야 최초의 종합적 지식 구조 진화 분석 (1996-2024)
         </div>
     </div>
     """, unsafe_allow_html=True)
