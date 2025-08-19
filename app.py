@@ -367,41 +367,82 @@ def scimat_compatible_keyword_processing(keywords_str):
     # 4. SciMAT 표준 구분자로 연결
     return '; '.join(final_keywords)
 
-# --- SCIMAT 형식 변환 함수 ---
+# --- SCIMAT 형식 변환 함수 (WOS 표준 준수) ---
 def convert_df_to_scimat_format(df_to_convert):
-    """SciMAT 호환 WOS 형식으로 변환"""
+    """SciMAT 호환 WOS 형식으로 변환 - 실제 WOS 형식 정확히 준수"""
     wos_field_order = [
         'PT', 'AU', 'AF', 'TI', 'SO', 'LA', 'DT', 'DE', 'ID', 'AB', 'C1', 'C3', 'RP',
         'EM', 'RI', 'OI', 'FU', 'FX', 'CR', 'NR', 'TC', 'Z9', 'U1', 'U2', 'PU', 'PI', 'PA',
         'SN', 'EI', 'J9', 'JI', 'PD', 'PY', 'VL', 'IS', 'BP', 'EP', 'DI', 'EA', 'PG',
         'WC', 'WE', 'SC', 'GA', 'UT', 'PM', 'OA', 'DA'
     ]
+    
     file_content = ["FN Clarivate Analytics Web of Science", "VR 1.0"]
     multi_line_fields = ['AU', 'AF', 'DE', 'ID', 'C1', 'C3', 'CR']
 
     for _, row in df_to_convert.iterrows():
         if len(file_content) > 2:
             file_content.append("")
-        sorted_tags = [tag for tag in wos_field_order if tag in row.index and pd.notna(row[tag])]
-
-        for tag in sorted_tags:
-            value = row[tag]
-            if pd.isna(value) or not str(value).strip():
-                continue
-            if not isinstance(value, str):
-                value = str(value)
-
-            if tag in multi_line_fields:
-                items = [item.strip() for item in value.split(';') if item.strip()]
-                if items:
-                    file_content.append(f"{tag} {items[0]}")
-                    for item in items[1:]:
-                        file_content.append(f"   {item}")
-            else:
-                file_content.append(f"{tag} {value}")
-
+        
+        # WOS 필드 순서대로 출력
+        for tag in wos_field_order:
+            if tag in row.index and pd.notna(row[tag]) and str(row[tag]).strip():
+                value = str(row[tag]).strip()
+                
+                if tag in multi_line_fields:
+                    # 세미콜론으로 분리된 항목들을 멀티라인으로 처리
+                    items = [item.strip() for item in value.split(';') if item.strip()]
+                    if items:
+                        # 첫 번째 항목: 태그와 함께
+                        file_content.append(f"{tag} {items[0]}")
+                        # 나머지 항목들: 정확히 3칸 공백 인덴테이션
+                        for item in items[1:]:
+                            file_content.append(f"   {item}")
+                else:
+                    # 단일 라인 필드
+                    file_content.append(f"{tag} {value}")
+        
         file_content.append("ER")
+    
     return "\n".join(file_content).encode('utf-8')
+
+
+def validate_wos_format(sample_text):
+    """WOS 형식 유효성 검증"""
+    lines = sample_text.split('\n')
+    validation_results = {
+        'header_check': False,
+        'field_format_check': True,
+        'multiline_indent_check': True,
+        'er_terminator_check': False,
+        'issues': []
+    }
+    
+    # 헤더 확인
+    if len(lines) >= 2 and lines[0].startswith("FN") and lines[1].startswith("VR"):
+        validation_results['header_check'] = True
+    else:
+        validation_results['issues'].append("❌ WOS 헤더 형식 오류")
+    
+    # ER 종료자 확인
+    if "ER" in lines:
+        validation_results['er_terminator_check'] = True
+    else:
+        validation_results['issues'].append("❌ ER 종료자 누락")
+    
+    # 필드 형식 및 인덴테이션 확인
+    for i, line in enumerate(lines):
+        if line.strip() and not line.startswith(('FN', 'VR', 'ER', '')):
+            # 필드 라인 확인
+            if line.startswith('   '):  # 인덴테이션 라인
+                if len(line) - len(line.lstrip()) != 3:
+                    validation_results['multiline_indent_check'] = False
+                    validation_results['issues'].append(f"❌ 라인 {i+1}: 인덴테이션 오류 (3칸 공백 필요)")
+            elif ' ' not in line:
+                validation_results['field_format_check'] = False
+                validation_results['issues'].append(f"❌ 라인 {i+1}: 필드 형식 오류")
+    
+    return validation_results
 
 # --- SciMAT 호환성 진단 함수 ---
 def diagnose_scimat_readiness(df):
