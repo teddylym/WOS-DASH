@@ -576,5 +576,359 @@ with st.expander("🎯 개선된 분류 기준 (라이브 스트리밍 연구 �
     </div>
     """, unsafe_allow_html=True)
 
-# 나머지 코드는 기존과 동일하게 유지...
-# (파일 업로드, 분석 로직, 차트 생성, 다운로드 등)
+# --- 파일 업로드 섹션 ---
+st.markdown("""
+<div class="section-header">
+    <div class="section-title">📁 데이터 업로드</div>
+    <div class="section-subtitle">Web of Science Raw Data 파일을 업로드하여 분석을 시작하세요.</div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="upload-zone">
+    <div style="font-size: 3rem; margin-bottom: 16px; color: #003875;">📤</div>
+    <h3 style="color: #212529; margin-bottom: 8px;">파일을 선택하세요</h3>
+    <p style="color: #6c757d; margin: 0;">Tab-delimited 또는 Plain Text 형식의 WOS 데이터 파일</p>
+</div>
+""", unsafe_allow_html=True)
+
+uploaded_file = st.file_uploader(
+    "파일 선택",
+    type=['csv', 'txt'],
+    label_visibility="collapsed"
+)
+
+if uploaded_file is not None:
+    df = load_data(uploaded_file)
+    if df is None:
+        st.error("⚠️ 파일을 읽을 수 없습니다. Web of Science에서 다운로드한 'Tab-delimited' 또는 'Plain Text' 형식의 파일이 맞는지 확인해주세요.")
+        st.stop()
+
+    column_mapping = {
+        'Authors': 'AU', 'Article Title': 'TI', 'Source Title': 'SO', 'Author Keywords': 'DE',
+        'Keywords Plus': 'ID', 'Abstract': 'AB', 'Cited References': 'CR', 'Publication Year': 'PY',
+        'Times Cited, All Databases': 'TC', 'Cited Reference Count': 'NR', 'Times Cited, WoS Core': 'Z9'
+    }
+    for old_name, new_name in column_mapping.items():
+        if old_name in df.columns:
+            df.rename(columns={old_name: new_name}, inplace=True)
+
+    # 프로그레스 인디케이터
+    st.markdown('<div class="progress-indicator"></div>', unsafe_allow_html=True)
+    
+    with st.spinner("🔄 데이터를 분석하고 있습니다... 잠시만 기다려주세요."):
+        # 1단계: 분류
+        df['Classification'] = df.apply(classify_article, axis=1)
+
+        # 원본 키워드 백업
+        if 'DE' in df.columns: df['DE_Original'] = df['DE'].copy()
+        if 'ID' in df.columns: df['ID_Original'] = df['ID'].copy()
+
+        # 2단계: 키워드 정규화
+        stop_words = set(stopwords.words('english'))
+        custom_stop_words = {'study', 'research', 'analysis', 'results', 'paper', 'article', 'using', 'based', 'approach', 'method', 'system', 'model'}
+        stop_words.update(custom_stop_words)
+        lemmatizer = WordNetLemmatizer()
+        
+        # Include 분류된 논문만 키워드 정규화
+        include_mask = df['Classification'].str.contains('Include', na=False)
+
+        if 'DE' in df.columns:
+            df['DE_cleaned'] = df['DE'].copy()
+            df.loc[include_mask, 'DE_cleaned'] = df.loc[include_mask, 'DE'].apply(lambda x: clean_keyword_string(x, stop_words, lemmatizer))
+        if 'ID' in df.columns:
+            df['ID_cleaned'] = df['ID'].copy()
+            df.loc[include_mask, 'ID_cleaned'] = df.loc[include_mask, 'ID'].apply(lambda x: clean_keyword_string(x, stop_words, lemmatizer))
+
+    st.success("✅ 분석 완료!")
+
+    # --- 분석 결과 요약 ---
+    st.markdown("""
+    <div class="section-header">
+        <div class="section-title">📈 Stats Overview</div>
+        <div class="section-subtitle">분석 결과 주요 지표</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 메트릭 카드들
+    col1, col2, col3, col4 = st.columns(4)
+    
+    classification_counts = df['Classification'].value_counts()
+    total_papers = len(df)
+    include_papers = len(df[df['Classification'].str.contains('Include', na=False)])
+    
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">📋</div>
+            <div class="metric-value">{total_papers:,}</div>
+            <div class="metric-label">Total Papers</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">✅</div>
+            <div class="metric-value">{include_papers:,}</div>
+            <div class="metric-label">Included Studies</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        processing_rate = (include_papers / total_papers * 100) if total_papers > 0 else 0
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">📊</div>
+            <div class="metric-value">{processing_rate:.1f}%</div>
+            <div class="metric-label">Inclusion Rate</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        # 키워드 수 계산
+        keyword_count = 0
+        if 'DE_cleaned' in df.columns:
+            all_keywords = []
+            for text in df.loc[include_mask, 'DE_cleaned'].dropna():
+                all_keywords.extend([kw.strip() for kw in text.split(';') if kw.strip()])
+            keyword_count = len(set(all_keywords))
+        
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">🔤</div>
+            <div class="metric-value">{keyword_count:,}</div>
+            <div class="metric-label">Unique Keywords</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # --- 논문 분류 현황 ---
+    st.markdown("""
+    <div class="chart-container">
+        <div class="chart-title">Research Classification Distribution</div>
+    """, unsafe_allow_html=True)
+
+    classification_counts_df = df['Classification'].value_counts().reset_index()
+    classification_counts_df.columns = ['분류', '논문 수']
+
+    col1, col2 = st.columns([0.4, 0.6])
+    with col1:
+        st.dataframe(classification_counts_df, use_container_width=True, hide_index=True)
+
+    with col2:
+        # 도넛 차트
+        selection = alt.selection_point(fields=['분류'], on='mouseover', nearest=True)
+
+        base = alt.Chart(classification_counts_df).encode(
+            theta=alt.Theta(field="논문 수", type="quantitative", stack=True),
+            color=alt.Color(field="분류", type="nominal", title="Classification",
+                           scale=alt.Scale(range=['#003875', '#0056b3', '#17a2b8', '#ffc107', '#dc3545']),
+                           legend=alt.Legend(orient="right", titleColor="#212529", labelColor="#495057")),
+            opacity=alt.condition(selection, alt.value(1), alt.value(0.8))
+        ).add_params(selection)
+
+        pie = base.mark_arc(outerRadius=120, innerRadius=70)
+        text_total = alt.Chart(pd.DataFrame([{'value': f'{total_papers}'}])).mark_text(
+            align='center', baseline='middle', fontSize=35, fontWeight='bold', color='#003875'
+        ).encode(text='value:N')
+        text_label = alt.Chart(pd.DataFrame([{'value': 'Total Papers'}])).mark_text(
+            align='center', baseline='middle', fontSize=14, dy=-25, color='#495057'
+        ).encode(text='value:N')
+
+        chart = (pie + text_total + text_label).properties(
+            title=alt.TitleParams(text='논문 분류 분포', anchor='middle', fontSize=16, fontWeight=500, color="#212529"),
+            width=300, height=300
+        ).configure_view(strokeWidth=0)
+        st.altair_chart(chart, use_container_width=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- 연도별 연구 동향 그래프 ---
+    st.markdown("""
+    <div class="chart-container">
+        <div class="chart-title">Research Trend Analysis</div>
+    """, unsafe_allow_html=True)
+    
+    df_trend = df.copy()
+    if 'PY' in df_trend.columns:
+        df_trend['PY'] = pd.to_numeric(df_trend['PY'], errors='coerce')
+        df_trend.dropna(subset=['PY'], inplace=True)
+        df_trend['PY'] = df_trend['PY'].astype(int)
+        
+        yearly_counts = df_trend['PY'].value_counts().reset_index()
+        yearly_counts.columns = ['Year', 'Count']
+        yearly_counts = yearly_counts[yearly_counts['Year'] <= 2025].sort_values('Year')
+
+        selection_trend = alt.selection_point(fields=['Year'], on='mouseover', nearest=True, empty='none')
+        
+        line_chart = alt.Chart(yearly_counts).mark_line(
+            point={'size': 80, 'filled': True}, strokeWidth=3, color='#003875'
+        ).encode(
+            x=alt.X('Year:O', title='발행 연도'),
+            y=alt.Y('Count:Q', title='논문 수'),
+            tooltip=['Year', 'Count'],
+            opacity=alt.condition(selection_trend, alt.value(1), alt.value(0.8))
+        ).add_params(selection_trend)
+        
+        trend_chart = line_chart.properties(height=350)
+        st.altair_chart(trend_chart, use_container_width=True)
+    else:
+        st.warning("⚠️ 발행 연도(PY) 데이터가 없어 연구 동향을 분석할 수 없습니다.")
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- 주요 키워드 분석 ---
+    st.markdown("""
+    <div class="chart-container">
+        <div class="chart-title">Top Keywords Analysis (Included Studies Only)</div>
+    """, unsafe_allow_html=True)
+    
+    all_keywords = []
+    if 'DE_cleaned' in df.columns:
+        all_keywords.extend([kw.strip() for text in df.loc[include_mask, 'DE_cleaned'].dropna() for kw in text.split(';') if kw.strip()])
+    if 'ID_cleaned' in df.columns:
+        all_keywords.extend([kw.strip() for text in df.loc[include_mask, 'ID_cleaned'].dropna() for kw in text.split(';') if kw.strip()])
+
+    if all_keywords:
+        keyword_counts = Counter(all_keywords)
+        top_n = 20
+        top_keywords_df = pd.DataFrame(keyword_counts.most_common(top_n), columns=['키워드', '빈도'])
+        top_3_keywords = top_keywords_df['키워드'].head(3).tolist()
+        
+        selection_keyword = alt.selection_point(fields=['키워드'], on='mouseover', nearest=True, empty='none')
+
+        y_encoding = alt.Y('키워드:N', title=None, sort=alt.SortField(field='빈도', order='descending'))
+        x_encoding = alt.X('빈도:Q', title='빈도', scale=alt.Scale(zero=True))
+        
+        base_chart = alt.Chart(top_keywords_df).encode(
+            y=y_encoding,
+            x=x_encoding,
+            opacity=alt.condition(selection_keyword, alt.value(1), alt.value(0.8)),
+            tooltip=['키워드', '빈도']
+        ).add_params(selection_keyword)
+
+        line = base_chart.mark_rule(size=3, color='#dee2e6')
+        
+        point = base_chart.mark_point(filled=True, size=120).encode(
+            color=alt.condition(
+                alt.FieldOneOfPredicate(field='키워드', oneOf=top_3_keywords),
+                alt.value('#003875'),
+                alt.value('#0056b3')
+            )
+        )
+        
+        final_chart = (line + point).properties(height=500).configure_axis(
+            grid=False
+        ).configure_view(strokeWidth=0)
+
+        st.altair_chart(final_chart, use_container_width=True)
+
+        # 정규화 전후 비교
+        if st.checkbox("🔍 정규화 전후 비교 보기 (샘플)", key="comparison_check"):
+            st.markdown("""
+            <div class="comparison-panel">
+                <h4 style="color: #003875; margin-bottom: 16px;">키워드 정규화 효과 비교</h4>
+            """, unsafe_allow_html=True)
+            
+            sample_data = []
+            sample_rows = df.loc[include_mask].head(3)
+            for idx, row in sample_rows.iterrows():
+                if 'DE_Original' in df.columns and pd.notna(row.get('DE_Original')):
+                    sample_data.append({
+                        '논문 ID': idx, '필드': 'Author Keywords (DE)',
+                        '정규화 전': str(row['DE_Original']), '정규화 후': str(row['DE_cleaned'])
+                    })
+            if sample_data:
+                st.dataframe(pd.DataFrame(sample_data), use_container_width=True, hide_index=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+    else:
+        st.warning("⚠️ 포함된 연구에서 유효한 키워드를 찾을 수 없습니다.")
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- 처리된 데이터 미리보기 ---
+    st.markdown("""
+    <div class="section-header">
+        <div class="section-title">📋 Final Dataset Summary</div>
+        <div class="section-subtitle">최종 분석 대상 데이터 요약</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 최종 데이터셋 준비 (Include + Review)
+    df_final = df[~df['Classification'].str.contains('Exclude', na=False)].copy()
+    if 'DE' in df_final.columns:
+        df_final['DE'] = df_final['DE_cleaned']
+    if 'ID' in df_final.columns:
+        df_final['ID'] = df_final['ID_cleaned']
+    cols_to_drop = ['Classification', 'DE_cleaned', 'ID_cleaned', 'DE_Original', 'ID_Original']
+    df_final_output = df_final.drop(columns=[col for col in cols_to_drop if col in df_final.columns], errors='ignore')
+    
+    # 최종 데이터셋 요약 정보
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">✅</div>
+            <div class="metric-value">{len(df_final_output):,}</div>
+            <div class="metric-label">최종 분석 대상</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        include_count = len(df[df['Classification'].str.contains('Include', na=False)])
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">🎯</div>
+            <div class="metric-value">{include_count:,}</div>
+            <div class="metric-label">포함된 연구</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        review_count = len(df[df['Classification'].str.contains('Review', na=False)])
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">📝</div>
+            <div class="metric-value">{review_count:,}</div>
+            <div class="metric-label">검토 필요</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # --- SciMAT 호환 파일 다운로드 ---
+    st.markdown("""
+    <div class="section-header">
+        <div class="section-title">💾 Export to SciMAT</div>
+        <div class="section-subtitle">SciMAT 호환 파일 다운로드 및 최종 결과</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 다운로드 버튼
+    text_data = convert_df_to_scimat_format(df_final_output)
+    st.download_button(
+        label="🔥 SciMAT 호환 포맷 파일 다운로드 (.txt)",
+        data=text_data,
+        file_name="live_streaming_research_for_scimat.txt",
+        mime="text/plain",
+        type="primary",
+        use_container_width=True
+    )
+    
+    # 사용 가이드
+    st.markdown("""
+    <div class="info-panel">
+        <h4 style="color: #003875; margin-bottom: 16px;">💡 SciMAT 사용 가이드:</h4>
+        <ol style="line-height: 1.8; color: #495057;">
+            <li>다운로드한 <code>live_streaming_research_for_scimat.txt</code> 파일을 SciMAT에 업로드합니다.</li>
+            <li><code>Group set</code> → <code>Words groups manager</code>에서 Levenshtein distance를 활용해 유사 키워드를 자동으로 그룹핑합니다.</li>
+            <li>수동으로 키워드 그룹을 최종 조정한 후 분석을 실행합니다.</li>
+            <li>29년간(1996-2024) 라이브 스트리밍 연구의 지식 구조 진화와 변곡점을 분석합니다.</li>
+        </ol>
+        <div style="margin-top: 16px; padding: 12px; background: #d4edda; border-left: 4px solid #28a745; border-radius: 4px;">
+            <strong>🎯 연구 성과:</strong> 이 데이터셋은 라이브 스트리밍 분야 최초의 종합적 지식 구조 진화 분석을 가능하게 합니다.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# --- 하단 여백 ---
+st.markdown("<br><br>", unsafe_allow_html=True)
