@@ -703,9 +703,6 @@ if uploaded_files:
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        st.markdown('<div class="chart-title">🚨 발견된 문제점</div>', unsafe_allow_html=True)
-        
         if issues:
             for issue in issues:
                 st.markdown(f"- {issue}")
@@ -715,9 +712,6 @@ if uploaded_files:
         st.markdown('</div>', unsafe_allow_html=True)
     
     with col2:
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        st.markdown('<div class="chart-title">💡 병합 결과</div>', unsafe_allow_html=True)
-        
         if recommendations:
             for rec in recommendations:
                 st.markdown(f"- {rec}")
@@ -823,10 +817,39 @@ if uploaded_files:
 
         chart = (pie + text_total + text_label).properties(
             title=alt.TitleParams(text='논문 분류 분포', anchor='middle', fontSize=16, fontWeight=500, color="#212529"),
-            width=300, height=300
+            width=280, height=280
         ).configure_view(strokeWidth=0)
         st.altair_chart(chart, use_container_width=True)
 
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- 분류 상세 결과 (원형 그래프 하단으로 이동) ---
+    st.markdown("""
+    <div class="chart-container">
+        <div class="chart-title">분류별 상세 분포</div>
+    """, unsafe_allow_html=True)
+    
+    # 분류별 상세 통계
+    for classification in merged_df['Classification'].unique():
+        count = len(merged_df[merged_df['Classification'] == classification])
+        percentage = (count / total_papers * 100)
+        
+        if classification.startswith('Include'):
+            color = "#28a745"
+            icon = "✅"
+        elif classification.startswith('Review'):
+            color = "#ffc107"
+            icon = "📝"
+        else:
+            color = "#dc3545"
+            icon = "❌"
+        
+        st.markdown(f"""
+        <div style="margin: 8px 0; padding: 12px; background: white; border-left: 4px solid {color}; border-radius: 4px;">
+            <strong>{icon} {classification}:</strong> {count:,}편 ({percentage:.1f}%)
+        </div>
+        """, unsafe_allow_html=True)
+    
     st.markdown("</div>", unsafe_allow_html=True)
 
     # --- 연도별 연구 동향 ---
@@ -855,31 +878,6 @@ if uploaded_files:
             ).properties(height=300)
             
             st.altair_chart(line_chart, use_container_width=True)
-            
-            # 진화 단계 분석
-            st.markdown("""
-            <div class="info-panel">
-                <h4 style="color: #003875; margin-bottom: 12px;">📈 라이브 스트리밍 연구 진화 4단계</h4>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
-                    <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; text-align: center;">
-                        <strong style="color: #003875;">1996-2006 태동기</strong><br>
-                        <small style="color: #6c757d;">기술적 기반 연구</small>
-                    </div>
-                    <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; text-align: center;">
-                        <strong style="color: #003875;">2007-2016 형성기</strong><br>
-                        <small style="color: #6c757d;">플랫폼 등장과 확산</small>
-                    </div>
-                    <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; text-align: center;">
-                        <strong style="color: #003875;">2017-2021 확산기</strong><br>
-                        <small style="color: #6c757d;">상업적 활용 급증</small>
-                    </div>
-                    <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; text-align: center;">
-                        <strong style="color: #003875;">2022-2024 성숙기</strong><br>
-                        <small style="color: #6c757d;">융합과 진화</small>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
         
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -975,37 +973,20 @@ if uploaded_files:
     # SCIMAT 호환 파일 다운로드
     text_data = convert_to_scimat_wos_format(df_final_output)
     
-    col1, col2 = st.columns([0.7, 0.3])
-    
-    with col1:
-        st.download_button(
-            label="🔥 SCIMAT 완전 호환 통합 파일 다운로드",
-            data=text_data,
-            file_name="live_streaming_merged_scimat_ready.txt",
-            mime="text/plain",
-            type="primary",
-            use_container_width=True
-        )
-    
-    with col2:
-        # 테스트 파일 다운로드 (100개 샘플)
-        df_test = df_final_output.head(100)
-        test_data = convert_to_scimat_wos_format(df_test)
-        
-        st.download_button(
-            label="🧪 테스트 파일 (100개)",
-            data=test_data,
-            file_name="test_merged_100papers.txt",
-            mime="text/plain",
-            use_container_width=True
-        )
+    st.download_button(
+        label="🔥 SCIMAT 완전 호환 통합 파일 다운로드",
+        data=text_data,
+        file_name="live_streaming_merged_scimat_ready.txt",
+        mime="text/plain",
+        type="primary",
+        use_container_width=True
+    )
 
     # 최종 사용 가이드
     st.markdown("""
     <div class="success-panel">
         <h4 style="color: #155724; margin-bottom: 16px;">🎯 SCIMAT 사용 완벽 가이드</h4>
         <ol style="line-height: 1.8; color: #155724;">
-            <li><strong>테스트 우선:</strong> 100개 샘플 파일로 SCIMAT 호환성 먼저 확인</li>
             <li><strong>파일 로드:</strong> SCIMAT → File → Open → 다운로드한 통합 .txt 파일 선택</li>
             <li><strong>데이터 확인:</strong> Documents 탭에서 병합된 논문 목록 정상 로딩 확인</li>
             <li><strong>Word Group 작업:</strong> Words → Words groups manager → 키워드 그룹핑</li>
@@ -1028,36 +1009,6 @@ if uploaded_files:
     """, unsafe_allow_html=True)
     
     st.success("🎖️ 연구 성과: 라이브 스트리밍 분야 최초의 대규모 종합적 지식 구조 진화 분석 (1996-2024)")
-
-    # 분류 상세 결과 (선택사항)
-    if st.checkbox("📊 분류 상세 결과 보기", key="detail_check"):
-        st.markdown("""
-        <div class="chart-container">
-            <div class="chart-title">분류별 상세 분포</div>
-        """, unsafe_allow_html=True)
-        
-        # 분류별 상세 통계
-        for classification in merged_df['Classification'].unique():
-            count = len(merged_df[merged_df['Classification'] == classification])
-            percentage = (count / total_papers * 100)
-            
-            if classification.startswith('Include'):
-                color = "#28a745"
-                icon = "✅"
-            elif classification.startswith('Review'):
-                color = "#ffc107"
-                icon = "📝"
-            else:
-                color = "#dc3545"
-                icon = "❌"
-            
-            st.markdown(f"""
-            <div style="margin: 8px 0; padding: 12px; background: white; border-left: 4px solid {color}; border-radius: 4px;">
-                <strong>{icon} {classification}:</strong> {count:,}편 ({percentage:.1f}%)
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("</div>", unsafe_allow_html=True)
 
 # --- 하단 여백 및 추가 정보 ---
 st.markdown("<br>", unsafe_allow_html=True)
