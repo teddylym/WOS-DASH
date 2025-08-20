@@ -965,12 +965,10 @@ if uploaded_file is not None:
             <li><strong>수동 정제:</strong> 라이브 스트리밍 특화 그룹 생성</li>
             <li><strong>진화 분석:</strong> 시계열 분석으로 29년간 지식 구조 변화 탐지</li>
         </ol>
-        
-        <div style="margin-top: 16px; padding: 12px; background: #d1ecf1; border-left: 4px solid #17a2b8; border-radius: 4px;">
-            <strong>🎖️ 연구 성과:</strong> 라이브 스트리밍 분야 최초의 종합적 지식 구조 진화 분석 (1996-2024)
-        </div>
     </div>
     """, unsafe_allow_html=True)
+    
+    st.success("🎖️ 연구 성과: 라이브 스트리밍 분야 최초의 종합적 지식 구조 진화 분석 (1996-2024)")
 
     # 분류 상세 결과 (선택사항)
     if st.checkbox("📊 분류 상세 결과 보기", key="detail_check"):
