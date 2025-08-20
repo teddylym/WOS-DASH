@@ -552,7 +552,7 @@ st.markdown("""
         WOS Multi-File Merger
     </h1>
     <p style="font-size: 1.3rem; margin: 0; font-weight: 400; opacity: 0.95;">
-        SCIMAT Edition - 500개 단위 WOS 파일 자동 병합
+        SCIMAT Edition - Live Streaming Research Specialized
     </p>
     <div style="width: 100px; height: 4px; background-color: rgba(255,255,255,0.3); margin: 2rem auto; border-radius: 2px;"></div>
 </div>
@@ -564,7 +564,7 @@ st.markdown("""
     <div class="feature-card">
         <div class="feature-icon">🔗</div>
         <div class="feature-title">다중 파일 자동 병합</div>
-        <div class="feature-desc">500개 단위 WOS 파일들을 한 번에 병합</div>
+        <div class="feature-desc">여러 WOS 파일을 한 번에 병합 처리</div>
     </div>
     <div class="feature-card">
         <div class="feature-icon">🚫</div>
@@ -573,25 +573,13 @@ st.markdown("""
     </div>
     <div class="feature-card">
         <div class="feature-icon">🎯</div>
-        <div class="feature-title">라이브 스트리밍 특화</div>
+        <div class="feature-title">데이터 분류</div>
         <div class="feature-desc">대규모 데이터 포괄적 분류 및 분석</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# --- WOS 500개 제한 안내 ---
-st.markdown("""
-<div class="warning-panel">
-    <h4 style="color: #856404; margin-bottom: 16px;">⚠️ WOS 500개 단위 다운로드 제한 해결</h4>
-    <p style="color: #856404; margin: 4px 0;">Web of Science는 한 번에 최대 500편의 논문만 다운로드할 수 있습니다.</p>
-    <p style="color: #856404; margin: 4px 0;"><strong>해결 방법:</strong> 여러 개의 500개 단위 파일을 모두 업로드하면 자동으로 병합됩니다.</p>
-    <ol style="color: #856404; margin: 8px 0; padding-left: 20px;">
-        <li>WOS에서 1-500, 501-1000, 1001-1500... 순서로 Plain Text 다운로드</li>
-        <li>모든 .txt 파일을 아래에서 한 번에 선택하여 업로드</li>
-        <li>자동 병합 및 중복 제거 후 SCIMAT용 파일 생성</li>
-    </ol>
-</div>
-""", unsafe_allow_html=True)
+# --- WOS 500개 제한 안내 삭제 ---
 
 # --- 파일 업로드 섹션 ---
 st.markdown("""
@@ -895,47 +883,46 @@ if uploaded_files:
         
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- 키워드 샘플 확인 ---
+    # --- 키워드 샘플 확인 (항상 표시) ---
     st.markdown("""
     <div class="chart-container">
         <div class="chart-title">병합 데이터 키워드 품질 확인</div>
     """, unsafe_allow_html=True)
     
-    if st.checkbox("🔍 키워드 샘플 및 품질 확인", key="keyword_check"):
-        sample_data = []
-        sample_rows = merged_df[merged_df['Classification'].str.contains('Include', na=False)].head(3)
+    sample_data = []
+    sample_rows = merged_df[merged_df['Classification'].str.contains('Include', na=False)].head(3)
+    
+    for idx, row in sample_rows.iterrows():
+        title = str(row.get('TI', 'N/A'))[:80] + "..." if len(str(row.get('TI', 'N/A'))) > 80 else str(row.get('TI', 'N/A'))
+        de_keywords = str(row.get('DE', 'N/A')) if pd.notna(row.get('DE')) else 'N/A'
+        id_keywords = str(row.get('ID', 'N/A')) if pd.notna(row.get('ID')) else 'N/A'
         
-        for idx, row in sample_rows.iterrows():
-            title = str(row.get('TI', 'N/A'))[:80] + "..." if len(str(row.get('TI', 'N/A'))) > 80 else str(row.get('TI', 'N/A'))
-            de_keywords = str(row.get('DE', 'N/A')) if pd.notna(row.get('DE')) else 'N/A'
-            id_keywords = str(row.get('ID', 'N/A')) if pd.notna(row.get('ID')) else 'N/A'
-            
-            # 키워드 개수 계산
-            de_count = len([k.strip() for k in de_keywords.split(';') if k.strip()]) if de_keywords != 'N/A' else 0
-            id_count = len([k.strip() for k in id_keywords.split(';') if k.strip()]) if id_keywords != 'N/A' else 0
-            
-            sample_data.append({
-                '논문 제목': title,
-                'DE 키워드': de_keywords[:100] + "..." if len(de_keywords) > 100 else de_keywords,
-                'ID 키워드': id_keywords[:100] + "..." if len(id_keywords) > 100 else id_keywords,
-                'DE 개수': de_count,
-                'ID 개수': id_count
-            })
+        # 키워드 개수 계산
+        de_count = len([k.strip() for k in de_keywords.split(';') if k.strip()]) if de_keywords != 'N/A' else 0
+        id_count = len([k.strip() for k in id_keywords.split(';') if k.strip()]) if id_keywords != 'N/A' else 0
         
-        if sample_data:
-            sample_df = pd.DataFrame(sample_data)
-            st.dataframe(sample_df, use_container_width=True, hide_index=True)
-            
-            # 키워드 품질 평가
-            avg_de = sum([d['DE 개수'] for d in sample_data]) / len(sample_data) if sample_data else 0
-            avg_id = sum([d['ID 개수'] for d in sample_data]) / len(sample_data) if sample_data else 0
-            
-            if avg_de >= 3 and avg_id >= 3:
-                st.success("✅ 키워드 품질 우수 - SCIMAT에서 원활한 그룹핑 예상")
-            elif avg_de >= 2 or avg_id >= 2:
-                st.warning("⚠️ 키워드 품질 보통 - SCIMAT에서 일부 제한 가능")
-            else:
-                st.error("❌ 키워드 품질 부족 - 원본 WOS 다운로드 설정 확인 필요")
+        sample_data.append({
+            '논문 제목': title,
+            'DE 키워드': de_keywords[:100] + "..." if len(de_keywords) > 100 else de_keywords,
+            'ID 키워드': id_keywords[:100] + "..." if len(id_keywords) > 100 else id_keywords,
+            'DE 개수': de_count,
+            'ID 개수': id_count
+        })
+    
+    if sample_data:
+        sample_df = pd.DataFrame(sample_data)
+        st.dataframe(sample_df, use_container_width=True, hide_index=True)
+        
+        # 키워드 품질 평가
+        avg_de = sum([d['DE 개수'] for d in sample_data]) / len(sample_data) if sample_data else 0
+        avg_id = sum([d['ID 개수'] for d in sample_data]) / len(sample_data) if sample_data else 0
+        
+        if avg_de >= 3 and avg_id >= 3:
+            st.success("✅ 키워드 품질 우수 - SCIMAT에서 원활한 그룹핑 예상")
+        elif avg_de >= 2 or avg_id >= 2:
+            st.warning("⚠️ 키워드 품질 보통 - SCIMAT에서 일부 제한 가능")
+        else:
+            st.error("❌ 키워드 품질 부족 - 원본 WOS 다운로드 설정 확인 필요")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
