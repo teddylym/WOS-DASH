@@ -4,6 +4,11 @@ st.markdown("""
     <div class="section-title">📁 다중 WOS Plain Text 파일 업로드</div>
     <div class="section-subtitle">500개 단위로 나뉜 여러 WOS 파일을 모두 선택하여 업로드하세요</div>
 </div>
+""", unsafe_allow_html=True)markdown("""
+<div class="section-header">
+    <div class="section-title">📁 다중 WOS Plain Text 파일 업로드</div>
+    <div class="section-subtitle">500개 단위로 나뉜 여러 WOS 파일을 모두 선택하여 업로드하세요</div>
+</div>
 """, unsafe_allow_html=True)
 
 st.markdown("""
