@@ -4,11 +4,6 @@ st.markdown("""
     <div class="section-title">📁 다중 WOS Plain Text 파일 업로드</div>
     <div class="section-subtitle">500개 단위로 나뉜 여러 WOS 파일을 모두 선택하여 업로드하세요</div>
 </div>
-""", unsafe_allow_html=True)markdown("""
-<div class="section-header">
-    <div class="section-title">📁 다중 WOS Plain Text 파일 업로드</div>
-    <div class="section-subtitle">500개 단위로 나뉜 여러 WOS 파일을 모두 선택하여 업로드하세요</div>
-</div>
 """, unsafe_allow_html=True)
 
 st.markdown("""
@@ -632,7 +627,7 @@ with st.expander("📊 SCIMAT 완벽 분석 가이드"):
     - **한글 깨짐**: 파일 인코딩 UTF-8로 변경
     """)
 
-st.markdown("<br><br>", unsafe_allow_html=True)
+st.markdown("<br><br>", unsafe_allow_html=True)import streamlit as st
 import pandas as pd
 import altair as alt
 import io
