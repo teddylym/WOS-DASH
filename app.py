@@ -1016,16 +1016,76 @@ with st.expander("❓ 자주 묻는 질문 (FAQ)"):
     A: WOS에서 여러 번 Plain Text 다운로드한 후, 모든 .txt 파일을 한 번에 업로드하면 자동으로 병합됩니다.
     
     **Q: 중복된 논문이 있을까봐 걱정됩니다.**
-    A: 걱정하지 마세요! UT(Unique Article Identifier) 기준으로 자동 중복 제거되며, UT가 없으면 제목+저자 조합으로 중복을 감지합니다.
+    A: UT(Unique Article Identifier) 기준으로 자동 중복 제거되며, UT가 없으면 제목+저자 조합으로 중복을 감지합니다.
     
-    **Q: 파일 중 일부만 처리되고 나머지는 오류가 났습니다.**
-    A: 성공적으로 처리된 파일들은 병합되어 분석됩니다. 오류가 난 파일들이 정품 WOS Plain Text 파일인지 확인해주세요.
+    **Q: WOS에서 어떤 설정으로 다운로드해야 하나요?**
+    A: Export → Record Content: "Full Record and Cited References", File Format: "Plain Text"로 설정하세요. 인용 관계 분석을 위해 참고문헌 정보가 필수입니다.
+    
+    **Q: SCIMAT에서 키워드 정리를 어떻게 하나요?**
+    A: Group set → Word → Find similar words by distances (Maximum distance: 1)로 유사 키워드를 자동 통합하고, Word Group manual set에서 수동으로 관련 키워드들을 그룹화하세요.
+    
+    **Q: SCIMAT 분석 설정은 어떻게 하나요?**
+    A: Unit of Analysis: "Author's words + Source's words", Network Type: "Co-occurrence", Normalization: "Equivalence Index", Clustering: "Simple Centers Algorithm" (Maximum network size: 50)를 권장합니다.
     
     **Q: 병합된 파일이 SCIMAT에서 제대로 로딩되지 않습니다.**
-    A: 원본 WOS 파일들의 형식을 다시 확인해주세요. 파일이 'FN Clarivate Analytics Web of Science'로 시작하는지 확인하세요.
+    A: 원본 WOS 파일들이 'FN Clarivate Analytics Web of Science'로 시작하는 정품 Plain Text 파일인지 확인하세요.
+    
+    **Q: SCIMAT에서 Period는 어떻게 설정하나요?**
+    A: 연구 분야의 진화 단계를 반영하여 의미 있게 구분하되, 각 Period당 최소 50편 이상의 논문을 포함하도록 설정하세요.
     
     **Q: 몇 개의 파일까지 동시에 업로드할 수 있나요?**
     A: 기술적으로는 제한이 없지만, 안정성을 위해 10개 이하의 파일을 권장합니다. 매우 큰 데이터셋의 경우 나누어서 처리하세요.
+    """)
+
+# SCIMAT 분석 가이드 추가
+with st.expander("📊 SCIMAT 완벽 분석 가이드"):
+    st.markdown("""
+    ### 🎯 SCIMAT 분석 핵심 단계
+    
+    **1단계: 프로젝트 생성**
+    - SCIMAT 실행 → File → New Project → 경로 설정
+    
+    **2단계: 데이터 로딩**
+    - File → Add Files → "ISI WoS" 선택 → 다운로드한 .txt 파일 선택
+    
+    **3단계: 키워드 정리 (중요!)**
+    - **자동 통합**: Group set → Word → Find similar words by distances (거리: 1)
+    - **수동 그룹화**: Word Group manual set에서 관련 키워드들 묶기
+    - **목적**: 데이터 품질 향상, 의미 있는 클러스터 형성
+    
+    **4단계: 시간 구간 설정**
+    - Knowledge base → Periods → Periods manager
+    - 연구 분야 진화 단계를 반영한 의미 있는 구간 설정
+    - 각 Period당 최소 50편 이상 논문 포함 권장
+    
+    **5단계: 분석 설정**
+    - **Unit of Analysis**: "Word Group" + "Author's words + Source's words"
+    - **Data Reduction**: Minimum frequency: 2 (노이즈 제거)
+    - **Network Type**: "Co-occurrence" (키워드 동시 출현 분석)
+    - **Normalization**: "Equivalence Index" (표준 정규화 방법)
+    - **Clustering**: "Simple Centers Algorithm" (해석 용이, 안정적)
+    - **Maximum network size**: 50 (시각적 분석 가능한 적정 크기)
+    - **Document Mapper**: "Core Mapper" (핵심 논문 식별)
+    - **Performance Measures**: G-index, Sum Citations 모두 선택
+    - **Evolution Map**: "Jaccard Index" (시기간 주제 연속성 측정)
+    
+    **6단계: 결과 해석**
+    - **전략적 다이어그램 4사분면**:
+      - 우상단: Motor Themes (핵심 주제) - 중심성↑, 밀도↑
+      - 좌상단: Specialized Themes (전문화된 주제) - 중심성↓, 밀도↑  
+      - 좌하단: Emerging/Declining Themes (신흥/쇠퇴 주제) - 중심성↓, 밀도↓
+      - 우하단: Basic Themes (기초 주제) - 중심성↑, 밀도↓
+    
+    ### 💡 성공적인 분석을 위한 팁
+    - **키워드 정리에 충분한 시간 투자** (분석 품질의 핵심!)
+    - **Period 구분**: 너무 세분화하지 말고 의미있는 구간으로
+    - **각 Period당 최소 50편** 이상으로 통계적 의미 확보
+    - **설정값 조정**: 분야 특성에 따라 Maximum network size 조정 가능 (30-100)
+    
+    ### 🔧 문제 해결
+    - **임포트 안됨**: WOS 파일이 Plain Text인지 확인
+    - **분석 중단**: Java 메모리 부족 시 재시작
+    - **한글 깨짐**: 파일 인코딩 UTF-8로 변경
     """)
 
 st.markdown("<br><br>", unsafe_allow_html=True)
