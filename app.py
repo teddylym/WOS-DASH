@@ -1084,7 +1084,7 @@ if uploaded_files:
     
     with col4:
         exclude_count = len(exclude_papers)
-        # 제외 박스 - 다른 metric-card와 동일한 스타일로 수정
+        # 제외 박스와 버튼을 함께 배치
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-icon">❌</div>
@@ -1093,14 +1093,16 @@ if uploaded_files:
         </div>
         """, unsafe_allow_html=True)
         
-        # 제외 박스 클릭 버튼 - 카드 아래에 배치
-        if st.button(
-            "📋 제외 논문 목록 보기", 
-            key="exclude_toggle_button",
-            help="클릭하면 제외된 논문 목록을 확인할 수 있습니다",
-            use_container_width=True
-        ):
-            st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
+        # 제외 논문 숫자 옆에 작은 버튼 배치
+        col4_1, col4_2 = st.columns([1, 1])
+        with col4_2:
+            if st.button(
+                "📋 목록", 
+                key="exclude_toggle_button",
+                help="제외된 논문 목록 보기",
+                use_container_width=True
+            ):
+                st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
 
     # 제외 박스 클릭 시 상세 정보 토글
     if st.session_state.get('show_exclude_details', False) and len(exclude_papers) > 0:
@@ -1246,33 +1248,37 @@ if uploaded_files:
     """, unsafe_allow_html=True)
 
     # --- 최종 파일 다운로드 섹션 ---
-    # SCIMAT 호환 파일 다운로드 - 기본 파란색 버튼
+    # SciMAT 가이드 토글 버튼 (다운로드와 독립적으로 항상 표시)
+    guide_button_text = "🔼 SciMAT 분석 가이드 닫기" if st.session_state.get('show_scimat_guide', False) else "🔽 SciMAT 분석 가이드 열기"
+    
+    if st.button(guide_button_text, key="toggle_guide_button", use_container_width=True):
+        st.session_state['show_scimat_guide'] = not st.session_state.get('show_scimat_guide', False)
+    
+    # SCIMAT 호환 파일 다운로드 - 박스 스타일로 강화
     text_data = convert_to_scimat_wos_format(df_final_output)
     
-    # 다운로드 버튼과 SCIMAT 가이드 관리
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #007bff, #0056b3); padding: 24px; border-radius: 12px; margin: 20px 0; box-shadow: 0 4px 20px rgba(0,123,255,0.3);">
+        <div style="display: flex; align-items: center; margin-bottom: 16px;">
+            <div style="font-size: 2.5rem; margin-right: 16px; color: white;">📥</div>
+            <div>
+                <h3 style="margin: 0; color: white; font-size: 1.3rem;">SCIMAT 분석용 파일 다운로드</h3>
+                <p style="margin: 4px 0 0 0; opacity: 0.9; color: white;">병합 및 정제된 WOS Plain Text 파일</p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
     download_clicked = st.download_button(
-        label="📥 SCIMAT 분석용 파일 다운로드",
+        label="📥 다운로드 시작",
         data=text_data,
         file_name="live_streaming_merged_scimat_ready.txt",
         mime="text/plain",
         type="primary",
         use_container_width=True,
         key="download_final_file",
-        help="다운로드 후 SCIMAT 분석 가이드를 확인하세요"
+        help="SCIMAT에서 바로 사용 가능한 WOS Plain Text 파일"
     )
-    
-    # 다운로드 버튼 클릭 시 가이드 표시 상태 설정
-    if download_clicked:
-        st.session_state['download_completed'] = True
-        st.session_state['show_scimat_guide'] = True
-    
-    # 다운로드 완료 후 가이드 토글 버튼 표시
-    if st.session_state.get('download_completed', False):
-        # 가이드 열기/닫기 토글 버튼
-        guide_button_text = "🔼 분석 가이드 닫기" if st.session_state.get('show_scimat_guide', False) else "🔽 SciMAT 분석 가이드 열기"
-        
-        if st.button(guide_button_text, key="toggle_guide_button", use_container_width=True):
-            st.session_state['show_scimat_guide'] = not st.session_state.get('show_scimat_guide', False)
     
     # SCIMAT 분석 가이드 표시
     if st.session_state.get('show_scimat_guide', False):
