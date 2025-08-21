@@ -272,65 +272,90 @@ def load_and_merge_wos_files(uploaded_files):
         merged_df = pd.concat(all_dataframes, ignore_index=True)
         original_count = len(merged_df)
         
-        # 중복 제거 로직 - 가장 단순하고 안전한 방법
+        # 중복 제거 로직 - 완전히 새로 작성 (가장 보수적 접근)
         duplicates_removed = 0
         
+        # UT 필드가 있는 경우에만 중복 제거 시도
         if 'UT' in merged_df.columns:
-            # 중복 제거 전 데이터 상태 확인
-            print(f"DEBUG: 원본 데이터 {original_count}편")
+            # UT 값들의 실제 상태 분석
+            ut_series = merged_df['UT'].copy()
             
-            # UT 컬럼의 실제 값들 분석
-            ut_values = merged_df['UT'].astype(str)
-            print(f"DEBUG: UT 컬럼 고유값 수: {ut_values.nunique()}")
-            print(f"DEBUG: UT 컬럼 전체 값 수: {len(ut_values)}")
+            # 실제 의미있는 UT 식별자만 찾기 (매우 엄격한 기준)
+            def has_real_ut_identifier(value):
+                if pd.isna(value):
+                    return False
+                
+                str_val = str(value).strip()
+                
+                # 빈 문자열이나 일반적인 결측값 표현들 제외
+                if str_val.lower() in ['', 'nan', 'none', 'null', 'na']:
+                    return False
+                
+                # WOS UT는 보통 'WOS:000...' 형태이거나 고유한 식별자
+                # 최소 10자 이상이고 실제 식별자 패턴을 가져야 함
+                if len(str_val) < 10:
+                    return False
+                
+                # 'WOS:' 로 시작하거나 충분히 긴 영숫자 조합인 경우만 유효
+                if str_val.startswith('WOS:') or (len(str_val) >= 15 and any(c.isalnum() for c in str_val)):
+                    return True
+                
+                return False
             
-            # 빈 값이나 무의미한 값들 확인
-            empty_like = ut_values.isin(['', 'nan', 'None', 'null']) | ut_values.isna()
-            meaningful_ut_count = len(ut_values[~empty_like])
-            print(f"DEBUG: 의미있는 UT 값 수: {meaningful_ut_count}")
+            # 실제 UT 식별자를 가진 행들만 선별
+            has_real_ut = ut_series.apply(has_real_ut_identifier)
+            rows_with_real_ut = merged_df[has_real_ut]
+            rows_without_real_ut = merged_df[~has_real_ut]
             
-            # 의미있는 UT 값이 있는 경우에만 중복 제거 시도
-            if meaningful_ut_count > 0:
-                # 원본 크기 저장
-                before_size = len(merged_df)
+            print(f"DEBUG: 전체 {original_count}편 중 실제 UT 식별자 보유: {len(rows_with_real_ut)}편")
+            print(f"DEBUG: UT 없거나 무효한 UT: {len(rows_without_real_ut)}편")
+            
+            # 실제 UT 식별자가 있는 행들에서만 중복 제거
+            if len(rows_with_real_ut) > 1:  # 최소 2개 이상 있어야 중복 검사 의미
+                # 중복 제거 전후 비교
+                before_dedup = len(rows_with_real_ut)
+                deduplicated_ut_rows = rows_with_real_ut.drop_duplicates(subset=['UT'], keep='first')
+                after_dedup = len(deduplicated_ut_rows)
                 
-                # 가장 단순한 중복 제거: 빈 값들은 제외하고 실제 UT만 대상
-                merged_df_copy = merged_df.copy()
+                actual_duplicates = before_dedup - after_dedup
                 
-                # UT가 의미있는 값인 행들만 중복 제거
-                meaningful_mask = ~empty_like
-                meaningful_rows = merged_df_copy[meaningful_mask]
-                empty_rows = merged_df_copy[~meaningful_mask]
-                
-                if len(meaningful_rows) > 0:
-                    # 의미있는 UT를 가진 행들만 중복 제거
-                    deduplicated_meaningful = meaningful_rows.drop_duplicates(subset=['UT'], keep='first')
+                if actual_duplicates > 0:
+                    print(f"DEBUG: 실제 UT 중복 발견: {actual_duplicates}편 제거")
+                    duplicates_removed = actual_duplicates
                     
-                    # 제거된 중복 수 계산
-                    removed_from_meaningful = len(meaningful_rows) - len(deduplicated_meaningful)
-                    
-                    if removed_from_meaningful > 0:
-                        # 실제 중복이 제거된 경우
-                        merged_df = pd.concat([deduplicated_meaningful, empty_rows], ignore_index=True)
-                        duplicates_removed = removed_from_meaningful
-                        
-                        print(f"DEBUG: 의미있는 UT 행 {len(meaningful_rows)}편 → {len(deduplicated_meaningful)}편")
-                        print(f"DEBUG: 실제 제거된 중복: {removed_from_meaningful}편")
-                    else:
-                        print("DEBUG: 의미있는 UT 중 중복 없음")
+                    # 중복 제거된 결과와 UT 없는 행들 재결합
+                    merged_df = pd.concat([deduplicated_ut_rows, rows_without_real_ut], ignore_index=True)
                 else:
-                    print("DEBUG: 의미있는 UT를 가진 행이 없음")
+                    print("DEBUG: 실제 UT 중복 없음")
             else:
-                print("DEBUG: 의미있는 UT 값이 없어 중복 제거 생략")
+                print("DEBUG: 중복 검사할 만한 실제 UT 식별자가 충분하지 않음")
+        
+        # 대안: UT가 없거나 신뢰할 수 없는 경우 제목+저자 기준 중복 제거
+        if duplicates_removed == 0 and 'TI' in merged_df.columns:
+            print("DEBUG: UT 기준 중복이 없어 제목+저자 기준으로 추가 확인")
+            
+            # 제목과 첫 번째 저자 기준으로 중복 확인 (매우 보수적)
+            title_author_before = len(merged_df)
+            
+            # 제목이 있고 저자가 있는 행들만 대상
+            has_title = merged_df['TI'].notna() & (merged_df['TI'].str.strip() != '')
+            has_author = merged_df.get('AU', pd.Series()).notna() if 'AU' in merged_df.columns else pd.Series([False] * len(merged_df))
+            
+            complete_rows = merged_df[has_title & has_author] if 'AU' in merged_df.columns else merged_df[has_title]
+            incomplete_rows = merged_df[~(has_title & has_author)] if 'AU' in merged_df.columns else merged_df[~has_title]
+            
+            if len(complete_rows) > 1:
+                dedup_columns = ['TI', 'AU'] if 'AU' in merged_df.columns else ['TI']
+                deduplicated_complete = complete_rows.drop_duplicates(subset=dedup_columns, keep='first')
+                title_author_removed = len(complete_rows) - len(deduplicated_complete)
+                
+                if title_author_removed > 0:
+                    print(f"DEBUG: 제목+저자 기준 중복 발견: {title_author_removed}편 제거")
+                    duplicates_removed = title_author_removed
+                    merged_df = pd.concat([deduplicated_complete, incomplete_rows], ignore_index=True)
         
         final_count = len(merged_df)
-        print(f"DEBUG: 최종 데이터 {final_count}편 (제거: {original_count - final_count}편)")
-        
-        # 안전장치: 실제 제거된 수와 계산된 수가 다르면 실제 수로 보정
-        actual_removed = original_count - final_count
-        if actual_removed != duplicates_removed:
-            print(f"DEBUG: 계산 불일치 - 계산값: {duplicates_removed}, 실제값: {actual_removed}")
-            duplicates_removed = actual_removed
+        print(f"DEBUG: 최종 결과 - 원본: {original_count}편, 최종: {final_count}편, 제거: {duplicates_removed}편")
         
         return merged_df, file_status, duplicates_removed
     else:
@@ -684,7 +709,9 @@ st.markdown("""
     <div style="font-size: 3rem; margin-bottom: 16px; color: #003875;">📤</div>
     <div style="padding: 0 20px;">
         <h3 style="color: #212529; margin-bottom: 8px;">WOS Plain Text 파일들을 모두 선택하세요</h3>
-        <p style="color: #6c757d; margin: 0;">Ctrl+클릭으로 여러 파일 동시 선택 가능</p>
+        <p style="color: #6c757d; margin: 0;">
+            <strong>드래그&드롭</strong> 또는 <strong>Ctrl+클릭</strong>으로 여러 파일 동시 선택 가능
+        </p>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -693,7 +720,8 @@ uploaded_files = st.file_uploader(
     "WOS Plain Text 파일 선택 (다중 선택 가능)",
     type=['txt'],
     accept_multiple_files=True,
-    label_visibility="collapsed"
+    label_visibility="collapsed",
+    help="파일을 드래그하여 놓거나 클릭하여 선택하세요"
 )
 
 if uploaded_files:
@@ -817,8 +845,25 @@ if uploaded_files:
         st.markdown('<h5 style="color: #28a745; margin-bottom: 12px;">💡 병합 결과</h5>', unsafe_allow_html=True)
         
         if recommendations:
+            # 트렌디한 성과 강조 박스로 변경
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 20px; border-radius: 12px; margin: 10px 0; box-shadow: 0 4px 20px rgba(40,167,69,0.3);">
+                <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                    <div style="font-size: 2rem; margin-right: 12px;">🎉</div>
+                    <div style="font-size: 1.2rem; font-weight: 600;">병합 성공!</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
             for rec in recommendations:
-                st.markdown(f"- {rec}")
+                icon = "🔗" if "파일" in rec else "🚫" if "중복" in rec else "✅"
+                st.markdown(f"""
+                <div style="display: flex; align-items: center; margin: 8px 0; font-size: 1rem;">
+                    <div style="margin-right: 8px;">{icon}</div>
+                    <div>{rec}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.markdown("🎯 **최적 상태** - SCIMAT 완벽 호환")
     
@@ -1033,8 +1078,8 @@ if uploaded_files:
     # Classification 컬럼만 제거 (원본 WOS 형식 유지)
     df_final_output = df_final.drop(columns=['Classification'], errors='ignore')
 
-    # 최종 통계
-    col1, col2, col3 = st.columns(3)
+    # 최종 통계 - 제외 박스 추가
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.markdown(f"""
@@ -1064,8 +1109,62 @@ if uploaded_files:
             <div class="metric-label">검토 대상</div>
         </div>
         """, unsafe_allow_html=True)
+    
+    with col4:
+        exclude_count = len(merged_df[merged_df['Classification'].str.contains('Exclude', na=False)])
+        # 제외 박스 - 클릭하면 토글되도록 만들기
+        exclude_button_key = f"exclude_toggle_{exclude_count}"
+        
+        if st.button(
+            f"❌\n{exclude_count:,}\n제외 대상", 
+            key=exclude_button_key,
+            help="클릭하면 제외된 논문 목록을 확인할 수 있습니다"
+        ):
+            st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
+        
+        st.markdown(f"""
+        <div class="metric-card" style="background: #f8d7da; border-color: #dc3545;">
+            <div class="metric-icon" style="background: #dc3545;">❌</div>
+            <div class="metric-value" style="color: #dc3545;">{exclude_count:,}</div>
+            <div class="metric-label" style="color: #721c24;">제외 대상<br><small>클릭하여 상세보기</small></div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # --- 분류별 논문 상세 목록 (Review와 Exclude 모두 토글) ---
+    # 제외 박스 클릭 시 상세 정보 토글
+    if st.session_state.get('show_exclude_details', False) and len(exclude_papers) > 0:
+        st.markdown("""
+        <div style="background: #f8d7da; padding: 16px; border-radius: 8px; margin: 16px 0; border: 1px solid #dc3545;">
+            <h4 style="color: #721c24; margin-bottom: 12px;">❌ 제외된 논문 상세 목록</h4>
+            <p style="color: #721c24; margin-bottom: 16px;">
+                <strong>🚫 제외 사유:</strong> 라이브 스트리밍 연구와 관련성이 낮은 기술적 비관련 연구들입니다.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        for idx, (_, paper) in enumerate(exclude_papers.head(10).iterrows(), 1):  # 최대 10개만 표시
+            title = str(paper.get('TI', 'N/A'))[:100] + "..." if len(str(paper.get('TI', 'N/A'))) > 100 else str(paper.get('TI', 'N/A'))
+            year = str(paper.get('PY', 'N/A'))
+            source = str(paper.get('SO', 'N/A'))[:50] + "..." if len(str(paper.get('SO', 'N/A'))) > 50 else str(paper.get('SO', 'N/A'))
+            
+            st.markdown(f"""
+            <div style="margin: 8px 0; padding: 12px; background: white; border-left: 3px solid #dc3545; border-radius: 4px;">
+                <div style="display: flex; align-items: center; margin-bottom: 6px;">
+                    <span style="background: #dc3545; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 8px;">제외</span>
+                    <span style="color: #6c757d; font-size: 0.9rem;">#{idx}</span>
+                </div>
+                <div style="font-weight: 600; color: #212529; margin-bottom: 4px; line-height: 1.4;">
+                    {title}
+                </div>
+                <div style="font-size: 0.9rem; color: #6c757d;">
+                    <strong>연도:</strong> {year} | <strong>저널:</strong> {source}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        if len(exclude_papers) > 10:
+            st.markdown(f"<p style='color: #6c757d; text-align: center; margin: 16px 0;'>... 외 {len(exclude_papers) - 10}편 더</p>", unsafe_allow_html=True)
+
+    # --- 분류별 논문 상세 목록 (Review만 토글로 유지) ---
     # Review 분류 논문들 토글
     review_papers = merged_df[merged_df['Classification'].str.contains('Review', na=False)]
     
@@ -1153,37 +1252,8 @@ if uploaded_files:
                 </div>
                 """, unsafe_allow_html=True)
 
-    # Exclude 분류 논문들 토글 (신규 추가)
+    # Exclude 분류 논문들 토글 (제거 - 위에서 처리함)
     exclude_papers = merged_df[merged_df['Classification'].str.contains('Exclude', na=False)]
-    
-    if len(exclude_papers) > 0:
-        with st.expander(f"❌ Exclude (제외 대상) - 논문 목록 ({len(exclude_papers)}편)", expanded=False):
-            st.markdown("""
-            <div style="background: #f8d7da; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
-                <strong>🚫 제외 안내:</strong> 아래 논문들은 라이브 스트리밍 연구와 관련성이 낮아 최종 분석에서 제외되는 논문들입니다.
-                기술적으로 비관련된 연구들이 포함되어 있습니다.
-            </div>
-            """, unsafe_allow_html=True)
-            
-            for idx, (_, paper) in enumerate(exclude_papers.iterrows(), 1):
-                title = str(paper.get('TI', 'N/A'))
-                year = str(paper.get('PY', 'N/A'))
-                source = str(paper.get('SO', 'N/A'))
-                
-                st.markdown(f"""
-                <div style="margin: 8px 0; padding: 12px; background: white; border-left: 3px solid #dc3545; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <div style="display: flex; align-items: center; margin-bottom: 6px;">
-                        <span style="background: #dc3545; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 8px;">기술적 비관련</span>
-                        <span style="color: #6c757d; font-size: 0.9rem;">#{idx}</span>
-                    </div>
-                    <div style="font-weight: 600; color: #212529; margin-bottom: 4px; line-height: 1.4;">
-                        {title}
-                    </div>
-                    <div style="font-size: 0.9rem; color: #6c757d;">
-                        <strong>연도:</strong> {year} | <strong>저널:</strong> {source}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
 
     # 병합 성과 강조 - 실제 데이터 기반
     success_info = []
@@ -1208,20 +1278,80 @@ if uploaded_files:
     # SCIMAT 호환 파일 다운로드 - 기본 파란색 버튼
     text_data = convert_to_scimat_wos_format(df_final_output)
     
-    st.download_button(
-        label="Download",
+    # 다운로드 버튼과 SCIMAT 가이드 자동 토글
+    download_clicked = st.download_button(
+        label="📥 SCIMAT 분석용 파일 다운로드",
         data=text_data,
         file_name="live_streaming_merged_scimat_ready.txt",
         mime="text/plain",
         type="primary",
         use_container_width=True,
-        key="download_final_file"
+        key="download_final_file",
+        help="다운로드 후 SCIMAT 완벽 분석 가이드가 자동으로 표시됩니다"
     )
+    
+    # 다운로드 버튼 클릭 시 SCIMAT 가이드 자동 토글
+    if download_clicked:
+        st.session_state['show_scimat_guide'] = True
+    
+    # SCIMAT 완벽 분석 가이드 자동 표시
+    if st.session_state.get('show_scimat_guide', False):
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 20px; border-radius: 12px; margin: 20px 0; box-shadow: 0 4px 20px rgba(0,123,255,0.3);">
+            <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                <div style="font-size: 2.5rem; margin-right: 16px;">🎯</div>
+                <div>
+                    <h3 style="margin: 0; color: white;">SCIMAT 완벽 분석 가이드</h3>
+                    <p style="margin: 4px 0 0 0; opacity: 0.9;">다운로드된 파일로 최고 품질의 연구 분석을 수행하세요</p>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # SCIMAT 분석 가이드 상세 내용
+        st.markdown("""
+        ### 🚀 SCIMAT 분석 핵심 단계
+        
+        **1단계: 프로젝트 생성 & 데이터 로딩**
+        ```
+        SCIMAT 실행 → File → New Project → 경로 설정
+        File → Add Files → "ISI WoS" 선택 → 다운로드한 .txt 파일 선택
+        ```
+        
+        **2단계: 키워드 정리 (분석 품질의 핵심!)**
+        ```
+        Group set → Word → Find similar words by distances (거리: 1)
+        Word Group manual set에서 관련 키워드들 수동 그룹화
+        ```
+        
+        **3단계: 최적 분석 설정**
+        - **Unit of Analysis**: "Word Group" + "Author's words + Source's words"
+        - **Network Type**: "Co-occurrence" (키워드 동시 출현 분석)
+        - **Normalization**: "Equivalence Index" (표준 정규화)
+        - **Clustering**: "Simple Centers Algorithm" (해석 용이)
+        - **Maximum network size**: 50 (시각적 분석 적정 크기)
+        
+        **4단계: 전략적 다이어그램 해석**
+        - **우상단**: Motor Themes (핵심 주제) - 중심성↑, 밀도↑
+        - **좌상단**: Specialized Themes (전문화 주제) - 중심성↓, 밀도↑  
+        - **좌하단**: Emerging/Declining Themes (신흥/쇠퇴) - 중심성↓, 밀도↓
+        - **우하단**: Basic Themes (기초 주제) - 중심성↑, 밀도↓
+        
+        ### 💡 성공 팁
+        ✅ **키워드 정리에 충분한 시간 투자** (분석 품질 결정!)  
+        ✅ **Period 구분**: 각 구간당 최소 50편 이상 확보  
+        ✅ **설정값 조정**: 분야 특성에 따라 네트워크 크기 조정  
+        """)
+        
+        # 가이드 닫기 버튼
+        if st.button("🔼 가이드 닫기", key="close_guide"):
+            st.session_state['show_scimat_guide'] = False
+            st.rerun()
 
 # --- 하단 여백 및 추가 정보 ---
 st.markdown("<br>", unsafe_allow_html=True)
 
-# 도움말 섹션
+# SCIMAT 분석 가이드 추가 (기존 expander는 제거하고 위에서 자동 토글로 처리)
 with st.expander("❓ 자주 묻는 질문 (FAQ)"):
     st.markdown("""
     **Q: 여러 WOS 파일을 어떻게 한 번에 처리하나요?**
@@ -1247,57 +1377,6 @@ with st.expander("❓ 자주 묻는 질문 (FAQ)"):
     
     **Q: 몇 개의 파일까지 동시에 업로드할 수 있나요?**
     A: 기술적으로는 제한이 없지만, 안정성을 위해 10개 이하의 파일을 권장합니다. 매우 큰 데이터셋의 경우 나누어서 처리하세요.
-    """)
-
-# SCIMAT 분석 가이드 추가
-with st.expander("📊 SCIMAT 완벽 분석 가이드"):
-    st.markdown("""
-    ### 🎯 SCIMAT 분석 핵심 단계
-    
-    **1단계: 프로젝트 생성**
-    - SCIMAT 실행 → File → New Project → 경로 설정
-    
-    **2단계: 데이터 로딩**
-    - File → Add Files → "ISI WoS" 선택 → 다운로드한 .txt 파일 선택
-    
-    **3단계: 키워드 정리 (중요!)**
-    - **자동 통합**: Group set → Word → Find similar words by distances (거리: 1)
-    - **수동 그룹화**: Word Group manual set에서 관련 키워드들 묶기
-    - **목적**: 데이터 품질 향상, 의미 있는 클러스터 형성
-    
-    **4단계: 시간 구간 설정**
-    - Knowledge base → Periods → Periods manager
-    - 연구 분야 진화 단계를 반영한 의미 있는 구간 설정
-    - 각 Period당 최소 50편 이상 논문 포함 권장
-    
-    **5단계: 분석 설정**
-    - **Unit of Analysis**: "Word Group" + "Author's words + Source's words"
-    - **Data Reduction**: Minimum frequency: 2 (노이즈 제거)
-    - **Network Type**: "Co-occurrence" (키워드 동시 출현 분석)
-    - **Normalization**: "Equivalence Index" (표준 정규화 방법)
-    - **Clustering**: "Simple Centers Algorithm" (해석 용이, 안정적)
-    - **Maximum network size**: 50 (시각적 분석 가능한 적정 크기)
-    - **Document Mapper**: "Core Mapper" (핵심 논문 식별)
-    - **Performance Measures**: G-index, Sum Citations 모두 선택
-    - **Evolution Map**: "Jaccard Index" (시기간 주제 연속성 측정)
-    
-    **6단계: 결과 해석**
-    - **전략적 다이어그램 4사분면**:
-      - 우상단: Motor Themes (핵심 주제) - 중심성↑, 밀도↑
-      - 좌상단: Specialized Themes (전문화된 주제) - 중심성↓, 밀도↑  
-      - 좌하단: Emerging/Declining Themes (신흥/쇠퇴 주제) - 중심성↓, 밀도↓
-      - 우하단: Basic Themes (기초 주제) - 중심성↑, 밀도↓
-    
-    ### 💡 성공적인 분석을 위한 팁
-    - **키워드 정리에 충분한 시간 투자** (분석 품질의 핵심!)
-    - **Period 구분**: 너무 세분화하지 말고 의미있는 구간으로
-    - **각 Period당 최소 50편** 이상으로 통계적 의미 확보
-    - **설정값 조정**: 분야 특성에 따라 Maximum network size 조정 가능 (30-100)
-    
-    ### 🔧 문제 해결
-    - **임포트 안됨**: WOS 파일이 Plain Text인지 확인
-    - **분석 중단**: Java 메모리 부족 시 재시작
-    - **한글 깨짐**: 파일 인코딩 UTF-8로 변경
     """)
 
 st.markdown("<br><br>", unsafe_allow_html=True)
