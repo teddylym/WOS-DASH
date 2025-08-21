@@ -271,19 +271,40 @@ def load_and_merge_wos_files(uploaded_files):
     if all_dataframes:
         merged_df = pd.concat(all_dataframes, ignore_index=True)
         
-        # 중복 제거 로직 - 실제 중복만 감지하고 제거
+        # 중복 제거 로직 - 수정된 버전
         duplicates_removed = 0
         
         if 'UT' in merged_df.columns:
-            # UT 필드의 실제 중복 확인
-            ut_counts = merged_df['UT'].value_counts()
-            actual_duplicates = ut_counts[ut_counts > 1]
+            # UT 필드의 유효한 값만 필터링
+            # 빈 값, NaN, 'nan' 문자열, 공백 등을 무효한 값으로 처리
+            def is_valid_ut(value):
+                if pd.isna(value):
+                    return False
+                str_value = str(value).strip().lower()
+                if str_value in ['', 'nan', 'none', 'null']:
+                    return False
+                return len(str_value) > 0
             
-            if len(actual_duplicates) > 0:
-                # 실제 중복이 있는 경우만 제거
-                duplicates_removed = actual_duplicates.sum() - len(actual_duplicates)
-                merged_df = merged_df.drop_duplicates(subset=['UT'], keep='first')
-            # 중복이 없으면 duplicates_removed는 0 유지
+            # 유효한 UT 값을 가진 행들만 필터링
+            valid_ut_mask = merged_df['UT'].apply(is_valid_ut)
+            valid_ut_df = merged_df[valid_ut_mask]
+            
+            if len(valid_ut_df) > 0:
+                # 유효한 UT 값들 중에서만 중복 확인
+                ut_counts = valid_ut_df['UT'].value_counts()
+                actual_duplicates = ut_counts[ut_counts > 1]
+                
+                if len(actual_duplicates) > 0:
+                    # 실제 중복이 있는 경우만 제거
+                    duplicates_removed = actual_duplicates.sum() - len(actual_duplicates)
+                    
+                    # 유효한 UT를 가진 행들에서 중복 제거
+                    deduplicated_valid = valid_ut_df.drop_duplicates(subset=['UT'], keep='first')
+                    
+                    # 무효한 UT를 가진 행들과 중복 제거된 유효한 행들을 다시 병합
+                    invalid_ut_df = merged_df[~valid_ut_mask]
+                    merged_df = pd.concat([deduplicated_valid, invalid_ut_df], ignore_index=True)
+                # 중복이 없으면 duplicates_removed는 0 유지
         
         return merged_df, file_status, duplicates_removed
     else:
