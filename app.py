@@ -704,24 +704,12 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<div class="upload-zone">
-    <div style="font-size: 3rem; margin-bottom: 16px; color: #003875;">📤</div>
-    <div style="padding: 0 20px;">
-        <h3 style="color: #212529; margin-bottom: 8px;">WOS Plain Text 파일들을 모두 선택하세요</h3>
-        <p style="color: #6c757d; margin: 0;">
-            <strong>드래그&드롭</strong> 또는 <strong>Ctrl+클릭</strong>으로 여러 파일 동시 선택 가능
-        </p>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
 uploaded_files = st.file_uploader(
     "WOS Plain Text 파일 선택 (다중 선택 가능)",
     type=['txt'],
     accept_multiple_files=True,
     label_visibility="collapsed",
-    help="파일을 드래그하여 놓거나 클릭하여 선택하세요"
+    help="WOS Plain Text 파일들을 드래그하여 놓거나 클릭하여 선택하세요"
 )
 
 if uploaded_files:
@@ -845,25 +833,8 @@ if uploaded_files:
         st.markdown('<h5 style="color: #28a745; margin-bottom: 12px;">💡 병합 결과</h5>', unsafe_allow_html=True)
         
         if recommendations:
-            # 트렌디한 성과 강조 박스로 변경
-            st.markdown("""
-            <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 20px; border-radius: 12px; margin: 10px 0; box-shadow: 0 4px 20px rgba(40,167,69,0.3);">
-                <div style="display: flex; align-items: center; margin-bottom: 12px;">
-                    <div style="font-size: 2rem; margin-right: 12px;">🎉</div>
-                    <div style="font-size: 1.2rem; font-weight: 600;">병합 성공!</div>
-                </div>
-            """, unsafe_allow_html=True)
-            
             for rec in recommendations:
-                icon = "🔗" if "파일" in rec else "🚫" if "중복" in rec else "✅"
-                st.markdown(f"""
-                <div style="display: flex; align-items: center; margin: 8px 0; font-size: 1rem;">
-                    <div style="margin-right: 8px;">{icon}</div>
-                    <div>{rec}</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown(f"- {rec}")
         else:
             st.markdown("🎯 **최적 상태** - SCIMAT 완벽 호환")
     
@@ -1079,6 +1050,7 @@ if uploaded_files:
     df_final_output = df_final.drop(columns=['Classification'], errors='ignore')
 
     # 최종 통계 - 제외 박스 추가
+    exclude_papers = merged_df[merged_df['Classification'].str.contains('Exclude', na=False)]
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -1111,24 +1083,15 @@ if uploaded_files:
         """, unsafe_allow_html=True)
     
     with col4:
-        exclude_count = len(merged_df[merged_df['Classification'].str.contains('Exclude', na=False)])
+        exclude_count = len(exclude_papers)
         # 제외 박스 - 클릭하면 토글되도록 만들기
-        exclude_button_key = f"exclude_toggle_{exclude_count}"
-        
         if st.button(
-            f"❌\n{exclude_count:,}\n제외 대상", 
-            key=exclude_button_key,
-            help="클릭하면 제외된 논문 목록을 확인할 수 있습니다"
+            f"❌ {exclude_count:,} 제외 대상", 
+            key="exclude_toggle_button",
+            help="클릭하면 제외된 논문 목록을 확인할 수 있습니다",
+            use_container_width=True
         ):
             st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
-        
-        st.markdown(f"""
-        <div class="metric-card" style="background: #f8d7da; border-color: #dc3545;">
-            <div class="metric-icon" style="background: #dc3545;">❌</div>
-            <div class="metric-value" style="color: #dc3545;">{exclude_count:,}</div>
-            <div class="metric-label" style="color: #721c24;">제외 대상<br><small>클릭하여 상세보기</small></div>
-        </div>
-        """, unsafe_allow_html=True)
 
     # 제외 박스 클릭 시 상세 정보 토글
     if st.session_state.get('show_exclude_details', False) and len(exclude_papers) > 0:
@@ -1252,8 +1215,7 @@ if uploaded_files:
                 </div>
                 """, unsafe_allow_html=True)
 
-    # Exclude 분류 논문들 토글 (제거 - 위에서 처리함)
-    exclude_papers = merged_df[merged_df['Classification'].str.contains('Exclude', na=False)]
+    # Exclude 분류 논문들 (변수만 정의, 위에서 이미 처리됨)
 
     # 병합 성과 강조 - 실제 데이터 기반
     success_info = []
@@ -1301,8 +1263,8 @@ if uploaded_files:
             <div style="display: flex; align-items: center; margin-bottom: 16px;">
                 <div style="font-size: 2.5rem; margin-right: 16px;">🎯</div>
                 <div>
-                    <h3 style="margin: 0; color: white;">SCIMAT 완벽 분석 가이드</h3>
-                    <p style="margin: 4px 0 0 0; opacity: 0.9;">다운로드된 파일로 최고 품질의 연구 분석을 수행하세요</p>
+                    <h3 style="margin: 0; color: white;">WOS → SciMAT 분석 실행 가이드</h3>
+                    <p style="margin: 4px 0 0 0; opacity: 0.9;">다운로드된 파일로 단계별 분석 수행</p>
                 </div>
             </div>
         </div>
@@ -1310,37 +1272,223 @@ if uploaded_files:
         
         # SCIMAT 분석 가이드 상세 내용
         st.markdown("""
-        ### 🚀 SCIMAT 분석 핵심 단계
+        ### 📋 필요한 것
+        - SciMAT 소프트웨어 (무료 다운로드)
+        - 다운로드된 WOS Plain Text 파일
+        - Java 1.8 이상
         
-        **1단계: 프로젝트 생성 & 데이터 로딩**
+        ### 🚀 1단계: SciMAT 시작하기
+        
+        **새 프로젝트 생성**
         ```
-        SCIMAT 실행 → File → New Project → 경로 설정
-        File → Add Files → "ISI WoS" 선택 → 다운로드한 .txt 파일 선택
+        1. SciMAT 실행 (SciMAT.jar 더블클릭)
+        2. File → New Project
+        3. Path: 저장할 폴더 선택
+        4. File name: 프로젝트 이름 입력
+        5. Accept
         ```
         
-        **2단계: 키워드 정리 (분석 품질의 핵심!)**
+        **데이터 불러오기**
         ```
-        Group set → Word → Find similar words by distances (거리: 1)
-        Word Group manual set에서 관련 키워드들 수동 그룹화
+        1. File → Add Files
+        2. "ISI WoS" 선택
+        3. 다운로드한 txt 파일 선택
+        4. 로딩 완료까지 대기
         ```
         
-        **3단계: 최적 분석 설정**
-        - **Unit of Analysis**: "Word Group" + "Author's words + Source's words"
-        - **Network Type**: "Co-occurrence" (키워드 동시 출현 분석)
-        - **Normalization**: "Equivalence Index" (표준 정규화)
-        - **Clustering**: "Simple Centers Algorithm" (해석 용이)
-        - **Maximum network size**: 50 (시각적 분석 적정 크기)
+        ### 🔧 2단계: 키워드 정리하기
         
-        **4단계: 전략적 다이어그램 해석**
-        - **우상단**: Motor Themes (핵심 주제) - 중심성↑, 밀도↑
-        - **좌상단**: Specialized Themes (전문화 주제) - 중심성↓, 밀도↑  
-        - **좌하단**: Emerging/Declining Themes (신흥/쇠퇴) - 중심성↓, 밀도↓
-        - **우하단**: Basic Themes (기초 주제) - 중심성↑, 밀도↓
+        **유사 키워드 자동 통합**
+        ```
+        1. Group set → Word → Find similar words by distances
+        2. Maximum distance: 1 (한 글자 차이)
+        3. 같은 의미 단어들 확인하고 Move로 통합
+        ```
+        📖 **의미**: 철자가 1글자만 다른 단어들을 찾아서 제안 (예: "platform" ↔ "platforms")
         
-        ### 💡 성공 팁
-        ✅ **키워드 정리에 충분한 시간 투자** (분석 품질 결정!)  
-        ✅ **Period 구분**: 각 구간당 최소 50편 이상 확보  
-        ✅ **설정값 조정**: 분야 특성에 따라 네트워크 크기 조정  
+        **수동으로 키워드 정리**
+        ```
+        1. Group set → Word → Word Group manual set
+        2. Words without group 목록 확인
+        3. 관련 키워드들 선택 후 New group으로 묶기
+        4. 불필요한 키워드 제거
+        ```
+        📖 **목적**: 데이터 품질 향상, 의미 있는 클러스터 형성
+        
+        ### ⏰ 3단계: 시간 구간 설정
+        
+        **Period 만들기**
+        ```
+        1. Knowledge base → Periods → Periods manager
+        2. Add 버튼으로 시간 구간 생성:
+           - Period 1: 1996-2006 (태동기)
+           - Period 2: 2007-2016 (형성기)
+           - Period 3: 2017-2021 (확산기)
+           - Period 4: 2022-2024 (성숙기)
+        ```
+        📖 **원리**: 연구 분야의 진화 단계를 반영한 의미 있는 구분
+        
+        **각 Period에 논문 할당**
+        ```
+        1. Period 1 클릭 → Add
+        2. 해당 연도 논문들 선택
+        3. 오른쪽 화살표로 이동
+        4. 다른 Period들도 동일하게 반복
+        ```
+        
+        ### 📊 4단계: 분석 실행
+        
+        **분석 마법사 시작**
+        ```
+        1. Analysis → Make Analysis
+        2. 모든 Period 선택 → Next
+        ```
+        
+        **Step 1: Unit of Analysis**
+        - ✅ "Word Group" 선택
+        - ✅ "Author's words + Source's words" 선택
+        
+        📖 **의미**: 저자 키워드와 저널 키워드를 모두 사용해서 포괄적 분석
+        
+        **Step 2: Data Reduction**
+        - **Minimum frequency: 2** (최소 2번 출현)
+        
+        📖 **목적**: 노이즈 제거, 한 번만 나타나는 희귀 키워드 배제
+        
+        **Step 3: Network Type**
+        - ✅ "Co-occurrence" 선택
+        
+        📖 **의미**: 키워드들이 동시에 나타나는 빈도로 관련성 측정
+        
+        **Step 4: Normalization**
+        - ✅ "Equivalence Index" 선택
+        
+        📖 **Equivalence Index란?**
+        - 키워드 간 연관성을 측정하는 정규화 방법
+        - 네트워크의 밀도를 적절히 조정하여 의미 있는 클러스터 형성
+        - 다른 방법(Jaccard, Cosine)보다 SciMAT에서 권장하는 표준 방법
+        
+        **Step 5: Clustering**
+        - ✅ "Simple Centers Algorithm" 선택
+        - **Maximum network size: 50**
+        
+        📖 **Simple Centers Algorithm이란?**
+        - 클러스터의 중심이 되는 핵심 키워드를 찾아서 그룹을 형성하는 방법
+        - 복잡한 알고리즘보다 해석이 용이하고 안정적인 결과 제공
+        
+        📖 **왜 50인가?**
+        - 너무 크면(100+): 복잡해서 해석 어려움
+        - 너무 작으면(10-20): 중요한 연결 관계 누락
+        - 50개: 의미 있는 키워드들을 포함하면서도 시각적으로 분석 가능한 적정 크기
+        - 경험적으로 검증된 최적 크기
+        
+        **Step 6: Document Mapper**
+        - ✅ "Core Mapper" 선택
+        
+        📖 **Core Mapper란?**
+        - 각 주제 클러스터를 대표하는 "핵심 논문들"을 식별하는 방법
+        - Core documents = 해당 주제의 키워드를 다수 포함하는 중요 논문들
+        - 클러스터의 실제 내용을 이해하는 데 필수적
+        
+        📖 **왜 Core Mapper?**
+        - 주제별로 가장 대표적인 논문들을 찾아서 클러스터의 의미 파악 가능
+        - 단순한 빈도 기반보다 질적으로 우수한 논문 선별
+        
+        **Step 7: Performance Measures**
+        - ✅ **G-index, Sum Citations** 모두 선택
+        
+        📖 **각 지표의 의미:**
+        - **G-index**: h-index의 개선된 버전, 고인용 논문들의 영향력을 더 정확히 측정
+          - 예: 논문 10편 중 상위 5편이 각각 100회 이상 인용되면 높은 G-index
+        - **Sum Citations**: 총 인용 횟수, 해당 주제의 전체적인 학술적 영향력
+        - **Average Citations**: 논문당 평균 인용 수, 주제의 질적 수준
+        
+        📖 **왜 여러 지표?** 다각도로 주제의 중요성과 영향력 평가
+        
+        **Step 8: Evolution Map**
+        - ✅ "Jaccard Index" 선택
+        
+        📖 **Jaccard Index란?**
+        - 두 시기 간 주제의 연속성을 측정하는 유사도 지표
+        - 공식: |A ∩ B| / |A ∪ B| (교집합 / 합집합)
+        - 0~1 사이 값: 1에 가까울수록 두 주제가 매우 유사
+        
+        📖 **예시**:
+        - Period 1의 "스트리밍 기술" 키워드: {platform, streaming, video, real-time}
+        - Period 2의 "플랫폼 기술" 키워드: {platform, streaming, service, user}
+        - Jaccard = |{platform, streaming}| / |{platform, streaming, video, real-time, service, user}| = 2/6 = 0.33
+        
+        **분석 실행**
+        ```
+        - Finish 클릭
+        - 완료까지 대기 (10-30분)
+        ```
+        📖 **처리 과정**: 키워드 매트릭스 생성 → 클러스터링 → 진화 분석 → 시각화
+        
+        ### 📈 5단계: 결과 보기
+        
+        **전략적 다이어그램 확인**
+        ```
+        1. Period View에서 각 시기별 다이어그램 확인
+        2. 4사분면 해석:
+           - 우상단: Motor Themes (핵심 주제) - 중심성↑, 밀도↑
+           - 좌상단: Specialized Themes (전문화된 주제) - 중심성↓, 밀도↑
+           - 좌하단: Emerging/Declining Themes (신흥/쇠퇴 주제) - 중심성↓, 밀도↓
+           - 우하단: Basic Themes (기초 주제) - 중심성↑, 밀도↓
+        ```
+        
+        **클러스터 세부 확인**
+        ```
+        1. 각 주제 클릭하면 세부 키워드 네트워크 확인
+        2. Core documents 클릭하면 논문 수 확인
+        3. G-index 클릭하면 인용 수 확인
+        ```
+        
+        **진화 맵 확인**
+        ```
+        1. 시간에 따른 주제 변화 추적
+        2. 노드 크기 = 논문 수 (클수록 더 많은 연구)
+        3. 연결선 두께 = Jaccard 유사도 (두꺼울수록 더 연관성 높음)
+        ```
+        
+        ### 💾 6단계: 결과 저장
+        
+        **보고서 생성**
+        ```
+        1. File → Export
+        2. HTML 또는 LaTeX 선택
+        3. 파일명 입력 후 저장
+        ```
+        
+        **결과물**
+        - 전략적 다이어그램 이미지들
+        - 진화 맵
+        - 클러스터 네트워크 이미지들
+        - 통계 데이터
+        
+        ### 🔧 문제 해결
+        
+        **자주 발생하는 문제**
+        - **임포트 안됨**: WOS 파일이 Plain Text인지 확인
+        - **분석 중단**: Java 메모리 부족 → 재시작
+        - **한글 깨짐**: 파일 인코딩 UTF-8로 변경
+        
+        **키워드 정리**: 시간을 투자해서 꼼꼼히 정리 (분석 품질의 핵심!)
+        **Period 구분**: 너무 세분화하지 말고 의미있는 구간으로 (각 구간당 최소 50편)
+        **논문 수**: 각 Period당 최소 50편 이상 권장 (통계적 의미 확보)
+        **설정값 조정**: 분야 특성에 따라 Maximum network size 조정 가능 (30-100)
+        
+        ### 📊 결과 해석 가이드
+        
+        **Motor Themes (핵심 주제) 해석**
+        - 해당 시기의 연구 분야를 이끄는 중심 주제
+        - 많은 연구가 집중되고, 다른 주제와 연결성이 높음
+        - 투자와 연구가 활발한 "핫" 영역
+        
+        **Emerging Themes (신흥 주제) 주목**
+        - 아직 연구가 적지만 향후 성장 가능성 높은 영역
+        - 다음 Period에서 Motor Theme으로 발전할 가능성
+        - 선행 연구 기회가 많은 "블루오션"
         """)
         
         # 가이드 닫기 버튼
