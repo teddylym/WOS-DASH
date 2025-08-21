@@ -431,7 +431,7 @@ def classify_article(row):
         return 'Exclude (기술적 비관련)'
     
     if any(keyword in full_text for keyword in core_streaming_keywords):
-        return 'Include (핵심 라이브스트리밍)'
+        return 'Include (핵심연구)'
     
     if any(keyword in full_text for keyword in business_keywords):
         digital_indicators = ['digital', 'online', 'internet', 'web', 'social media', 'platform']
@@ -549,7 +549,7 @@ st.markdown("""
         <p style="margin: 0;"><strong>Developed by:</strong> 임태경 (Teddy Lym)</p>
     </div>
     <h1 style="font-size: 3.5rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.02em;">
-        WOS Multi-File Merger
+        WOS PREP
     </h1>
     <p style="font-size: 1.3rem; margin: 0; font-weight: 400; opacity: 0.95;">
         SCIMAT Edition - Live Streaming Research Specialized
@@ -703,6 +703,9 @@ if uploaded_files:
     col1, col2 = st.columns(2)
     
     with col1:
+        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+        st.markdown('<div class="chart-title">🚨 발견된 문제점</div>', unsafe_allow_html=True)
+        
         if issues:
             for issue in issues:
                 st.markdown(f"- {issue}")
@@ -712,6 +715,9 @@ if uploaded_files:
         st.markdown('</div>', unsafe_allow_html=True)
     
     with col2:
+        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+        st.markdown('<div class="chart-title">💡 병합 결과</div>', unsafe_allow_html=True)
+        
         if recommendations:
             for rec in recommendations:
                 st.markdown(f"- {rec}")
@@ -816,10 +822,16 @@ if uploaded_files:
         ).encode(text='value:N')
 
         chart = (pie + text_total + text_label).properties(
-            title=alt.TitleParams(text='논문 분류 분포', anchor='middle', fontSize=16, fontWeight=500, color="#212529"),
             width=280, height=280
         ).configure_view(strokeWidth=0)
         st.altair_chart(chart, use_container_width=True)
+        
+        # 차트 제목을 하단에 표시
+        st.markdown("""
+        <div style="text-align: center; margin-top: 16px;">
+            <h4 style="color: #212529; font-weight: 600; margin: 0;">논문 분류 분포</h4>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
