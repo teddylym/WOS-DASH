@@ -725,7 +725,43 @@ if uploaded_files:
         else:
             st.markdown("🎯 **최적 상태** - SCIMAT 완벽 호환")
     
-    st.markdown("</div>", unsafe_allow_html=True)
+    # 최종 데이터셋 준비 (제외된 논문만 빼고)
+    df_final = merged_df[~merged_df['Classification'].str.contains('Exclude', na=False)].copy()
+    
+    # Classification 컬럼만 제거 (원본 WOS 형식 유지)
+    df_final_output = df_final.drop(columns=['Classification'], errors='ignore')
+
+    # 최종 통계
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">📋</div>
+            <div class="metric-value">{len(df_final_output):,}</div>
+            <div class="metric-label">최종 분석 대상</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        include_count = len(merged_df[merged_df['Classification'].str.contains('Include', na=False)])
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">✅</div>
+            <div class="metric-value">{include_count:,}</div>
+            <div class="metric-label">핵심 포함 연구</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        review_count = len(merged_df[merged_df['Classification'].str.contains('Review', na=False)])
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">📝</div>
+            <div class="metric-value">{review_count:,}</div>
+            <div class="metric-label">검토 대상</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     # 병합 성공 알림
     st.markdown("""
@@ -937,53 +973,7 @@ if uploaded_files:
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- 최종 데이터셋 준비 ---
-    st.markdown("""
-    <div class="section-header">
-        <div class="section-title">💾 SCIMAT 호환 파일 다운로드</div>
-        <div class="section-subtitle">병합 및 라이브 스트리밍 연구에 최적화된 WOS Plain Text 파일</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # 최종 데이터셋 준비 (제외된 논문만 빼고)
-    df_final = merged_df[~merged_df['Classification'].str.contains('Exclude', na=False)].copy()
-    
-    # Classification 컬럼만 제거 (원본 WOS 형식 유지)
-    df_final_output = df_final.drop(columns=['Classification'], errors='ignore')
-
-    # 최종 통계
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-icon">📋</div>
-            <div class="metric-value">{len(df_final_output):,}</div>
-            <div class="metric-label">최종 분석 대상</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        include_count = len(merged_df[merged_df['Classification'].str.contains('Include', na=False)])
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-icon">✅</div>
-            <div class="metric-value">{include_count:,}</div>
-            <div class="metric-label">핵심 포함 연구</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        review_count = len(merged_df[merged_df['Classification'].str.contains('Review', na=False)])
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-icon">📝</div>
-            <div class="metric-value">{review_count:,}</div>
-            <div class="metric-label">검토 대상</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # 최종 사용 가이드 먼저 표시
+    # 최종 사용 가이드와 성과 정보
     st.markdown("""
     <div class="success-panel">
         <h4 style="color: #155724; margin-bottom: 16px;">🎯 SCIMAT 사용 완벽 가이드</h4>
@@ -1011,24 +1001,46 @@ if uploaded_files:
     
     st.success("🎖️ 연구 성과: 라이브 스트리밍 분야 최초의 대규모 종합적 지식 구조 진화 분석 (1996-2024)")
 
-    # --- 최종 데이터셋 준비 및 다운로드 (페이지 최하단으로 이동) ---
+    # --- 최종 파일 다운로드 섹션 ---
     st.markdown("""
-    <div class="section-header">
-        <div class="section-title">💾 파일 다운로드</div>
-        <div class="section-subtitle">병합 및 라이브 스트리밍 연구에 최적화된 WOS Plain Text 파일</div>
+    <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 24px; border-radius: 16px; margin: 32px 0; box-shadow: 0 8px 32px rgba(40,167,69,0.3); text-align: center;">
+        <div style="font-size: 2.2rem; margin-bottom: 12px;">📥</div>
+        <h2 style="color: white; margin-bottom: 12px; font-size: 1.8rem; font-weight: 700;">최종 파일 다운로드</h2>
+        <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 1.1rem;">SCIMAT 완전 호환 통합 데이터 파일</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # SCIMAT 호환 파일 다운로드
+    # SCIMAT 호환 파일 다운로드 - 강조된 버튼
     text_data = convert_to_scimat_wos_format(df_final_output)
     
+    st.markdown("""
+    <style>
+    .download-button {
+        background: linear-gradient(135deg, #ff6b6b, #ee5a24) !important;
+        color: white !important;
+        font-size: 1.3rem !important;
+        font-weight: 700 !important;
+        padding: 16px 32px !important;
+        border-radius: 12px !important;
+        border: none !important;
+        box-shadow: 0 6px 20px rgba(255,107,107,0.4) !important;
+        transition: all 0.3s ease !important;
+    }
+    .download-button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 25px rgba(255,107,107,0.6) !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     st.download_button(
-        label="🔥 SCIMAT 완전 호환 통합 파일 다운로드",
+        label="⬇️ 통합 데이터 파일 다운로드 (SCIMAT 호환)",
         data=text_data,
         file_name="live_streaming_merged_scimat_ready.txt",
         mime="text/plain",
         type="primary",
-        use_container_width=True
+        use_container_width=True,
+        key="download_final_file"
     )
 
 # --- 하단 여백 및 추가 정보 ---
