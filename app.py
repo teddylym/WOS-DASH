@@ -700,31 +700,32 @@ if uploaded_files:
     with st.spinner("🔍 병합 데이터 품질 분석 중..."):
         issues, recommendations = diagnose_merged_quality(merged_df, successful_files, duplicates_removed)
 
+    st.markdown("""
+    <div class="chart-container">
+        <div class="chart-title">🔍 병합 데이터 품질 진단 결과</div>
+    """, unsafe_allow_html=True)
+    
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        st.markdown('<div class="chart-title">🚨 발견된 문제점</div>', unsafe_allow_html=True)
+        st.markdown('<h5 style="color: #dc3545; margin-bottom: 12px;">🚨 발견된 문제점</h5>', unsafe_allow_html=True)
         
         if issues:
             for issue in issues:
                 st.markdown(f"- {issue}")
         else:
             st.markdown("✅ **문제점 없음** - 병합 데이터 품질 우수")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
     
     with col2:
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        st.markdown('<div class="chart-title">💡 병합 결과</div>', unsafe_allow_html=True)
+        st.markdown('<h5 style="color: #28a745; margin-bottom: 12px;">💡 병합 결과</h5>', unsafe_allow_html=True)
         
         if recommendations:
             for rec in recommendations:
                 st.markdown(f"- {rec}")
         else:
             st.markdown("🎯 **최적 상태** - SCIMAT 완벽 호환")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # 병합 성공 알림
     st.markdown("""
@@ -802,7 +803,7 @@ if uploaded_files:
         st.dataframe(classification_counts_df, use_container_width=True, hide_index=True)
 
     with col2:
-        # 도넛 차트
+        # 도넛 차트 - 크기 확대
         selection = alt.selection_point(fields=['분류'], on='mouseover', nearest=True)
 
         base = alt.Chart(classification_counts_df).encode(
@@ -813,16 +814,16 @@ if uploaded_files:
             opacity=alt.condition(selection, alt.value(1), alt.value(0.8))
         ).add_params(selection)
 
-        pie = base.mark_arc(outerRadius=120, innerRadius=70)
+        pie = base.mark_arc(outerRadius=150, innerRadius=90)
         text_total = alt.Chart(pd.DataFrame([{'value': f'{total_papers}'}])).mark_text(
-            align='center', baseline='middle', fontSize=35, fontWeight='bold', color='#003875'
+            align='center', baseline='middle', fontSize=45, fontWeight='bold', color='#003875'
         ).encode(text='value:N')
         text_label = alt.Chart(pd.DataFrame([{'value': 'Total Papers'}])).mark_text(
-            align='center', baseline='middle', fontSize=14, dy=-25, color='#495057'
+            align='center', baseline='middle', fontSize=16, dy=30, color='#495057'
         ).encode(text='value:N')
 
         chart = (pie + text_total + text_label).properties(
-            width=280, height=280
+            width=350, height=350
         ).configure_view(strokeWidth=0)
         st.altair_chart(chart, use_container_width=True)
 
@@ -841,7 +842,7 @@ if uploaded_files:
         <div class="chart-title">분류별 상세 분포</div>
     """, unsafe_allow_html=True)
     
-    # 분류별 상세 통계
+    # 분류별 상세 통계 - 폰트 크기 증가
     for classification in merged_df['Classification'].unique():
         count = len(merged_df[merged_df['Classification'] == classification])
         percentage = (count / total_papers * 100)
@@ -857,7 +858,7 @@ if uploaded_files:
             icon = "❌"
         
         st.markdown(f"""
-        <div style="margin: 8px 0; padding: 12px; background: white; border-left: 4px solid {color}; border-radius: 4px;">
+        <div style="margin: 12px 0; padding: 16px; background: white; border-left: 4px solid {color}; border-radius: 4px; font-size: 1.1rem;">
             <strong>{icon} {classification}:</strong> {count:,}편 ({percentage:.1f}%)
         </div>
         """, unsafe_allow_html=True)
