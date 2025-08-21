@@ -270,26 +270,19 @@ def load_and_merge_wos_files(uploaded_files):
     # 모든 데이터프레임 병합
     if all_dataframes:
         merged_df = pd.concat(all_dataframes, ignore_index=True)
-        original_count = len(merged_df)
         
-        # 중복 제거 (UT 필드 기준, 없으면 TI+AU 기준)
+        # 중복 제거 로직 - 실제 중복이 확인된 경우에만 실행
+        duplicates_removed = 0
+        
+        # 매우 보수적인 중복 검사 - 실제 중복이 있는 경우에만 처리
         if 'UT' in merged_df.columns:
-            # UT(Unique Article Identifier) 기준 중복 제거
-            merged_df_clean = merged_df.drop_duplicates(subset=['UT'], keep='first')
-            duplicates_removed = original_count - len(merged_df_clean)
-        else:
-            # UT가 없으면 제목+첫 번째 저자 기준
-            merged_df['temp_key'] = (merged_df.get('TI', '').astype(str) + 
-                                   merged_df.get('AU', '').astype(str).str.split(';').str[0])
-            merged_df_clean = merged_df.drop_duplicates(subset=['temp_key'], keep='first')
-            merged_df_clean = merged_df_clean.drop(columns=['temp_key'], errors='ignore')
-            duplicates_removed = original_count - len(merged_df_clean)
-        
-        # 실제로 중복이 제거된 경우만 업데이트
-        if duplicates_removed > 0:
-            merged_df = merged_df_clean
-        else:
-            duplicates_removed = 0
+            # UT 기준 중복 확인 (null 값 제외)
+            ut_data = merged_df['UT'].dropna()
+            if len(ut_data) > len(ut_data.drop_duplicates()):
+                # 실제 중복이 발견된 경우만 제거
+                before_count = len(merged_df)
+                merged_df = merged_df.drop_duplicates(subset=['UT'], keep='first')
+                duplicates_removed = before_count - len(merged_df)
         
         return merged_df, file_status, duplicates_removed
     else:
