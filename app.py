@@ -271,40 +271,63 @@ def load_and_merge_wos_files(uploaded_files):
     if all_dataframes:
         merged_df = pd.concat(all_dataframes, ignore_index=True)
         
-        # 중복 제거 로직 - 수정된 버전
+        # 중복 제거 로직 - 완전히 새로 작성
         duplicates_removed = 0
         
         if 'UT' in merged_df.columns:
-            # UT 필드의 유효한 값만 필터링
-            # 빈 값, NaN, 'nan' 문자열, 공백 등을 무효한 값으로 처리
-            def is_valid_ut(value):
+            # 원본 데이터 크기
+            original_size = len(merged_df)
+            
+            # UT 필드의 실제 값들 확인
+            ut_series = merged_df['UT'].copy()
+            
+            # 유효한 UT 값만 필터링 (더 엄격한 조건)
+            def is_meaningful_ut(value):
                 if pd.isna(value):
                     return False
-                str_value = str(value).strip().lower()
-                if str_value in ['', 'nan', 'none', 'null']:
+                str_value = str(value).strip()
+                # 빈 문자열, 'nan', 'None', 매우 짧은 값들 제외
+                if len(str_value) == 0 or str_value.lower() in ['nan', 'none', 'null', '']:
                     return False
-                return len(str_value) > 0
+                # WOS UT는 일반적으로 'WOS:' 또는 문자+숫자 조합
+                # 최소 5자 이상의 의미있는 값만 유효한 것으로 간주
+                if len(str_value) < 5:
+                    return False
+                return True
             
-            # 유효한 UT 값을 가진 행들만 필터링
-            valid_ut_mask = merged_df['UT'].apply(is_valid_ut)
-            valid_ut_df = merged_df[valid_ut_mask]
+            # 유효한 UT를 가진 행들만 선별
+            meaningful_ut_mask = ut_series.apply(is_meaningful_ut)
+            rows_with_meaningful_ut = merged_df[meaningful_ut_mask]
             
-            if len(valid_ut_df) > 0:
-                # 유효한 UT 값들 중에서만 중복 확인
-                ut_counts = valid_ut_df['UT'].value_counts()
-                actual_duplicates = ut_counts[ut_counts > 1]
+            # 실제로 의미있는 UT가 있는 경우에만 중복 검사
+            if len(rows_with_meaningful_ut) > 0:
+                # 중복 제거 전 크기
+                before_dedup = len(rows_with_meaningful_ut)
                 
-                if len(actual_duplicates) > 0:
-                    # 실제 중복이 있는 경우만 제거
-                    duplicates_removed = actual_duplicates.sum() - len(actual_duplicates)
+                # 중복 제거 수행
+                deduplicated_meaningful = rows_with_meaningful_ut.drop_duplicates(subset=['UT'], keep='first')
+                
+                # 중복 제거 후 크기
+                after_dedup = len(deduplicated_meaningful)
+                
+                # 실제 제거된 중복 수
+                actual_duplicates_removed = before_dedup - after_dedup
+                
+                if actual_duplicates_removed > 0:
+                    duplicates_removed = actual_duplicates_removed
                     
-                    # 유효한 UT를 가진 행들에서 중복 제거
-                    deduplicated_valid = valid_ut_df.drop_duplicates(subset=['UT'], keep='first')
-                    
-                    # 무효한 UT를 가진 행들과 중복 제거된 유효한 행들을 다시 병합
-                    invalid_ut_df = merged_df[~valid_ut_mask]
-                    merged_df = pd.concat([deduplicated_valid, invalid_ut_df], ignore_index=True)
-                # 중복이 없으면 duplicates_removed는 0 유지
+                    # 의미없는 UT를 가진 행들과 중복 제거된 행들 다시 합치기
+                    rows_without_meaningful_ut = merged_df[~meaningful_ut_mask]
+                    merged_df = pd.concat([deduplicated_meaningful, rows_without_meaningful_ut], ignore_index=True)
+                # 실제 중복이 없으면 duplicates_removed = 0 유지
+            
+            # 최종 검증: 실제로 제거된 행 수와 계산된 중복 수가 일치하는지 확인
+            final_size = len(merged_df)
+            actual_removed = original_size - final_size
+            
+            # 계산이 맞지 않으면 0으로 리셋 (안전장치)
+            if actual_removed != duplicates_removed:
+                duplicates_removed = actual_removed
         
         return merged_df, file_status, duplicates_removed
     else:
