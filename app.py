@@ -901,48 +901,58 @@ if uploaded_files:
     st.markdown("</div>", unsafe_allow_html=True)
 
     # --- 분류별 논문 상세 목록 ---
-    target_classifications = [
-        'Review (분류 불확실)', 'Review (소셜미디어 관련)', 'Review (비즈니스 검토)',
-        'Include (비즈니스 관련)', 'Exclude (기술적 비관련)', 'Include (기술적 기반)'
-    ]
+    # Review 분류 논문들만 토글로 표시
+    review_papers = merged_df[merged_df['Classification'].str.contains('Review', na=False)]
     
-    for classification in target_classifications:
-        if classification in merged_df['Classification'].values:
-            papers = merged_df[merged_df['Classification'] == classification]
+    if len(review_papers) > 0:
+        with st.expander(f"📝 Review (검토 필요) - 논문 목록 ({len(review_papers)}편)", expanded=False):
+            st.markdown("""
+            <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+                <strong>📋 검토 안내:</strong> 아래 논문들은 라이브 스트리밍 연구와의 관련성을 추가 검토가 필요한 논문들입니다.
+                제목과 출판 정보를 확인하여 연구 범위에 포함할지 결정하세요.
+            </div>
+            """, unsafe_allow_html=True)
             
-            if len(papers) > 0:
-                if classification.startswith('Include'):
-                    color = "#28a745"
-                    icon = "✅"
-                elif classification.startswith('Review'):
-                    color = "#ffc107"
-                    icon = "📝"
+            for idx, (_, paper) in enumerate(review_papers.iterrows(), 1):
+                title = str(paper.get('TI', 'N/A'))
+                year = str(paper.get('PY', 'N/A'))
+                source = str(paper.get('SO', 'N/A'))
+                classification = str(paper.get('Classification', 'N/A'))
+                
+                # 분류별 색상 설정
+                if '불확실' in classification:
+                    badge_color = "#6c757d"
+                    badge_text = "분류 불확실"
+                elif '소셜미디어' in classification:
+                    badge_color = "#17a2b8"
+                    badge_text = "소셜미디어"
+                elif '비즈니스' in classification:
+                    badge_color = "#28a745"
+                    badge_text = "비즈니스"
+                elif '기술적' in classification:
+                    badge_color = "#fd7e14"
+                    badge_text = "기술적"
+                elif '교육' in classification:
+                    badge_color = "#6f42c1"
+                    badge_text = "교육"
                 else:
-                    color = "#dc3545"
-                    icon = "❌"
+                    badge_color = "#ffc107"
+                    badge_text = "기타"
                 
                 st.markdown(f"""
-                <div class="chart-container">
-                    <div class="chart-title">{icon} {classification} - 논문 목록 ({len(papers)}편)</div>
-                """, unsafe_allow_html=True)
-                
-                for idx, (_, paper) in enumerate(papers.iterrows(), 1):
-                    title = str(paper.get('TI', 'N/A'))
-                    year = str(paper.get('PY', 'N/A'))
-                    source = str(paper.get('SO', 'N/A'))
-                    
-                    st.markdown(f"""
-                    <div style="margin: 8px 0; padding: 12px; background: #f8f9fa; border-left: 3px solid {color}; border-radius: 4px;">
-                        <div style="font-weight: 600; color: #212529; margin-bottom: 4px;">
-                            {idx}. {title}
-                        </div>
-                        <div style="font-size: 0.9rem; color: #6c757d;">
-                            <strong>연도:</strong> {year} | <strong>저널:</strong> {source}
-                        </div>
+                <div style="margin: 8px 0; padding: 12px; background: white; border-left: 3px solid #ffc107; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="display: flex; align-items: center; margin-bottom: 6px;">
+                        <span style="background: {badge_color}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 8px;">{badge_text}</span>
+                        <span style="color: #6c757d; font-size: 0.9rem;">#{idx}</span>
                     </div>
-                    """, unsafe_allow_html=True)
-                
-                st.markdown("</div>", unsafe_allow_html=True)
+                    <div style="font-weight: 600; color: #212529; margin-bottom: 4px; line-height: 1.4;">
+                        {title}
+                    </div>
+                    <div style="font-size: 0.9rem; color: #6c757d;">
+                        <strong>연도:</strong> {year} | <strong>저널:</strong> {source}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 
     # --- 연도별 연구 동향 ---
     if 'PY' in merged_df.columns:
