@@ -1084,9 +1084,18 @@ if uploaded_files:
     
     with col4:
         exclude_count = len(exclude_papers)
-        # 제외 박스 - 클릭하면 토글되도록 만들기
+        # 제외 박스 - 다른 metric-card와 동일한 스타일로 수정
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">❌</div>
+            <div class="metric-value">{exclude_count:,}</div>
+            <div class="metric-label">제외 대상</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 제외 박스 클릭 버튼 - 카드 아래에 배치
         if st.button(
-            f"❌ {exclude_count:,} 제외 대상", 
+            "📋 제외 논문 목록 보기", 
             key="exclude_toggle_button",
             help="클릭하면 제외된 논문 목록을 확인할 수 있습니다",
             use_container_width=True
@@ -1240,7 +1249,7 @@ if uploaded_files:
     # SCIMAT 호환 파일 다운로드 - 기본 파란색 버튼
     text_data = convert_to_scimat_wos_format(df_final_output)
     
-    # 다운로드 버튼과 SCIMAT 가이드 자동 토글
+    # 다운로드 버튼과 SCIMAT 가이드 관리
     download_clicked = st.download_button(
         label="📥 SCIMAT 분석용 파일 다운로드",
         data=text_data,
@@ -1249,14 +1258,23 @@ if uploaded_files:
         type="primary",
         use_container_width=True,
         key="download_final_file",
-        help="다운로드 후 SCIMAT 완벽 분석 가이드가 자동으로 표시됩니다"
+        help="다운로드 후 SCIMAT 분석 가이드를 확인하세요"
     )
     
-    # 다운로드 버튼 클릭 시 SCIMAT 가이드 자동 토글
+    # 다운로드 버튼 클릭 시 가이드 표시 상태 설정
     if download_clicked:
+        st.session_state['download_completed'] = True
         st.session_state['show_scimat_guide'] = True
     
-    # SCIMAT 완벽 분석 가이드 자동 표시
+    # 다운로드 완료 후 가이드 토글 버튼 표시
+    if st.session_state.get('download_completed', False):
+        # 가이드 열기/닫기 토글 버튼
+        guide_button_text = "🔼 분석 가이드 닫기" if st.session_state.get('show_scimat_guide', False) else "🔽 SciMAT 분석 가이드 열기"
+        
+        if st.button(guide_button_text, key="toggle_guide_button", use_container_width=True):
+            st.session_state['show_scimat_guide'] = not st.session_state.get('show_scimat_guide', False)
+    
+    # SCIMAT 분석 가이드 표시
     if st.session_state.get('show_scimat_guide', False):
         st.markdown("""
         <div style="background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 20px; border-radius: 12px; margin: 20px 0; box-shadow: 0 4px 20px rgba(0,123,255,0.3);">
