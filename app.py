@@ -276,9 +276,6 @@ def load_and_merge_wos_files(uploaded_files):
         duplicates_removed = 0
         
         if 'UT' in merged_df.columns:
-            # 원본 데이터 크기
-            print(f"DEBUG: 원본 데이터 {original_count}편")
-            
             # UT 필드의 실제 값들 확인
             ut_series = merged_df['UT'].copy()
             
@@ -304,9 +301,6 @@ def load_and_merge_wos_files(uploaded_files):
             rows_with_meaningful_ut = merged_df[meaningful_ut_mask]
             rows_without_meaningful_ut = merged_df[~meaningful_ut_mask]
             
-            print(f"DEBUG: 전체 {original_count}편 중 실제 UT 식별자 보유: {len(rows_with_meaningful_ut)}편")
-            print(f"DEBUG: UT 없거나 무효한 UT: {len(rows_without_meaningful_ut)}편")
-            
             # 실제로 의미있는 UT가 있는 경우에만 중복 검사
             if len(rows_with_meaningful_ut) > 1:  # 최소 2개 이상 있어야 중복 검사 의미
                 # 중복 제거 전후 비교
@@ -317,20 +311,13 @@ def load_and_merge_wos_files(uploaded_files):
                 actual_duplicates = before_dedup - after_dedup
                 
                 if actual_duplicates > 0:
-                    print(f"DEBUG: 실제 UT 중복 발견: {actual_duplicates}편 제거")
                     duplicates_removed = actual_duplicates
                     
                     # 중복 제거된 결과와 UT 없는 행들 재결합
                     merged_df = pd.concat([deduplicated_meaningful, rows_without_meaningful_ut], ignore_index=True)
-                else:
-                    print("DEBUG: 실제 UT 중복 없음")
-            else:
-                print("DEBUG: 중복 검사할 만한 실제 UT 식별자가 충분하지 않음")
         
         # 대안: UT가 없거나 신뢰할 수 없는 경우 제목+저자 기준 중복 제거
         if duplicates_removed == 0 and 'TI' in merged_df.columns:
-            print("DEBUG: UT 기준 중복이 없어 제목+저자 기준으로 추가 확인")
-            
             # 제목과 첫 번째 저자 기준으로 중복 확인 (매우 보수적)
             title_author_before = len(merged_df)
             
@@ -347,12 +334,8 @@ def load_and_merge_wos_files(uploaded_files):
                 title_author_removed = len(complete_rows) - len(deduplicated_complete)
                 
                 if title_author_removed > 0:
-                    print(f"DEBUG: 제목+저자 기준 중복 발견: {title_author_removed}편 제거")
                     duplicates_removed = title_author_removed
                     merged_df = pd.concat([deduplicated_complete, incomplete_rows], ignore_index=True)
-        
-        final_count = len(merged_df)
-        print(f"DEBUG: 최종 결과 - 원본: {original_count}편, 최종: {final_count}편, 제거: {duplicates_removed}편")
         
         return merged_df, file_status, duplicates_removed
     else:
@@ -410,7 +393,7 @@ def parse_wos_format(content):
 def classify_article(row):
     """라이브 스트리밍 연구를 위한 포괄적 분류 - 개선된 알고리즘"""
     
-    # 핵심 라이브 스트리밍 키워드 먼저 (직접적 관련성)
+    # 핵심 라이브 스트리밍 키워드 (직접적 관련성)
     core_streaming_keywords = [
         'live streaming', 'livestreaming', 'live stream', 'live broadcast', 'live video',
         'real time streaming', 'real-time streaming', 'streaming platform', 'streaming service',
@@ -519,7 +502,7 @@ def classify_article(row):
     full_text = ' '.join([title, source_title, author_keywords, keywords_plus, abstract])
     
     # 개선된 분류 로직
-    # 1. 명확한 제외 대상 먼저 먼저 필터링
+    # 1. 명확한 제외 대상 먼저 필터링
     if any(keyword in full_text for keyword in exclusion_keywords):
         return 'Exclude (기술적 비관련)'
     
@@ -913,7 +896,7 @@ if uploaded_files:
         st.dataframe(classification_counts_df, use_container_width=True, hide_index=True)
 
     with col2:
-        # 도넛 차트 - 크기 확대
+        # 도넛 차트
         selection = alt.selection_point(fields=['분류'], on='mouseover', nearest=True)
 
         base = alt.Chart(classification_counts_df).encode(
@@ -945,7 +928,7 @@ if uploaded_files:
         <div class="chart-title">분류별 상세 분포</div>
     """, unsafe_allow_html=True)
     
-    # 분류별 상세 통계 - 폰트 크기 증가
+    # 분류별 상세 통계
     for classification in merged_df['Classification'].unique():
         count = len(merged_df[merged_df['Classification'] == classification])
         percentage = (count / total_papers * 100)
@@ -1224,8 +1207,6 @@ if uploaded_files:
                 </div>
                 """, unsafe_allow_html=True)
 
-    # Exclude 분류 논문들 (변수만 정의, 위에서 이미 처리됨)
-
     # 병합 성과 강조 - 실제 데이터 기반
     success_info = []
     success_info.append(f"<strong>파일 통합:</strong> {successful_files}개의 WOS 파일을 하나로 병합")
@@ -1266,28 +1247,258 @@ if uploaded_files:
         key="download_final_file",
         help="SCIMAT에서 바로 사용 가능한 WOS Plain Text 파일"
     )
+
+# --- 하단 여백 및 추가 정보 ---
+st.markdown("<br>", unsafe_allow_html=True)
+
+# 도움말 섹션 - 항상 표시
+with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
+    st.markdown("""
+    **Q: 여러 WOS 파일을 어떻게 한 번에 처리하나요?**
+    A: WOS에서 여러 번 Plain Text 다운로드한 후, 모든 .txt 파일을 한 번에 업로드하면 자동으로 병합됩니다.
     
-    # SCIMAT 분석 가이드 표시
-    if st.session_state.get('show_scimat_guide', False):
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 20px; border-radius: 12px; margin: 20px 0; box-shadow: 0 4px 20px rgba(0,123,255,0.3);">
-            <div style="display: flex; align-items: center; margin-bottom: 16px;">
-                <div style="font-size: 2.5rem; margin-right: 16px;">🎯</div>
-                <div>
-                    <h3 style="margin: 0; color: white;">WOS → SciMAT 분석 실행 가이드</h3>
-                    <p style="margin: 4px 0 0 0; opacity: 0.9;">다운로드된 파일로 단계별 분석 수행</p>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # SCIMAT 분석 가이드 상세 내용
-        st.markdown("""
-        ### 필요한 것
-        - SciMAT 소프트웨어 (무료 다운로드)
-        - 다운로드된 WOS Plain Text 파일
-        - Java 1.8 이상
-        
-        ### 1단계: SciMAT 시작하기
-        
-        **새 프로젝트 생성**
+    **Q: 중복된 논문이 있을까봐 걱정됩니다.**
+    A: UT(Unique Article Identifier) 기준으로 자동 중복 제거되며, UT가 없으면 제목+저자 조합으로 중복을 감지합니다.
+    
+    **Q: WOS에서 어떤 설정으로 다운로드해야 하나요?**
+    A: Export → Record Content: "Full Record and Cited References", File Format: "Plain Text"로 설정하세요. 인용 관계 분석을 위해 참고문헌 정보가 필수입니다.
+    
+    **Q: SCIMAT에서 키워드 정리를 어떻게 하나요?**
+    A: Group set → Word → Find similar words by distances (Maximum distance: 1)로 유사 키워드를 자동 통합하고, Word Group manual set에서 수동으로 관련 키워드들을 그룹화하세요.
+    
+    **Q: SCIMAT 분석 설정은 어떻게 하나요?**
+    A: Unit of Analysis: "Author's words + Source's words", Network Type: "Co-occurrence", Normalization: "Equivalence Index", Clustering: "Simple Centers Algorithm" (Maximum network size: 50)를 권장합니다.
+    
+    **Q: 병합된 파일이 SCIMAT에서 제대로 로딩되지 않습니다.**
+    A: 원본 WOS 파일들이 'FN Clarivate Analytics Web of Science'로 시작하는 정품 Plain Text 파일인지 확인하세요.
+    
+    **Q: SCIMAT에서 Period는 어떻게 설정하나요?**
+    A: 연구 분야의 진화 단계를 반영하여 의미 있게 구분하되, 각 Period당 최소 50편 이상의 논문을 포함하도록 설정하세요.
+    
+    **Q: 몇 개의 파일까지 동시에 업로드할 수 있나요?**
+    A: 기술적으로는 제한이 없지만, 안정성을 위해 10개 이하의 파일을 권장합니다. 매우 큰 데이터셋의 경우 나누어서 처리하세요.
+    """)
+
+# SciMAT 분석 가이드 - 항상 표시
+with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
+    st.markdown("""
+    ### 필요한 것
+    - SciMAT 소프트웨어 (무료 다운로드)
+    - 다운로드된 WOS Plain Text 파일
+    - Java 1.8 이상
+    
+    ### 1단계: SciMAT 시작하기
+    
+    **새 프로젝트 생성**
+    ```
+    1. SciMAT 실행 (SciMAT.jar 더블클릭)
+    2. File → New Project
+    3. Path: 저장할 폴더 선택
+    4. File name: 프로젝트 이름 입력
+    5. Accept
+    ```
+    
+    **데이터 불러오기**
+    ```
+    1. File → Add Files
+    2. "ISI WoS" 선택
+    3. 다운로드한 txt 파일 선택
+    4. 로딩 완료까지 대기
+    ```
+    
+    ### 2단계: 키워드 정리하기
+    
+    **유사 키워드 자동 통합**
+    ```
+    1. Group set → Word → Find similar words by distances
+    2. Maximum distance: 1 (한 글자 차이)
+    3. 같은 의미 단어들 확인하고 Move로 통합
+    ```
+    의미: 철자가 1글자만 다른 단어들을 찾아서 제안 (예: "platform" ↔ "platforms")
+    
+    **수동으로 키워드 정리**
+    ```
+    1. Group set → Word → Word Group manual set
+    2. Words without group 목록 확인
+    3. 관련 키워드들 선택 후 New group으로 묶기
+    4. 불필요한 키워드 제거
+    ```
+    목적: 데이터 품질 향상, 의미 있는 클러스터 형성
+    
+    ### 3단계: 시간 구간 설정
+    
+    **Period 만들기**
+    ```
+    1. Knowledge base → Periods → Periods manager
+    2. Add 버튼으로 시간 구간 생성:
+       - Period 1: 1996-2006 (태동기)
+       - Period 2: 2007-2016 (형성기)
+       - Period 3: 2017-2021 (확산기)
+       - Period 4: 2022-2024 (성숙기)
+    ```
+    원리: 연구 분야의 진화 단계를 반영한 의미 있는 구분
+    
+    **각 Period에 논문 할당**
+    ```
+    1. Period 1 클릭 → Add
+    2. 해당 연도 논문들 선택
+    3. 오른쪽 화살표로 이동
+    4. 다른 Period들도 동일하게 반복
+    ```
+    
+    ### 4단계: 분석 실행
+    
+    **분석 마법사 시작**
+    ```
+    1. Analysis → Make Analysis
+    2. 모든 Period 선택 → Next
+    ```
+    
+    **Step 1: Unit of Analysis**
+    - "Word Group" 선택
+    - "Author's words + Source's words" 선택
+    
+    의미: 저자 키워드와 저널 키워드를 모두 사용해서 포괄적 분석
+    
+    **Step 2: Data Reduction**
+    - **Minimum frequency: 2** (최소 2번 출현)
+    
+    목적: 노이즈 제거, 한 번만 나타나는 희귀 키워드 배제
+    
+    **Step 3: Network Type**
+    - "Co-occurrence" 선택
+    
+    의미: 키워드들이 동시에 나타나는 빈도로 관련성 측정
+    
+    **Step 4: Normalization**
+    - "Equivalence Index" 선택
+    
+    Equivalence Index란?
+    - 키워드 간 연관성을 측정하는 정규화 방법
+    - 네트워크의 밀도를 적절히 조정하여 의미 있는 클러스터 형성
+    - 다른 방법(Jaccard, Cosine)보다 SciMAT에서 권장하는 표준 방법
+    
+    **Step 5: Clustering**
+    - "Simple Centers Algorithm" 선택
+    - **Maximum network size: 50**
+    
+    Simple Centers Algorithm이란?
+    - 클러스터의 중심이 되는 핵심 키워드를 찾아서 그룹을 형성하는 방법
+    - 복잡한 알고리즘보다 해석이 용이하고 안정적인 결과 제공
+    
+    왜 50인가?
+    - 너무 크면(100+): 복잡해서 해석 어려움
+    - 너무 작으면(10-20): 중요한 연결 관계 누락
+    - 50개: 의미 있는 키워드들을 포함하면서도 시각적으로 분석 가능한 적정 크기
+    - 경험적으로 검증된 최적 크기
+    
+    **Step 6: Document Mapper**
+    - "Core Mapper" 선택
+    
+    Core Mapper란?
+    - 각 주제 클러스터를 대표하는 "핵심 논문들"을 식별하는 방법
+    - Core documents = 해당 주제의 키워드를 다수 포함하는 중요 논문들
+    - 클러스터의 실제 내용을 이해하는 데 필수적
+    
+    왜 Core Mapper?
+    - 주제별로 가장 대표적인 논문들을 찾아서 클러스터의 의미 파악 가능
+    - 단순한 빈도 기반보다 질적으로 우수한 논문 선별
+    
+    **Step 7: Performance Measures**
+    - **G-index, Sum Citations** 모두 선택
+    
+    각 지표의 의미:
+    - **G-index**: h-index의 개선된 버전, 고인용 논문들의 영향력을 더 정확히 측정
+      - 예: 논문 10편 중 상위 5편이 각각 100회 이상 인용되면 높은 G-index
+    - **Sum Citations**: 총 인용 횟수, 해당 주제의 전체적인 학술적 영향력
+    - **Average Citations**: 논문당 평균 인용 수, 주제의 질적 수준
+    
+    왜 여러 지표? 다각도로 주제의 중요성과 영향력 평가
+    
+    **Step 8: Evolution Map**
+    - "Jaccard Index" 선택
+    
+    Jaccard Index란?
+    - 두 시기 간 주제의 연속성을 측정하는 유사도 지표
+    - 공식: 교집합을 합집합으로 나눈 값 (0과 1 사이)
+    - 0~1 사이 값: 1에 가까울수록 두 주제가 매우 유사
+    
+    예시:
+    - Period 1의 스트리밍 기술 키워드: platform, streaming, video, real-time
+    - Period 2의 플랫폼 기술 키워드: platform, streaming, service, user
+    - Jaccard = 공통 키워드 2개 나누기 전체 키워드 6개 = 2/6 = 0.33
+    
+    **분석 실행**
+    ```
+    - Finish 클릭
+    - 완료까지 대기 (10-30분)
+    ```
+    처리 과정: 키워드 매트릭스 생성 → 클러스터링 → 진화 분석 → 시각화
+    
+    ### 5단계: 결과 보기
+    
+    **전략적 다이어그램 확인**
+    ```
+    1. Period View에서 각 시기별 다이어그램 확인
+    2. 4사분면 해석:
+       - 우상단: Motor Themes (핵심 주제) - 중심성↑, 밀도↑
+       - 좌상단: Specialized Themes (전문화된 주제) - 중심성↓, 밀도↑
+       - 좌하단: Emerging/Declining Themes (신흥/쇠퇴 주제) - 중심성↓, 밀도↓
+       - 우하단: Basic Themes (기초 주제) - 중심성↑, 밀도↓
+    ```
+    
+    **클러스터 세부 확인**
+    ```
+    1. 각 주제 클릭하면 세부 키워드 네트워크 확인
+    2. Core documents 클릭하면 논문 수 확인
+    3. G-index 클릭하면 인용 수 확인
+    ```
+    
+    **진화 맵 확인**
+    ```
+    1. 시간에 따른 주제 변화 추적
+    2. 노드 크기 = 논문 수 (클수록 더 많은 연구)
+    3. 연결선 두께 = Jaccard 유사도 (두꺼울수록 더 연관성 높음)
+    ```
+    
+    ### 6단계: 결과 저장
+    
+    **보고서 생성**
+    ```
+    1. File → Export
+    2. HTML 또는 LaTeX 선택
+    3. 파일명 입력 후 저장
+    ```
+    
+    **결과물**
+    - 전략적 다이어그램 이미지들
+    - 진화 맵
+    - 클러스터 네트워크 이미지들
+    - 통계 데이터
+    
+    ### 문제 해결
+    
+    **자주 발생하는 문제**
+    - **임포트 안됨**: WOS 파일이 Plain Text인지 확인
+    - **분석 중단**: Java 메모리 부족 → 재시작
+    - **한글 깨짐**: 파일 인코딩 UTF-8로 변경
+    
+    **키워드 정리**: 시간을 투자해서 꼼꼼히 정리 (분석 품질의 핵심!)
+    **Period 구분**: 너무 세분화하지 말고 의미있는 구간으로 (각 구간당 최소 50편)
+    **논문 수**: 각 Period당 최소 50편 이상 권장 (통계적 의미 확보)
+    **설정값 조정**: 분야 특성에 따라 Maximum network size 조정 가능 (30-100)
+    
+    ### 결과 해석 가이드
+    
+    **Motor Themes (핵심 주제) 해석**
+    - 해당 시기의 연구 분야를 이끄는 중심 주제
+    - 많은 연구가 집중되고, 다른 주제와 연결성이 높음
+    - 투자와 연구가 활발한 "핫" 영역
+    
+    **Emerging Themes (신흥 주제) 주목**
+    - 아직 연구가 적지만 향후 성장 가능성 높은 영역
+    - 다음 Period에서 Motor Theme으로 발전할 가능성
+    - 선행 연구 기회가 많은 "블루오션"
+    """)
+
+st.markdown("<br><br>", unsafe_allow_html=True)
