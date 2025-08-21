@@ -1682,7 +1682,7 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     
     Jaccard Index란?
     - 두 시기 간 주제의 연속성을 측정하는 유사도 지표
-    - 공식: |A ∩ B| / |A ∪ B| (교집합 / 합집합)
+    - 공식: |A and B| / |A or B| (교집합 / 합집합)
     - 0~1 사이 값: 1에 가까울수록 두 주제가 매우 유사
     
     예시:
