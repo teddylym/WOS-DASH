@@ -6,10 +6,6 @@ def convert_to_scimat_wos_format(df_to_convert):
         'EM', 'RI', 'OI', 'FU', 'FX', 'CR', 'NR', 'TC', 'Z9', 'U1', 'U2', 'PU', 'PI', 'PA',
         'SN', 'EI', 'J9', 'JI', 'PD', 'PY', 'VL', 'IS', 'BP', 'EP', 'DI', 'EA', 'PG',
         'WC', 'WE', 'SC', 'GA', 'UT', 'PM', 'OA', 'DA'
-    ]3', 'RP',
-        'EM', 'RI', 'OI', 'FU', 'FX', 'CR', 'NR', 'TC', 'Z9', 'U1', 'U2', 'PU', 'PI', 'PA',
-        'SN', 'EI', 'J9', 'JI', 'PD', 'PY', 'VL', 'IS', 'BP', 'EP', 'DI', 'EA', 'PG',
-        'WC', 'WE', 'SC', 'GA', 'UT', 'PM', 'OA', 'DA'
     ]
     
     file_content = ["FN Clarivate Analytics Web of Science", "VR 1.0"]
