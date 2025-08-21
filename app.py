@@ -271,18 +271,20 @@ def load_and_merge_wos_files(uploaded_files):
     if all_dataframes:
         merged_df = pd.concat(all_dataframes, ignore_index=True)
         
-        # 중복 제거 로직 - 실제 중복이 확인된 경우에만 실행
+        # 중복 제거 로직 완전 비활성화 - 실제 중복이 확인될 때만 활성화
         duplicates_removed = 0
         
-        # 매우 보수적인 중복 검사 - 실제 중복이 있는 경우에만 처리
+        # 디버깅: 실제 UT 중복 확인
         if 'UT' in merged_df.columns:
-            # UT 기준 중복 확인 (null 값 제외)
-            ut_data = merged_df['UT'].dropna()
-            if len(ut_data) > len(ut_data.drop_duplicates()):
-                # 실제 중복이 발견된 경우만 제거
-                before_count = len(merged_df)
+            ut_series = merged_df['UT'].dropna()
+            unique_uts = ut_series.nunique()
+            total_uts = len(ut_series)
+            
+            # 실제 중복이 있는지 확인
+            if total_uts > unique_uts:
+                duplicates_removed = total_uts - unique_uts
                 merged_df = merged_df.drop_duplicates(subset=['UT'], keep='first')
-                duplicates_removed = before_count - len(merged_df)
+            # 중복이 없으면 duplicates_removed = 0 유지
         
         return merged_df, file_status, duplicates_removed
     else:
@@ -338,9 +340,9 @@ def parse_wos_format(content):
 
 # --- 라이브 스트리밍 특화 분류 함수 ---
 def classify_article(row):
-    """라이브 스트리밍 연구를 위한 포괄적 분류"""
+    """라이브 스트리밍 연구를 위한 포괄적 분류 - 개선된 알고리즘"""
     
-    # 핵심 라이브 스트리밍 키워드
+    # 핵심 라이브 스트리밍 키워드 (직접적 관련성)
     core_streaming_keywords = [
         'live streaming', 'livestreaming', 'live stream', 'live broadcast', 'live video',
         'real time streaming', 'real-time streaming', 'streaming platform', 'streaming service',
@@ -356,47 +358,71 @@ def classify_article(row):
         'periscope', 'mixer', 'douyin', 'kuaishou', 'taobao live', 'tmall live',
         'amazon live', 'shopee live', 'live.ly', 'bigo live',
         'live gaming', 'game streaming', 'esports streaming', 'streaming content',
-        'live entertainment', 'live performance', 'virtual concert', 'live music',
-        'live education', 'streaming education', 'live learning', 'online teaching',
-        'live tutorial', 'live demonstration', 'live presentation',
-        'streaming media', 'video streaming', 'audio streaming', 'multimedia streaming',
-        'streaming quality', 'video quality', 'streaming latency', 'real-time video',
-        'adaptive streaming', 'live video quality', 'streaming technology'
+        'live entertainment', 'live performance', 'virtual concert', 'live music'
     ]
     
-    # 비즈니스 및 마케팅 관련
-    business_keywords = [
-        'influencer marketing', 'content creator', 'digital marketing', 'brand engagement',
-        'consumer behavior', 'purchase intention', 'social influence', 'word of mouth',
-        'viral marketing', 'user generated content', 'brand advocacy', 'customer engagement',
-        'social media marketing', 'digital influence', 'online influence'
+    # 확장된 비즈니스 및 커머스 관련 키워드
+    business_commerce_keywords = [
+        'e-commerce', 'online shopping', 'digital commerce', 'mobile commerce', 'm-commerce',
+        'social commerce', 'influencer marketing', 'content creator', 'digital marketing', 
+        'brand engagement', 'consumer behavior', 'purchase intention', 'buying behavior',
+        'social influence', 'word of mouth', 'viral marketing', 'user generated content',
+        'brand advocacy', 'customer engagement', 'social media marketing', 'digital influence',
+        'online influence', 'interactive marketing', 'personalized marketing', 'real-time marketing',
+        'digital transformation', 'omnichannel', 'customer experience', 'user experience',
+        'engagement marketing', 'social selling', 'digital retail', 'online retail'
     ]
     
-    # 기술적 기반
-    technical_keywords = [
-        'real time video', 'real-time video', 'video compression', 'video encoding',
-        'video delivery', 'content delivery', 'cdn', 'edge computing',
-        'multimedia communication', 'video communication', 'webrtc',
-        'peer to peer streaming', 'p2p streaming', 'distributed streaming',
-        'mobile streaming', 'mobile video', 'wireless streaming',
-        'mobile broadcast', 'smartphone streaming', 'live video transmission'
-    ]
-    
-    # 교육 및 학습
+    # 교육 및 학습 관련 키워드 (확장)
     education_keywords = [
         'online education', 'e-learning', 'distance learning', 'remote learning',
         'virtual classroom', 'online teaching', 'digital learning', 'mooc',
-        'educational technology', 'learning management system'
+        'educational technology', 'learning management system', 'blended learning',
+        'medical education', 'nursing education', 'surgical training', 'clinical education',
+        'telemedicine', 'telehealth', 'digital health', 'health education',
+        'interactive learning', 'synchronous learning', 'real-time learning'
     ]
     
-    # 소셜 미디어 일반
+    # 기술적 기반 키워드 (확장)
+    technical_keywords = [
+        'real time video', 'real-time video', 'video streaming', 'audio streaming',
+        'multimedia streaming', 'video compression', 'video encoding', 'video delivery',
+        'content delivery', 'cdn', 'edge computing', 'multimedia communication',
+        'video communication', 'webrtc', 'peer to peer streaming', 'p2p streaming',
+        'distributed streaming', 'mobile streaming', 'mobile video', 'wireless streaming',
+        'mobile broadcast', 'smartphone streaming', 'live video transmission',
+        'streaming technology', 'adaptive streaming', 'video quality', 'streaming latency',
+        'interactive media', 'virtual reality', 'augmented reality', 'vr', 'ar',
+        '3d streaming', 'immersive media', 'metaverse'
+    ]
+    
+    # 사회문화적 영향 키워드 (신규 추가)
+    sociocultural_keywords = [
+        'digital culture', 'online culture', 'virtual community', 'digital society',
+        'social media', 'social network', 'digital communication', 'online interaction',
+        'digital identity', 'virtual identity', 'online presence', 'digital participation',
+        'cultural transmission', 'digital religion', 'online religion', 'virtual religion',
+        'digital migration', 'online migration', 'digital diaspora', 'virtual diaspora',
+        'social cohesion', 'community building', 'social capital', 'digital divide'
+    ]
+    
+    # COVID-19 및 팬데믹 관련 키워드 (신규 추가)
+    pandemic_keywords = [
+        'covid-19', 'pandemic', 'coronavirus', 'sars-cov-2', 'lockdown', 'quarantine',
+        'social distancing', 'remote work', 'work from home', 'digital adaptation',
+        'pandemic response', 'crisis communication', 'emergency response'
+    ]
+    
+    # 확장된 소셜 미디어 키워드
     social_media_keywords = [
         'social media', 'social network', 'online platform', 'digital platform',
         'user experience', 'user behavior', 'online behavior', 'digital behavior',
-        'social interaction', 'online interaction', 'digital interaction'
+        'social interaction', 'online interaction', 'digital interaction',
+        'user engagement', 'digital engagement', 'platform economy', 'network effects',
+        'viral content', 'content sharing', 'social sharing', 'online community'
     ]
     
-    # 제외 키워드
+    # 제외 키워드 (기술적 비관련 - 더 엄격하게)
     exclusion_keywords = [
         'routing protocol', 'network topology', 'packet routing', 'mac protocol',
         'ieee 802.11', 'wimax protocol', 'lte protocol', 'network security protocol',
@@ -404,10 +430,10 @@ def classify_article(row):
         'hardware implementation', 'fpga implementation', 'asic design',
         'signal processing algorithm', 'modulation scheme', 'channel estimation',
         'beamforming algorithm', 'mimo antenna', 'ofdm modulation',
-        'frequency allocation', 'spectrum allocation',
+        'frequency allocation', 'spectrum allocation', 'wireless sensor network',
         'satellite communication', 'underwater communication', 'space communication',
         'biomedical signal', 'medical imaging', 'radar system', 'sonar system',
-        'geological survey', 'seismic data', 'astronomical data'
+        'geological survey', 'seismic data', 'astronomical data', 'climate modeling'
     ]
     
     # 텍스트 추출
@@ -424,37 +450,54 @@ def classify_article(row):
     
     full_text = ' '.join([title, source_title, author_keywords, keywords_plus, abstract])
     
-    # 분류 로직
+    # 개선된 분류 로직
+    # 1. 명확한 제외 대상 먼저 필터링
     if any(keyword in full_text for keyword in exclusion_keywords):
         return 'Exclude (기술적 비관련)'
     
+    # 2. 핵심 라이브 스트리밍 키워드 - 최우선 포함
     if any(keyword in full_text for keyword in core_streaming_keywords):
         return 'Include (핵심연구)'
     
-    if any(keyword in full_text for keyword in business_keywords):
-        digital_indicators = ['digital', 'online', 'internet', 'web', 'social media', 'platform']
+    # 3. 비즈니스/커머스 + 디지털 지표 - 포용적 접근
+    if any(keyword in full_text for keyword in business_commerce_keywords):
+        digital_indicators = ['digital', 'online', 'internet', 'web', 'social media', 'platform', 'mobile', 'app', 'virtual', 'interactive']
         if any(indicator in full_text for indicator in digital_indicators):
             return 'Include (비즈니스 관련)'
-        else:
-            return 'Review (비즈니스 검토)'
     
+    # 4. 교육 + 온라인/디지털 지표 - 포용적 접근
+    if any(keyword in full_text for keyword in education_keywords):
+        online_indicators = ['online', 'digital', 'virtual', 'remote', 'distance', 'interactive', 'real-time', 'synchronous']
+        if any(indicator in full_text for indicator in online_indicators):
+            return 'Include (교육 관련)'
+    
+    # 5. 기술적 기반 + 라이브/실시간 지표
     if any(keyword in full_text for keyword in technical_keywords):
-        live_indicators = ['live', 'real time', 'real-time', 'streaming', 'broadcast', 'interactive']
+        live_indicators = ['live', 'real time', 'real-time', 'streaming', 'broadcast', 'interactive', 'synchronous', 'instant']
         if any(indicator in full_text for indicator in live_indicators):
             return 'Include (기술적 기반)'
-        else:
-            return 'Review (기술적 검토)'
     
-    if any(keyword in full_text for keyword in education_keywords):
-        online_edu_indicators = ['online', 'digital', 'virtual', 'remote', 'distance']
-        if any(indicator in full_text for indicator in online_edu_indicators):
-            return 'Include (교육 관련)'
-        else:
-            return 'Review (교육 검토)'
+    # 6. 사회문화적 + 디지털 지표 (신규)
+    if any(keyword in full_text for keyword in sociocultural_keywords):
+        digital_indicators = ['digital', 'online', 'virtual', 'internet', 'web', 'platform', 'social media']
+        if any(indicator in full_text for indicator in digital_indicators):
+            return 'Include (사회문화 관련)'
     
+    # 7. 팬데믹 관련 + 디지털 지표 (신규)
+    if any(keyword in full_text for keyword in pandemic_keywords):
+        digital_indicators = ['digital', 'online', 'virtual', 'remote', 'streaming', 'platform', 'technology']
+        if any(indicator in full_text for indicator in digital_indicators):
+            return 'Include (팬데믹 디지털화)'
+    
+    # 8. 소셜 미디어 일반 - 조건부 포함
     if any(keyword in full_text for keyword in social_media_keywords):
-        return 'Review (소셜미디어 관련)'
+        interaction_indicators = ['interaction', 'engagement', 'community', 'sharing', 'content', 'creator', 'influencer']
+        if any(indicator in full_text for indicator in interaction_indicators):
+            return 'Include (소셜미디어 관련)'
+        else:
+            return 'Review (소셜미디어 검토)'
     
+    # 9. 기타 - 최소 검토 대상
     return 'Review (분류 불확실)'
 
 # --- 데이터 품질 진단 함수 ---
