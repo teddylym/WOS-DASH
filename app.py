@@ -175,7 +175,7 @@ st.markdown("""
         background: white;
         border: 2px dashed #003875;
         border-radius: 12px;
-        padding: 40px;
+        padding: 40px 20px;
         text-align: center;
         margin: 20px 0;
         transition: all 0.3s ease;
@@ -579,8 +579,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- WOS 500개 제한 안내 삭제 ---
-
 # --- 파일 업로드 섹션 ---
 st.markdown("""
 <div class="section-header">
@@ -592,8 +590,10 @@ st.markdown("""
 st.markdown("""
 <div class="upload-zone">
     <div style="font-size: 3rem; margin-bottom: 16px; color: #003875;">📤</div>
-    <h3 style="color: #212529; margin-bottom: 8px;">WOS Plain Text 파일들을 모두 선택하세요</h3>
-    <p style="color: #6c757d; margin: 0;">Ctrl+클릭으로 여러 파일 동시 선택 가능</p>
+    <div style="padding: 0 20px;">
+        <h3 style="color: #212529; margin-bottom: 8px;">WOS Plain Text 파일들을 모두 선택하세요</h3>
+        <p style="color: #6c757d; margin: 0;">Ctrl+클릭으로 여러 파일 동시 선택 가능</p>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -825,17 +825,17 @@ if uploaded_files:
             width=280, height=280
         ).configure_view(strokeWidth=0)
         st.altair_chart(chart, use_container_width=True)
-        
-        # 차트 제목을 하단 중앙에 표시
-        st.markdown("""
-        <div style="text-align: center; margin-top: 8px; margin-bottom: 16px;">
-            <h4 style="color: #212529; font-weight: 600; margin: 0; font-size: 1rem;">논문 분류 분포</h4>
-        </div>
-        """, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+    
+    # 차트 제목을 원형 그래프 바로 하단에 표시
+    st.markdown("""
+    <div style="text-align: center; margin-top: -10px; margin-bottom: 16px;">
+        <h4 style="color: #212529; font-weight: 600; margin: 0; font-size: 1rem;">논문 분류 분포</h4>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # --- 분류 상세 결과 (원형 그래프 하단으로 이동) ---
+    # --- 분류 상세 결과 ---
     st.markdown("""
     <div class="chart-container">
         <div class="chart-title">분류별 상세 분포</div>
@@ -893,7 +893,7 @@ if uploaded_files:
         
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- 키워드 샘플 확인 (항상 표시) ---
+    # --- 키워드 샘플 확인 ---
     st.markdown("""
     <div class="chart-container">
         <div class="chart-title">병합 데이터 키워드 품질 확인</div>
@@ -982,19 +982,7 @@ if uploaded_files:
         </div>
         """, unsafe_allow_html=True)
 
-    # SCIMAT 호환 파일 다운로드
-    text_data = convert_to_scimat_wos_format(df_final_output)
-    
-    st.download_button(
-        label="🔥 SCIMAT 완전 호환 통합 파일 다운로드",
-        data=text_data,
-        file_name="live_streaming_merged_scimat_ready.txt",
-        mime="text/plain",
-        type="primary",
-        use_container_width=True
-    )
-
-    # 최종 사용 가이드
+    # 최종 사용 가이드 먼저 표시
     st.markdown("""
     <div class="success-panel">
         <h4 style="color: #155724; margin-bottom: 16px;">🎯 SCIMAT 사용 완벽 가이드</h4>
@@ -1021,6 +1009,26 @@ if uploaded_files:
     """, unsafe_allow_html=True)
     
     st.success("🎖️ 연구 성과: 라이브 스트리밍 분야 최초의 대규모 종합적 지식 구조 진화 분석 (1996-2024)")
+
+    # --- 최종 데이터셋 준비 및 다운로드 (페이지 최하단으로 이동) ---
+    st.markdown("""
+    <div class="section-header">
+        <div class="section-title">💾 파일 다운로드</div>
+        <div class="section-subtitle">병합 및 라이브 스트리밍 연구에 최적화된 WOS Plain Text 파일</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # SCIMAT 호환 파일 다운로드
+    text_data = convert_to_scimat_wos_format(df_final_output)
+    
+    st.download_button(
+        label="🔥 SCIMAT 완전 호환 통합 파일 다운로드",
+        data=text_data,
+        file_name="live_streaming_merged_scimat_ready.txt",
+        mime="text/plain",
+        type="primary",
+        use_container_width=True
+    )
 
 # --- 하단 여백 및 추가 정보 ---
 st.markdown("<br>", unsafe_allow_html=True)
