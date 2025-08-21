@@ -499,6 +499,8 @@ def diagnose_merged_quality(df, file_count, duplicates_removed):
     recommendations.append(f"✅ {file_count}개 파일 성공적으로 병합됨")
     if duplicates_removed > 0:
         recommendations.append(f"🔄 중복 논문 {duplicates_removed}편 자동 제거됨")
+    else:
+        recommendations.append("✅ 중복 논문 없음 - 모든 논문이 고유 데이터")
     recommendations.append("✅ WOS Plain Text 형식 - SCIMAT 최적 호환성 확보")
     
     return issues, recommendations
@@ -638,7 +640,9 @@ if uploaded_files:
     st.success(f"✅ 병합 완료! {successful_files}개 파일에서 {total_papers:,}편의 논문을 성공적으로 처리했습니다.")
     
     if duplicates_removed > 0:
-        st.info(f"🔄 중복 논문 {duplicates_removed}편이 자동으로 제거되었습니다.")
+        st.info(f"🔄 중복 논문 {duplicates_removed}편이 자동으로 제거되었습니다. (원본 총 {total_papers + duplicates_removed:,}편 → 정제 후 {total_papers:,}편)")
+    else:
+        st.info("✅ 중복 논문 없음 - 모든 논문이 고유한 데이터입니다.")
 
     # --- 파일별 처리 상태 ---
     st.markdown("""
@@ -741,7 +745,7 @@ if uploaded_files:
         <div class="metric-card">
             <div class="metric-icon">📋</div>
             <div class="metric-value">{len(df_final_output):,}</div>
-            <div class="metric-label">최종 분석 대상</div>
+            <div class="metric-label">최종 분석 대상<br><small style="color: #6c757d;">(Exclude 제외)</small></div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -896,6 +900,50 @@ if uploaded_files:
     
     st.markdown("</div>", unsafe_allow_html=True)
 
+    # --- 분류별 논문 상세 목록 ---
+    target_classifications = [
+        'Review (분류 불확실)', 'Review (소셜미디어 관련)', 'Review (비즈니스 검토)',
+        'Include (비즈니스 관련)', 'Exclude (기술적 비관련)', 'Include (기술적 기반)'
+    ]
+    
+    for classification in target_classifications:
+        if classification in merged_df['Classification'].values:
+            papers = merged_df[merged_df['Classification'] == classification]
+            
+            if len(papers) > 0:
+                if classification.startswith('Include'):
+                    color = "#28a745"
+                    icon = "✅"
+                elif classification.startswith('Review'):
+                    color = "#ffc107"
+                    icon = "📝"
+                else:
+                    color = "#dc3545"
+                    icon = "❌"
+                
+                st.markdown(f"""
+                <div class="chart-container">
+                    <div class="chart-title">{icon} {classification} - 논문 목록 ({len(papers)}편)</div>
+                """, unsafe_allow_html=True)
+                
+                for idx, (_, paper) in enumerate(papers.iterrows(), 1):
+                    title = str(paper.get('TI', 'N/A'))
+                    year = str(paper.get('PY', 'N/A'))
+                    source = str(paper.get('SO', 'N/A'))
+                    
+                    st.markdown(f"""
+                    <div style="margin: 8px 0; padding: 12px; background: #f8f9fa; border-left: 3px solid {color}; border-radius: 4px;">
+                        <div style="font-weight: 600; color: #212529; margin-bottom: 4px;">
+                            {idx}. {title}
+                        </div>
+                        <div style="font-size: 0.9rem; color: #6c757d;">
+                            <strong>연도:</strong> {year} | <strong>저널:</strong> {source}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                st.markdown("</div>", unsafe_allow_html=True)
+
     # --- 연도별 연구 동향 ---
     if 'PY' in merged_df.columns:
         st.markdown("""
@@ -988,7 +1036,7 @@ if uploaded_files:
     <div class="info-panel">
         <h4 style="color: #003875; margin-bottom: 12px;">🏆 병합 성과</h4>
         <p style="color: #003875; margin: 4px 0;"><strong>파일 통합:</strong> {successful_files}개의 500개 단위 WOS 파일을 하나로 병합</p>
-        <p style="color: #003875; margin: 4px 0;"><strong>중복 제거:</strong> {duplicates_removed}편의 중복 논문 자동 감지 및 제거</p>
+        {"<p style='color: #003875; margin: 4px 0;'><strong>중복 제거:</strong> " + str(duplicates_removed) + "편의 중복 논문 자동 감지 및 제거</p>" if duplicates_removed > 0 else "<p style='color: #003875; margin: 4px 0;'><strong>데이터 품질:</strong> 모든 논문이 고유하여 중복 없음</p>"}
         <p style="color: #003875; margin: 4px 0;"><strong>최종 규모:</strong> {total_papers:,}편의 논문으로 대규모 연구 분석 가능</p>
         <p style="color: #003875; margin: 4px 0;"><strong>SCIMAT 호환:</strong> 완벽한 WOS Plain Text 형식으로 100% 호환성 보장</p>
     </div>
