@@ -493,7 +493,7 @@ def diagnose_merged_quality(df, file_count, duplicates_removed):
     if not has_keywords:
         issues.append("❌ 키워드 필드 없음: DE 또는 ID 필드 필요")
     
-    # 병합 관련 정보
+    # 병합 관련 정보 - 실제 결과만 반영
     recommendations.append(f"✅ {file_count}개 파일 성공적으로 병합됨")
     if duplicates_removed > 0:
         recommendations.append(f"🔄 중복 논문 {duplicates_removed}편 자동 제거됨")
