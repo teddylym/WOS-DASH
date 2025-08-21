@@ -648,25 +648,23 @@ if uploaded_files:
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown('<div class="chart-title">📋 파일별 상세 상태</div>', unsafe_allow_html=True)
+    
     col1, col2 = st.columns([0.6, 0.4])
     
-    with col1:
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        st.markdown('<div class="chart-title">📋 파일별 상세 상태</div>', unsafe_allow_html=True)
-        
+    with col1:        
         for status in file_status:
             color = "#28a745" if status['status'] == 'SUCCESS' else "#dc3545"
             icon = "✅" if status['status'] == 'SUCCESS' else "❌"
             
             st.markdown(f"""
-            <div style="margin: 8px 0; padding: 12px; background: white; border-left: 4px solid {color}; border-radius: 4px;">
+            <div style="margin: 8px 0; padding: 12px; background: #f8f9fa; border-left: 4px solid {color}; border-radius: 4px;">
                 <strong>{icon} {status['filename']}</strong><br>
                 <small style="color: #6c757d;">{status['message']}</small>
                 {f" | 인코딩: {status['encoding']}" if status['encoding'] != 'N/A' else ""}
             </div>
             """, unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
     
     with col2:
         # 파일 처리 통계
@@ -688,6 +686,8 @@ if uploaded_files:
             <div class="metric-label">실패한 파일</div>
         </div>
         """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # --- 데이터 품질 진단 결과 ---
     st.markdown("""
@@ -862,15 +862,15 @@ if uploaded_files:
             width=350, height=350
         ).configure_view(strokeWidth=0)
         st.altair_chart(chart, use_container_width=True)
+        
+        # 논문 분류 분포 제목을 원형 그래프 안에 표시
+        st.markdown("""
+        <div style="text-align: center; margin-top: -30px; margin-bottom: 20px;">
+            <h4 style="color: #212529; font-weight: 600; margin: 0; font-size: 1.1rem;">논문 분류 분포</h4>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
-    
-    # 차트 제목을 원형 그래프 바로 하단에 표시
-    st.markdown("""
-    <div style="text-align: center; margin-top: -10px; margin-bottom: 16px;">
-        <h4 style="color: #212529; font-weight: 600; margin: 0; font-size: 1rem;">논문 분류 분포</h4>
-    </div>
-    """, unsafe_allow_html=True)
 
     # --- 분류 상세 결과 ---
     st.markdown("""
@@ -1002,33 +1002,30 @@ if uploaded_files:
     st.success("🎖️ 연구 성과: 라이브 스트리밍 분야 최초의 대규모 종합적 지식 구조 진화 분석 (1996-2024)")
 
     # --- 최종 파일 다운로드 섹션 ---
-    st.markdown("""
-    <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 24px; border-radius: 16px; margin: 32px 0; box-shadow: 0 8px 32px rgba(40,167,69,0.3); text-align: center;">
-        <div style="font-size: 2.2rem; margin-bottom: 12px;">📥</div>
-        <h2 style="color: white; margin-bottom: 12px; font-size: 1.8rem; font-weight: 700;">최종 파일 다운로드</h2>
-        <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 1.1rem;">SCIMAT 완전 호환 통합 데이터 파일</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("<br><br>", unsafe_allow_html=True)
 
-    # SCIMAT 호환 파일 다운로드 - 강조된 버튼
+    # SCIMAT 호환 파일 다운로드 - 강조된 대형 버튼
     text_data = convert_to_scimat_wos_format(df_final_output)
     
     st.markdown("""
     <style>
-    .download-button {
+    .stDownloadButton > button {
         background: linear-gradient(135deg, #ff6b6b, #ee5a24) !important;
         color: white !important;
-        font-size: 1.3rem !important;
-        font-weight: 700 !important;
-        padding: 16px 32px !important;
-        border-radius: 12px !important;
+        font-size: 1.8rem !important;
+        font-weight: 800 !important;
+        padding: 24px 48px !important;
+        border-radius: 16px !important;
         border: none !important;
-        box-shadow: 0 6px 20px rgba(255,107,107,0.4) !important;
+        box-shadow: 0 8px 32px rgba(255,107,107,0.5) !important;
         transition: all 0.3s ease !important;
+        height: 80px !important;
+        width: 100% !important;
     }
-    .download-button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 25px rgba(255,107,107,0.6) !important;
+    .stDownloadButton > button:hover {
+        transform: translateY(-4px) !important;
+        box-shadow: 0 12px 40px rgba(255,107,107,0.7) !important;
+        background: linear-gradient(135deg, #ee5a24, #ff6b6b) !important;
     }
     </style>
     """, unsafe_allow_html=True)
