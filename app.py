@@ -552,7 +552,7 @@ st.markdown("""
         WOS PREP
     </h1>
     <p style="font-size: 1.3rem; margin: 0; font-weight: 400; opacity: 0.95;">
-        SCIMAT Edition - Live Streaming Research Specialized
+        SCIMAT Edition
     </p>
     <div style="width: 100px; height: 4px; background-color: rgba(255,255,255,0.3); margin: 2rem auto; border-radius: 2px;"></div>
 </div>
@@ -826,10 +826,10 @@ if uploaded_files:
         ).configure_view(strokeWidth=0)
         st.altair_chart(chart, use_container_width=True)
         
-        # 차트 제목을 하단에 표시
+        # 차트 제목을 하단 중앙에 표시
         st.markdown("""
-        <div style="text-align: center; margin-top: 16px;">
-            <h4 style="color: #212529; font-weight: 600; margin: 0;">논문 분류 분포</h4>
+        <div style="text-align: center; margin-top: 8px; margin-bottom: 16px;">
+            <h4 style="color: #212529; font-weight: 600; margin: 0; font-size: 1rem;">논문 분류 분포</h4>
         </div>
         """, unsafe_allow_html=True)
 
