@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import streamlit as st
 import pandas as pd
 import altair as alt
@@ -209,9 +210,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 다중 WOS Plain Text 파일 로딩 및 병합 함수 ---
+# --- 다중 WOS Plain Text 파일 로딩 및 병합 함수 (수정됨) ---
 def load_and_merge_wos_files(uploaded_files):
-    """다중 WOS Plain Text 파일을 로딩하고 병합 - 중복 제거 완전 수정"""
+    """다중 WOS Plain Text 파일을 로딩하고 병합 - 중복 제거 로직 수정"""
     all_dataframes = []
     file_status = []
     
@@ -247,7 +248,7 @@ def load_and_merge_wos_files(uploaded_files):
                     'status': 'SUCCESS',
                     'papers': len(df),
                     'encoding': encoding_used,
-                    'message': f'✅ {len(df)}편 논문 로딩 성공'
+                    'message': f'&#9989; {len(df)}편 논문 로딩 성공'
                 })
             else:
                 file_status.append({
@@ -255,7 +256,7 @@ def load_and_merge_wos_files(uploaded_files):
                     'status': 'ERROR',
                     'papers': 0,
                     'encoding': 'N/A',
-                    'message': '❌ WOS Plain Text 형식이 아님'
+                    'message': '&#10060; WOS Plain Text 형식이 아님'
                 })
                 
         except Exception as e:
@@ -264,70 +265,36 @@ def load_and_merge_wos_files(uploaded_files):
                 'status': 'ERROR',
                 'papers': 0,
                 'encoding': 'N/A',
-                'message': f'❌ 파일 처리 오류: {str(e)[:50]}'
+                'message': f'&#10060; 파일 처리 오류: {str(e)[:50]}'
             })
     
     # 모든 데이터프레임 병합
     if all_dataframes:
         merged_df = pd.concat(all_dataframes, ignore_index=True)
+        original_count = len(merged_df)
         
-        # 중복 제거 로직 - 완전히 새로 작성
+        # 중복 제거 로직 - 완전 수정
         duplicates_removed = 0
         
         if 'UT' in merged_df.columns:
-            # 원본 데이터 크기
-            original_size = len(merged_df)
+            # 유효한 UT만 필터링 (비어있지 않고 'nan'이 아닌 것)
+            valid_ut_mask = (
+                merged_df['UT'].notna() & 
+                (merged_df['UT'] != '') & 
+                (merged_df['UT'].astype(str).str.lower() != 'nan') &
+                (merged_df['UT'].astype(str).str.strip() != '')
+            )
             
-            # UT 필드의 실제 값들 확인
-            ut_series = merged_df['UT'].copy()
-            
-            # 유효한 UT 값만 필터링 (더 엄격한 조건)
-            def is_meaningful_ut(value):
-                if pd.isna(value):
-                    return False
-                str_value = str(value).strip()
-                # 빈 문자열, 'nan', 'None', 매우 짧은 값들 제외
-                if len(str_value) == 0 or str_value.lower() in ['nan', 'none', 'null', '']:
-                    return False
-                # WOS UT는 일반적으로 'WOS:' 또는 문자+숫자 조합
-                # 최소 5자 이상의 의미있는 값만 유효한 것으로 간주
-                if len(str_value) < 5:
-                    return False
-                return True
-            
-            # 유효한 UT를 가진 행들만 선별
-            meaningful_ut_mask = ut_series.apply(is_meaningful_ut)
-            rows_with_meaningful_ut = merged_df[meaningful_ut_mask]
-            
-            # 실제로 의미있는 UT가 있는 경우에만 중복 검사
-            if len(rows_with_meaningful_ut) > 0:
-                # 중복 제거 전 크기
-                before_dedup = len(rows_with_meaningful_ut)
+            if valid_ut_mask.sum() > 0:  # 유효한 UT가 있는 경우만
+                # 중복 제거 전 개수
+                before_count = len(merged_df)
                 
-                # 중복 제거 수행
-                deduplicated_meaningful = rows_with_meaningful_ut.drop_duplicates(subset=['UT'], keep='first')
+                # UT 기준 중복 제거 (유효한 UT만)
+                merged_df = merged_df.drop_duplicates(subset=['UT'], keep='first')
                 
-                # 중복 제거 후 크기
-                after_dedup = len(deduplicated_meaningful)
-                
-                # 실제 제거된 중복 수
-                actual_duplicates_removed = before_dedup - after_dedup
-                
-                if actual_duplicates_removed > 0:
-                    duplicates_removed = actual_duplicates_removed
-                    
-                    # 의미없는 UT를 가진 행들과 중복 제거된 행들 다시 합치기
-                    rows_without_meaningful_ut = merged_df[~meaningful_ut_mask]
-                    merged_df = pd.concat([deduplicated_meaningful, rows_without_meaningful_ut], ignore_index=True)
-                # 실제 중복이 없으면 duplicates_removed = 0 유지
-            
-            # 최종 검증: 실제로 제거된 행 수와 계산된 중복 수가 일치하는지 확인
-            final_size = len(merged_df)
-            actual_removed = original_size - final_size
-            
-            # 계산이 맞지 않으면 0으로 리셋 (안전장치)
-            if actual_removed != duplicates_removed:
-                duplicates_removed = actual_removed
+                # 실제 제거된 개수
+                after_count = len(merged_df)
+                duplicates_removed = before_count - after_count
         
         return merged_df, file_status, duplicates_removed
     else:
@@ -543,7 +510,7 @@ def classify_article(row):
     # 9. 기타 - 최소 검토 대상
     return 'Review (분류 불확실)'
 
-# --- 데이터 품질 진단 함수 ---
+# --- 데이터 품질 진단 함수 (수정됨) ---
 def diagnose_merged_quality(df, file_count, duplicates_removed):
     """병합된 WOS 데이터의 품질 진단 - 수정된 버전"""
     issues = []
@@ -555,14 +522,14 @@ def diagnose_merged_quality(df, file_count, duplicates_removed):
     
     for field in required_fields:
         if field not in df.columns:
-            issues.append(f"❌ 필수 필드 누락: {field}")
+            issues.append(f"&#10060; 필수 필드 누락: {field}")
         else:
             valid_count = df[field].notna().sum()
             total_count = len(df)
             missing_rate = (total_count - valid_count) / total_count * 100
             
             if missing_rate > 10:
-                issues.append(f"⚠️ {field} 필드의 {missing_rate:.1f}%가 누락됨")
+                issues.append(f"&#9888; {field} 필드의 {missing_rate:.1f}%가 누락됨")
     
     # 키워드 필드 품질 확인
     has_keywords = False
@@ -574,21 +541,21 @@ def diagnose_merged_quality(df, file_count, duplicates_removed):
             total_count = len(df)
             
             if valid_count < total_count * 0.7:
-                issues.append(f"⚠️ {field} 필드의 {((total_count-valid_count)/total_count*100):.1f}%가 비어있음")
+                issues.append(f"&#9888; {field} 필드의 {((total_count-valid_count)/total_count*100):.1f}%가 비어있음")
     
     if not has_keywords:
-        issues.append("❌ 키워드 필드 없음: DE 또는 ID 필드 필요")
+        issues.append("&#10060; 키워드 필드 없음: DE 또는 ID 필드 필요")
     
-    # 병합 관련 정보 - 실제 결과만 반영 (완전 수정)
-    recommendations.append(f"✅ {file_count}개 파일 성공적으로 병합됨")
+    # 병합 관련 정보 - 실제 결과만 반영
+    recommendations.append(f"&#9989; {file_count}개 파일 성공적으로 병합됨")
     
-    # 중복 제거 결과만 실제 데이터에 따라 표시
+    # 중복 제거 결과 - 실제 제거된 경우만 표시
     if duplicates_removed > 0:
-        recommendations.append(f"🔄 중복 논문 {duplicates_removed}편 자동 제거됨")
+        recommendations.append(f"&#128260; 실제 중복 논문 {duplicates_removed}편 제거됨")
     else:
-        recommendations.append("✅ 중복 논문 없음 - 모든 논문이 고유 데이터")
+        recommendations.append("&#9989; 중복 논문 없음 - 모든 논문이 고유함")
     
-    recommendations.append("✅ WOS Plain Text 형식 - SCIMAT 최적 호환성 확보")
+    recommendations.append("&#9989; WOS Plain Text 형식 - SCIMAT 완벽 호환")
     
     return issues, recommendations
 
@@ -651,17 +618,17 @@ st.markdown("""
 st.markdown("""
 <div class="feature-grid">
     <div class="feature-card">
-        <div class="feature-icon">🔗</div>
+        <div class="feature-icon">&#128279;</div>
         <div class="feature-title">다중 파일 자동 병합</div>
         <div class="feature-desc">여러 WOS 파일을 한 번에 병합 처리</div>
     </div>
     <div class="feature-card">
-        <div class="feature-icon">🚫</div>
+        <div class="feature-icon">&#128683;</div>
         <div class="feature-title">스마트 중복 제거</div>
         <div class="feature-desc">UT 기준 자동 중복 논문 감지 및 제거</div>
     </div>
     <div class="feature-card">
-        <div class="feature-icon">🎯</div>
+        <div class="feature-icon">&#127919;</div>
         <div class="feature-title">데이터 분류</div>
         <div class="feature-desc">대규모 데이터 포괄적 분류 및 분석</div>
     </div>
@@ -671,14 +638,14 @@ st.markdown("""
 # --- 파일 업로드 섹션 ---
 st.markdown("""
 <div class="section-header">
-    <div class="section-title">📁 다중 WOS Plain Text 파일 업로드</div>
+    <div class="section-title">&#128193; 다중 WOS Plain Text 파일 업로드</div>
     <div class="section-subtitle">500개 단위로 나뉜 여러 WOS 파일을 모두 선택하여 업로드하세요</div>
 </div>
 """, unsafe_allow_html=True)
 
 st.markdown("""
 <div class="upload-zone">
-    <div style="font-size: 3rem; margin-bottom: 16px; color: #003875;">📤</div>
+    <div style="font-size: 3rem; margin-bottom: 16px; color: #003875;">&#128228;</div>
     <div style="padding: 0 20px;">
         <h3 style="color: #212529; margin-bottom: 8px;">WOS Plain Text 파일들을 모두 선택하세요</h3>
         <p style="color: #6c757d; margin: 0;">Ctrl+클릭으로 여러 파일 동시 선택 가능</p>
@@ -694,20 +661,20 @@ uploaded_files = st.file_uploader(
 )
 
 if uploaded_files:
-    st.markdown(f"📋 **선택된 파일 개수:** {len(uploaded_files)}개")
+    st.markdown(f"&#128203; **선택된 파일 개수:** {len(uploaded_files)}개")
     
     # 프로그레스 인디케이터
     st.markdown('<div class="progress-indicator"></div>', unsafe_allow_html=True)
     
-    with st.spinner(f"🔄 {len(uploaded_files)}개 WOS 파일 병합 및 분석 중..."):
+    with st.spinner(f"&#128260; {len(uploaded_files)}개 WOS 파일 병합 및 분석 중..."):
         # 파일 병합
         merged_df, file_status, duplicates_removed = load_and_merge_wos_files(uploaded_files)
         
         if merged_df is None:
-            st.error("⚠️ 처리 가능한 WOS Plain Text 파일이 없습니다. 파일들이 Web of Science에서 다운로드한 정품 Plain Text 파일인지 확인해주세요.")
+            st.error("&#9888; 처리 가능한 WOS Plain Text 파일이 없습니다. 파일들이 Web of Science에서 다운로드한 정품 Plain Text 파일인지 확인해주세요.")
             
             # 파일별 상태 표시
-            st.markdown("### 📄 파일별 처리 상태")
+            st.markdown("### &#128196; 파일별 처리 상태")
             for status in file_status:
                 st.markdown(f"""
                 <div class="file-status">
@@ -724,25 +691,25 @@ if uploaded_files:
     successful_files = len([s for s in file_status if s['status'] == 'SUCCESS'])
     total_papers = len(merged_df)
     
-    st.success(f"✅ 병합 완료! {successful_files}개 파일에서 {total_papers:,}편의 논문을 성공적으로 처리했습니다.")
+    st.success(f"&#9989; 병합 완료! {successful_files}개 파일에서 {total_papers:,}편의 논문을 성공적으로 처리했습니다.")
     
-    # 중복 제거 결과 표시 - 실제 결과만
+    # 중복 제거 결과 표시 - 실제 결과만 (수정됨)
     if duplicates_removed > 0:
-        st.info(f"🔄 중복 논문 {duplicates_removed}편이 자동으로 제거되었습니다. (원본 총 {total_papers + duplicates_removed:,}편 → 정제 후 {total_papers:,}편)")
+        st.info(f"&#128260; 중복 논문 {duplicates_removed}편이 자동으로 제거되었습니다. (원본 총 {total_papers + duplicates_removed:,}편 → 정제 후 {total_papers:,}편)")
     else:
-        st.info("✅ 중복 논문 없음 - 모든 논문이 고유한 데이터입니다.")
+        st.info("&#9989; 중복 논문 없음 - 모든 논문이 고유한 데이터입니다.")
 
     # --- 파일별 처리 상태 ---
     st.markdown("""
     <div class="section-header">
-        <div class="section-title">📄 파일별 처리 상태</div>
+        <div class="section-title">&#128196; 파일별 처리 상태</div>
         <div class="section-subtitle">업로드된 각 파일의 처리 결과</div>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown("""
     <div class="chart-container">
-        <div class="chart-title">📋 파일별 상세 상태</div>
+        <div class="chart-title">&#128203; 파일별 상세 상태</div>
     """, unsafe_allow_html=True)
     
     col1, col2 = st.columns([0.6, 0.4])
@@ -750,7 +717,7 @@ if uploaded_files:
     with col1:        
         for status in file_status:
             color = "#28a745" if status['status'] == 'SUCCESS' else "#dc3545"
-            icon = "✅" if status['status'] == 'SUCCESS' else "❌"
+            icon = "&#9989;" if status['status'] == 'SUCCESS' else "&#10060;"
             
             st.markdown(f"""
             <div style="margin: 8px 0; padding: 12px; background: #f8f9fa; border-left: 4px solid {color}; border-radius: 4px;">
@@ -767,7 +734,7 @@ if uploaded_files:
         
         st.markdown(f"""
         <div class="metric-card" style="background: #f8f9fa;">
-            <div class="metric-icon">✅</div>
+            <div class="metric-icon">&#9989;</div>
             <div class="metric-value">{success_count}</div>
             <div class="metric-label">성공한 파일</div>
         </div>
@@ -775,7 +742,7 @@ if uploaded_files:
         
         st.markdown(f"""
         <div class="metric-card" style="background: #f8f9fa;">
-            <div class="metric-icon">❌</div>
+            <div class="metric-icon">&#10060;</div>
             <div class="metric-value">{error_count}</div>
             <div class="metric-label">실패한 파일</div>
         </div>
@@ -786,45 +753,45 @@ if uploaded_files:
     # --- 데이터 품질 진단 결과 ---
     st.markdown("""
     <div class="section-header">
-        <div class="section-title">🔍 병합 데이터 품질 진단</div>
+        <div class="section-title">&#128269; 병합 데이터 품질 진단</div>
         <div class="section-subtitle">병합된 WOS 데이터의 품질과 SCIMAT 호환성 검증</div>
     </div>
     """, unsafe_allow_html=True)
 
-    with st.spinner("🔍 병합 데이터 품질 분석 중..."):
+    with st.spinner("&#128269; 병합 데이터 품질 분석 중..."):
         issues, recommendations = diagnose_merged_quality(merged_df, successful_files, duplicates_removed)
 
     st.markdown("""
     <div class="chart-container">
-        <div class="chart-title">🔍 병합 데이터 품질 진단 결과</div>
+        <div class="chart-title">&#128269; 병합 데이터 품질 진단 결과</div>
     """, unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown('<h5 style="color: #dc3545; margin-bottom: 12px;">🚨 발견된 문제점</h5>', unsafe_allow_html=True)
+        st.markdown('<h5 style="color: #dc3545; margin-bottom: 12px;">&#128680; 발견된 문제점</h5>', unsafe_allow_html=True)
         
         if issues:
             for issue in issues:
                 st.markdown(f"- {issue}")
         else:
-            st.markdown("✅ **문제점 없음** - 병합 데이터 품질 우수")
+            st.markdown("&#9989; **문제점 없음** - 병합 데이터 품질 우수")
     
     with col2:
-        st.markdown('<h5 style="color: #28a745; margin-bottom: 12px;">💡 병합 결과</h5>', unsafe_allow_html=True)
+        st.markdown('<h5 style="color: #28a745; margin-bottom: 12px;">&#128161; 병합 결과</h5>', unsafe_allow_html=True)
         
         if recommendations:
             for rec in recommendations:
                 st.markdown(f"- {rec}")
         else:
-            st.markdown("🎯 **최적 상태** - SCIMAT 완벽 호환")
+            st.markdown("&#127919; **최적 상태** - SCIMAT 완벽 호환")
     
     st.markdown("</div>", unsafe_allow_html=True)
 
     # 병합 성공 알림
     st.markdown("""
     <div class="success-panel">
-        <h4 style="color: #155724; margin-bottom: 16px;">🎯 다중 파일 병합 성공!</h4>
+        <h4 style="color: #155724; margin-bottom: 16px;">&#127919; 다중 파일 병합 성공!</h4>
         <p style="color: #155724; margin: 4px 0;">여러 WOS Plain Text 파일이 성공적으로 하나로 병합되었습니다.</p>
         <p style="color: #155724; margin: 4px 0;"><strong>중복 제거:</strong> 동일한 논문은 자동으로 제거되어 정확한 분석 결과를 보장합니다.</p>
         <p style="color: #155724; margin: 4px 0;"><strong>SCIMAT 호환성:</strong> 병합된 파일은 SCIMAT에서 100% 정상 작동합니다.</p>
@@ -834,7 +801,7 @@ if uploaded_files:
     # --- 분석 결과 요약 ---
     st.markdown("""
     <div class="section-header">
-        <div class="section-title">📈 병합 데이터 분석 결과</div>
+        <div class="section-title">&#128200; 병합 데이터 분석 결과</div>
         <div class="section-subtitle">라이브 스트리밍 연구 분류 결과</div>
     </div>
     """, unsafe_allow_html=True)
@@ -849,7 +816,7 @@ if uploaded_files:
     with col1:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-icon">📋</div>
+            <div class="metric-icon">&#128203;</div>
             <div class="metric-value">{total_papers:,}</div>
             <div class="metric-label">Total Papers</div>
         </div>
@@ -858,7 +825,7 @@ if uploaded_files:
     with col2:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-icon">✅</div>
+            <div class="metric-icon">&#9989;</div>
             <div class="metric-value">{include_papers:,}</div>
             <div class="metric-label">Included Studies</div>
         </div>
@@ -868,7 +835,7 @@ if uploaded_files:
         processing_rate = (include_papers / total_papers * 100) if total_papers > 0 else 0
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-icon">📊</div>
+            <div class="metric-icon">&#128202;</div>
             <div class="metric-value">{processing_rate:.1f}%</div>
             <div class="metric-label">Inclusion Rate</div>
         </div>
@@ -877,7 +844,7 @@ if uploaded_files:
     with col4:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-icon">🔗</div>
+            <div class="metric-icon">&#128279;</div>
             <div class="metric-value" style="font-size: 1.8rem;">{successful_files}개</div>
             <div class="metric-label">Merged Files</div>
         </div>
@@ -936,13 +903,13 @@ if uploaded_files:
         
         if classification.startswith('Include'):
             color = "#28a745"
-            icon = "✅"
+            icon = "&#9989;"
         elif classification.startswith('Review'):
             color = "#ffc107"
-            icon = "📝"
+            icon = "&#128221;"
         else:
             color = "#dc3545"
-            icon = "❌"
+            icon = "&#10060;"
         
         st.markdown(f"""
         <div style="margin: 12px 0; padding: 16px; background: white; border-left: 4px solid {color}; border-radius: 4px; font-size: 1.1rem;">
@@ -1016,11 +983,11 @@ if uploaded_files:
         avg_id = sum([d['ID 개수'] for d in sample_data]) / len(sample_data) if sample_data else 0
         
         if avg_de >= 3 and avg_id >= 3:
-            st.success("✅ 키워드 품질 우수 - SCIMAT에서 원활한 그룹핑 예상")
+            st.success("&#9989; 키워드 품질 우수 - SCIMAT에서 원활한 그룹핑 예상")
         elif avg_de >= 2 or avg_id >= 2:
-            st.warning("⚠️ 키워드 품질 보통 - SCIMAT에서 일부 제한 가능")
+            st.warning("&#9888; 키워드 품질 보통 - SCIMAT에서 일부 제한 가능")
         else:
-            st.error("❌ 키워드 품질 부족 - 원본 WOS 다운로드 설정 확인 필요")
+            st.error("&#10060; 키워드 품질 부족 - 원본 WOS 다운로드 설정 확인 필요")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1036,7 +1003,7 @@ if uploaded_files:
     with col1:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-icon">📋</div>
+            <div class="metric-icon">&#128203;</div>
             <div class="metric-value">{len(df_final_output):,}</div>
             <div class="metric-label">최종 분석 대상<br><small style="color: #6c757d;">(Exclude 제외)</small></div>
         </div>
@@ -1046,7 +1013,7 @@ if uploaded_files:
         include_count = len(merged_df[merged_df['Classification'].str.contains('Include', na=False)])
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-icon">✅</div>
+            <div class="metric-icon">&#9989;</div>
             <div class="metric-value">{include_count:,}</div>
             <div class="metric-label">핵심 포함 연구</div>
         </div>
@@ -1056,7 +1023,7 @@ if uploaded_files:
         review_count = len(merged_df[merged_df['Classification'].str.contains('Review', na=False)])
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-icon">📝</div>
+            <div class="metric-icon">&#128221;</div>
             <div class="metric-value">{review_count:,}</div>
             <div class="metric-label">검토 대상</div>
         </div>
@@ -1067,10 +1034,10 @@ if uploaded_files:
     review_papers = merged_df[merged_df['Classification'].str.contains('Review', na=False)]
     
     if len(review_papers) > 0:
-        with st.expander(f"📝 Review (검토 필요) - 논문 목록 ({len(review_papers)}편)", expanded=False):
+        with st.expander(f"&#128221; Review (검토 필요) - 논문 목록 ({len(review_papers)}편)", expanded=False):
             st.markdown("""
             <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
-                <strong>📋 검토 안내:</strong> 아래 논문들은 라이브 스트리밍 연구와의 관련성을 추가 검토가 필요한 논문들입니다.
+                <strong>&#128203; 검토 안내:</strong> 아래 논문들은 라이브 스트리밍 연구와의 관련성을 추가 검토가 필요한 논문들입니다.
                 제목과 출판 정보를 확인하여 연구 범위에 포함할지 결정하세요.
             </div>
             """, unsafe_allow_html=True)
@@ -1099,7 +1066,7 @@ if uploaded_files:
             excel_data = excel_buffer.getvalue()
             
             st.download_button(
-                label="📊 검토 논문 목록 엑셀 다운로드",
+                label="&#128202; 검토 논문 목록 엑셀 다운로드",
                 data=excel_data,
                 file_name=f"review_papers_list_{len(review_papers)}편.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1154,10 +1121,10 @@ if uploaded_files:
     exclude_papers = merged_df[merged_df['Classification'].str.contains('Exclude', na=False)]
     
     if len(exclude_papers) > 0:
-        with st.expander(f"❌ Exclude (제외 대상) - 논문 목록 ({len(exclude_papers)}편)", expanded=False):
+        with st.expander(f"&#10060; Exclude (제외 대상) - 논문 목록 ({len(exclude_papers)}편)", expanded=False):
             st.markdown("""
             <div style="background: #f8d7da; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
-                <strong>🚫 제외 안내:</strong> 아래 논문들은 라이브 스트리밍 연구와 관련성이 낮아 최종 분석에서 제외되는 논문들입니다.
+                <strong>&#128683; 제외 안내:</strong> 아래 논문들은 라이브 스트리밍 연구와 관련성이 낮아 최종 분석에서 제외되는 논문들입니다.
                 기술적으로 비관련된 연구들이 포함되어 있습니다.
             </div>
             """, unsafe_allow_html=True)
@@ -1182,12 +1149,14 @@ if uploaded_files:
                 </div>
                 """, unsafe_allow_html=True)
 
-    # 병합 성과 강조 - 실제 데이터 기반
+    # 병합 성과 강조 - 실제 데이터 기반 (수정됨)
     success_info = []
     success_info.append(f"<strong>파일 통합:</strong> {successful_files}개의 WOS 파일을 하나로 병합")
     
     if duplicates_removed > 0:
         success_info.append(f"<strong>중복 제거:</strong> {duplicates_removed}편의 중복 논문 자동 감지 및 제거")
+    else:
+        success_info.append("<strong>중복 확인:</strong> 모든 논문이 고유하여 중복 제거 불필요")
     
     success_info.append(f"<strong>최종 규모:</strong> {total_papers:,}편의 논문으로 대규모 연구 분석 가능")
     success_info.append("<strong>SCIMAT 호환:</strong> 완벽한 WOS Plain Text 형식으로 100% 호환성 보장")
@@ -1196,7 +1165,7 @@ if uploaded_files:
     
     st.markdown(f"""
     <div class="info-panel">
-        <h4 style="color: #003875; margin-bottom: 12px;">🏆 병합 성과</h4>
+        <h4 style="color: #003875; margin-bottom: 12px;">&#127942; 병합 성과</h4>
         {success_content}
     </div>
     """, unsafe_allow_html=True)
@@ -1219,7 +1188,7 @@ if uploaded_files:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # 도움말 섹션
-with st.expander("❓ 자주 묻는 질문 (FAQ)"):
+with st.expander("&#10067; 자주 묻는 질문 (FAQ)"):
     st.markdown("""
     **Q: 여러 WOS 파일을 어떻게 한 번에 처리하나요?**
     A: WOS에서 여러 번 Plain Text 다운로드한 후, 모든 .txt 파일을 한 번에 업로드하면 자동으로 병합됩니다.
@@ -1247,9 +1216,9 @@ with st.expander("❓ 자주 묻는 질문 (FAQ)"):
     """)
 
 # SCIMAT 분석 가이드 추가
-with st.expander("📊 SCIMAT 완벽 분석 가이드"):
+with st.expander("&#128202; SCIMAT 완벽 분석 가이드"):
     st.markdown("""
-    ### 🎯 SCIMAT 분석 핵심 단계
+    ### &#127919; SCIMAT 분석 핵심 단계
     
     **1단계: 프로젝트 생성**
     - SCIMAT 실행 → File → New Project → 경로 설정
@@ -1285,13 +1254,13 @@ with st.expander("📊 SCIMAT 완벽 분석 가이드"):
       - 좌하단: Emerging/Declining Themes (신흥/쇠퇴 주제) - 중심성↓, 밀도↓
       - 우하단: Basic Themes (기초 주제) - 중심성↑, 밀도↓
     
-    ### 💡 성공적인 분석을 위한 팁
+    ### &#128161; 성공적인 분석을 위한 팁
     - **키워드 정리에 충분한 시간 투자** (분석 품질의 핵심!)
     - **Period 구분**: 너무 세분화하지 말고 의미있는 구간으로
     - **각 Period당 최소 50편** 이상으로 통계적 의미 확보
     - **설정값 조정**: 분야 특성에 따라 Maximum network size 조정 가능 (30-100)
     
-    ### 🔧 문제 해결
+    ### &#128295; 문제 해결
     - **임포트 안됨**: WOS 파일이 Plain Text인지 확인
     - **분석 중단**: Java 메모리 부족 시 재시작
     - **한글 깨짐**: 파일 인코딩 UTF-8로 변경
