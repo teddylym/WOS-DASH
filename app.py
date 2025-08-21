@@ -648,8 +648,10 @@ if uploaded_files:
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown('<div class="chart-title">📋 파일별 상세 상태</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="chart-container">
+        <div class="chart-title">📋 파일별 상세 상태</div>
+    """, unsafe_allow_html=True)
     
     col1, col2 = st.columns([0.6, 0.4])
     
@@ -672,7 +674,7 @@ if uploaded_files:
         error_count = len([s for s in file_status if s['status'] == 'ERROR'])
         
         st.markdown(f"""
-        <div class="metric-card">
+        <div class="metric-card" style="background: #f8f9fa;">
             <div class="metric-icon">✅</div>
             <div class="metric-value">{success_count}</div>
             <div class="metric-label">성공한 파일</div>
@@ -680,14 +682,14 @@ if uploaded_files:
         """, unsafe_allow_html=True)
         
         st.markdown(f"""
-        <div class="metric-card">
+        <div class="metric-card" style="background: #f8f9fa;">
             <div class="metric-icon">❌</div>
             <div class="metric-value">{error_count}</div>
             <div class="metric-label">실패한 파일</div>
         </div>
         """, unsafe_allow_html=True)
     
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # --- 데이터 품질 진단 결과 ---
     st.markdown("""
