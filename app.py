@@ -862,13 +862,6 @@ if uploaded_files:
             width=350, height=350
         ).configure_view(strokeWidth=0)
         st.altair_chart(chart, use_container_width=True)
-        
-        # 논문 분류 분포 제목을 원형 그래프 안에 표시
-        st.markdown("""
-        <div style="text-align: center; margin-top: -30px; margin-bottom: 20px;">
-            <h4 style="color: #212529; font-weight: 600; margin: 0; font-size: 1.1rem;">논문 분류 분포</h4>
-        </div>
-        """, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -998,40 +991,13 @@ if uploaded_files:
         <p style="color: #003875; margin: 4px 0;"><strong>SCIMAT 호환:</strong> 완벽한 WOS Plain Text 형식으로 100% 호환성 보장</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    st.success("🎖️ 연구 성과: 라이브 스트리밍 분야 최초의 대규모 종합적 지식 구조 진화 분석 (1996-2024)")
 
     # --- 최종 파일 다운로드 섹션 ---
-    st.markdown("<br><br>", unsafe_allow_html=True)
-
-    # SCIMAT 호환 파일 다운로드 - 강조된 대형 버튼
+    # SCIMAT 호환 파일 다운로드 - 기본 파란색 버튼
     text_data = convert_to_scimat_wos_format(df_final_output)
     
-    st.markdown("""
-    <style>
-    .stDownloadButton > button {
-        background: linear-gradient(135deg, #ff6b6b, #ee5a24) !important;
-        color: white !important;
-        font-size: 1.8rem !important;
-        font-weight: 800 !important;
-        padding: 24px 48px !important;
-        border-radius: 16px !important;
-        border: none !important;
-        box-shadow: 0 8px 32px rgba(255,107,107,0.5) !important;
-        transition: all 0.3s ease !important;
-        height: 80px !important;
-        width: 100% !important;
-    }
-    .stDownloadButton > button:hover {
-        transform: translateY(-4px) !important;
-        box-shadow: 0 12px 40px rgba(255,107,107,0.7) !important;
-        background: linear-gradient(135deg, #ee5a24, #ff6b6b) !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
     st.download_button(
-        label="⬇️ 통합 데이터 파일 다운로드 (SCIMAT 호환)",
+        label="Download",
         data=text_data,
         file_name="live_streaming_merged_scimat_ready.txt",
         mime="text/plain",
