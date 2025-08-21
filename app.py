@@ -627,7 +627,7 @@ with st.expander("📊 SCIMAT 완벽 분석 가이드"):
     - **한글 깨짐**: 파일 인코딩 UTF-8로 변경
     """)
 
-st.markdown("<br><br>", unsafe_allow_html=True)import streamlit as st
+st.markdown("<br><br>", unsafe_allow_html=True)
 import pandas as pd
 import altair as alt
 import io
