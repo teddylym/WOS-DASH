@@ -913,6 +913,40 @@ if uploaded_files:
             </div>
             """, unsafe_allow_html=True)
             
+            # Review 논문 엑셀 다운로드 버튼
+            review_excel_data = []
+            for idx, (_, paper) in enumerate(review_papers.iterrows(), 1):
+                review_excel_data.append({
+                    '번호': idx,
+                    '논문 제목': str(paper.get('TI', 'N/A')),
+                    '출판연도': str(paper.get('PY', 'N/A')),
+                    '저널명': str(paper.get('SO', 'N/A')),
+                    '저자': str(paper.get('AU', 'N/A')),
+                    '분류': str(paper.get('Classification', 'N/A')),
+                    '저자 키워드': str(paper.get('DE', 'N/A')),
+                    'WOS 키워드': str(paper.get('ID', 'N/A')),
+                    '초록': str(paper.get('AB', 'N/A'))
+                })
+            
+            review_excel_df = pd.DataFrame(review_excel_data)
+            
+            # 엑셀 파일 생성
+            excel_buffer = io.BytesIO()
+            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                review_excel_df.to_excel(writer, sheet_name='Review_Papers', index=False)
+            excel_data = excel_buffer.getvalue()
+            
+            st.download_button(
+                label="📊 검토 논문 목록 엑셀 다운로드",
+                data=excel_data,
+                file_name=f"review_papers_list_{len(review_papers)}편.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                type="secondary",
+                use_container_width=True
+            )
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
             for idx, (_, paper) in enumerate(review_papers.iterrows(), 1):
                 title = str(paper.get('TI', 'N/A'))
                 year = str(paper.get('PY', 'N/A'))
@@ -1026,29 +1060,22 @@ if uploaded_files:
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # 최종 사용 가이드와 성과 정보
-    st.markdown("""
-    <div class="success-panel">
-        <h4 style="color: #155724; margin-bottom: 16px;">🎯 SCIMAT 사용 완벽 가이드</h4>
-        <ol style="line-height: 1.8; color: #155724;">
-            <li><strong>파일 로드:</strong> SCIMAT → File → Open → 다운로드한 통합 .txt 파일 선택</li>
-            <li><strong>데이터 확인:</strong> Documents 탭에서 병합된 논문 목록 정상 로딩 확인</li>
-            <li><strong>Word Group 작업:</strong> Words → Words groups manager → 키워드 그룹핑</li>
-            <li><strong>자동 정제:</strong> Levenshtein Distance로 유사 키워드 자동 묶기</li>
-            <li><strong>수동 그룹핑:</strong> 라이브 스트리밍 특화 키워드 그룹 생성</li>
-            <li><strong>대규모 분석:</strong> {total_papers:,}편의 논문으로 종합적 지식 구조 진화 분석</li>
-        </ol>
-    </div>
-    """, unsafe_allow_html=True)
+    # 병합 성과 강조 - 실제 데이터 기반
+    success_info = []
+    success_info.append(f"<strong>파일 통합:</strong> {successful_files}개의 WOS 파일을 하나로 병합")
     
-    # 병합 성과 강조
+    if duplicates_removed > 0:
+        success_info.append(f"<strong>중복 제거:</strong> {duplicates_removed}편의 중복 논문 자동 감지 및 제거")
+    
+    success_info.append(f"<strong>최종 규모:</strong> {total_papers:,}편의 논문으로 대규모 연구 분석 가능")
+    success_info.append("<strong>SCIMAT 호환:</strong> 완벽한 WOS Plain Text 형식으로 100% 호환성 보장")
+    
+    success_content = "".join([f"<p style='color: #003875; margin: 4px 0;'>{info}</p>" for info in success_info])
+    
     st.markdown(f"""
     <div class="info-panel">
         <h4 style="color: #003875; margin-bottom: 12px;">🏆 병합 성과</h4>
-        <p style="color: #003875; margin: 4px 0;"><strong>파일 통합:</strong> {successful_files}개의 500개 단위 WOS 파일을 하나로 병합</p>
-        {"<p style='color: #003875; margin: 4px 0;'><strong>중복 제거:</strong> " + str(duplicates_removed) + "편의 중복 논문 자동 감지 및 제거</p>" if duplicates_removed > 0 else "<p style='color: #003875; margin: 4px 0;'><strong>데이터 품질:</strong> 모든 논문이 고유하여 중복 없음</p>"}
-        <p style="color: #003875; margin: 4px 0;"><strong>최종 규모:</strong> {total_papers:,}편의 논문으로 대규모 연구 분석 가능</p>
-        <p style="color: #003875; margin: 4px 0;"><strong>SCIMAT 호환:</strong> 완벽한 WOS Plain Text 형식으로 100% 호환성 보장</p>
+        {success_content}
     </div>
     """, unsafe_allow_html=True)
 
