@@ -785,27 +785,6 @@ st.markdown("""
         SCIMAT Edition
     </p>
     <div style="width: 120px; height: 4px; background-color: rgba(255,255,255,0.3); margin: 2.5rem auto; border-radius: 2px;"></div>
-    
-    <!-- 중앙 하단 한양대 로고 (반투명) -->
-    <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); opacity: 0.12;">
-        <svg viewBox="0 0 200 200" width="80" height="80">
-            <circle cx="100" cy="100" r="95" fill="rgba(255,255,255,0.9)" stroke="rgba(255,255,255,0.9)" stroke-width="10"/>
-            <circle cx="100" cy="100" r="75" fill="rgba(255,255,255,0.1)"/>
-            <text x="100" y="60" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="rgba(255,255,255,0.9)">HANYANG</text>
-            <text x="100" y="80" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="rgba(255,255,255,0.9)">UNIVERSITY</text>
-            <text x="100" y="110" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="rgba(255,255,255,0.9)">한양</text>
-            <text x="100" y="150" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="rgba(255,255,255,0.9)">1939</text>
-            <!-- 월계수 장식 -->
-            <g stroke="rgba(255,255,255,0.7)" stroke-width="2" fill="none">
-                <!-- 왼쪽 월계수 -->
-                <path d="M30,130 Q35,125 40,130 Q45,135 50,130 Q55,125 60,130"/>
-                <path d="M25,140 Q30,135 35,140 Q40,145 45,140 Q50,135 55,140"/>
-                <!-- 오른쪽 월계수 -->
-                <path d="M140,130 Q145,125 150,130 Q155,135 160,130 Q165,125 170,130"/>
-                <path d="M145,140 Q150,135 155,140 Q160,145 165,140 Q170,135 175,140"/>
-            </g>
-        </svg>
-    </div>
 </div>
 """, unsafe_allow_html=True)
 
