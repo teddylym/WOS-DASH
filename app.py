@@ -758,10 +758,15 @@ def convert_to_scimat_wos_format(df_to_convert):
 st.markdown("""
 <div style="position: relative; text-align: center; padding: 3rem 0 4rem 0; background: linear-gradient(135deg, #0064ff, #0050cc); color: white; border-radius: 24px; margin-bottom: 2rem; box-shadow: 0 8px 32px rgba(0,100,255,0.15); overflow: hidden;">
     <div style="position: absolute; top: 0; right: 0; width: 200px; height: 200px; background: rgba(255,255,255,0.05); border-radius: 50%; transform: translate(60px, -60px);"></div>
-    <div style="position: absolute; top: 1.5rem; left: 2rem; color: white;">
-        <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px; letter-spacing: 0.5px;">HANYANG UNIVERSITY</div>
-        <div style="font-size: 12px; opacity: 0.9; font-weight: 500;">Technology Management Research</div>
-        <div style="font-size: 11px; opacity: 0.8; margin-top: 6px; font-weight: 400;">mot.hanyang.ac.kr</div>
+    <div style="position: absolute; top: 1.5rem; left: 2rem; color: white; display: flex; align-items: center; gap: 12px;">
+        <div>
+            <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px; letter-spacing: 0.5px;">HANYANG UNIVERSITY</div>
+            <div style="font-size: 12px; opacity: 0.9; font-weight: 500;">Technology Management Research</div>
+            <div style="font-size: 11px; opacity: 0.8; margin-top: 6px; font-weight: 400;">mot.hanyang.ac.kr</div>
+        </div>
+        <img src="https://www.hanyang.ac.kr/sites/hanyang/images/layout/logo.png" 
+             alt="한양대학교 로고" 
+             style="width: 45px; height: 45px; opacity: 0.7; filter: brightness(0) invert(1);">
     </div>
     <div style="position: absolute; top: 1.5rem; right: 2rem; text-align: right; color: rgba(255,255,255,0.9); font-size: 13px;">
         <p style="margin: 0; font-weight: 600;">Developed by: 임태경 (Teddy Lym)</p>
@@ -773,6 +778,13 @@ st.markdown("""
         SCIMAT Edition
     </p>
     <div style="width: 120px; height: 4px; background-color: rgba(255,255,255,0.3); margin: 2.5rem auto; border-radius: 2px;"></div>
+    
+    <!-- 중앙 하단 한양대 로고 (반투명) -->
+    <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); opacity: 0.15;">
+        <img src="https://www.hanyang.ac.kr/sites/hanyang/images/layout/logo.png" 
+             alt="한양대학교 로고" 
+             style="width: 80px; height: 80px; filter: brightness(0) invert(1);">
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
