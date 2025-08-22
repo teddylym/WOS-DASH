@@ -764,9 +764,16 @@ st.markdown("""
             <div style="font-size: 12px; opacity: 0.9; font-weight: 500;">Technology Management Research</div>
             <div style="font-size: 11px; opacity: 0.8; margin-top: 6px; font-weight: 400;">mot.hanyang.ac.kr</div>
         </div>
-        <img src="https://www.hanyang.ac.kr/sites/hanyang/images/layout/logo.png" 
-             alt="한양대학교 로고" 
-             style="width: 45px; height: 45px; opacity: 0.7; filter: brightness(0) invert(1);">
+        <div style="width: 45px; height: 45px; opacity: 0.7; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 8px;">
+            <svg viewBox="0 0 200 200" width="32" height="32">
+                <circle cx="100" cy="100" r="95" fill="#1e4a73" stroke="#1e4a73" stroke-width="10"/>
+                <circle cx="100" cy="100" r="75" fill="white"/>
+                <text x="100" y="60" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1e4a73">HANYANG</text>
+                <text x="100" y="80" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1e4a73">UNIVERSITY</text>
+                <text x="100" y="110" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#1e4a73">한양</text>
+                <text x="100" y="150" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#1e4a73">1939</text>
+            </svg>
+        </div>
     </div>
     <div style="position: absolute; top: 1.5rem; right: 2rem; text-align: right; color: rgba(255,255,255,0.9); font-size: 13px;">
         <p style="margin: 0; font-weight: 600;">Developed by: 임태경 (Teddy Lym)</p>
@@ -780,10 +787,24 @@ st.markdown("""
     <div style="width: 120px; height: 4px; background-color: rgba(255,255,255,0.3); margin: 2.5rem auto; border-radius: 2px;"></div>
     
     <!-- 중앙 하단 한양대 로고 (반투명) -->
-    <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); opacity: 0.15;">
-        <img src="https://www.hanyang.ac.kr/sites/hanyang/images/layout/logo.png" 
-             alt="한양대학교 로고" 
-             style="width: 80px; height: 80px; filter: brightness(0) invert(1);">
+    <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); opacity: 0.12;">
+        <svg viewBox="0 0 200 200" width="80" height="80">
+            <circle cx="100" cy="100" r="95" fill="rgba(255,255,255,0.9)" stroke="rgba(255,255,255,0.9)" stroke-width="10"/>
+            <circle cx="100" cy="100" r="75" fill="rgba(255,255,255,0.1)"/>
+            <text x="100" y="60" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="rgba(255,255,255,0.9)">HANYANG</text>
+            <text x="100" y="80" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="rgba(255,255,255,0.9)">UNIVERSITY</text>
+            <text x="100" y="110" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="rgba(255,255,255,0.9)">한양</text>
+            <text x="100" y="150" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="rgba(255,255,255,0.9)">1939</text>
+            <!-- 월계수 장식 -->
+            <g stroke="rgba(255,255,255,0.7)" stroke-width="2" fill="none">
+                <!-- 왼쪽 월계수 -->
+                <path d="M30,130 Q35,125 40,130 Q45,135 50,130 Q55,125 60,130"/>
+                <path d="M25,140 Q30,135 35,140 Q40,145 45,140 Q50,135 55,140"/>
+                <!-- 오른쪽 월계수 -->
+                <path d="M140,130 Q145,125 150,130 Q155,135 160,130 Q165,125 170,130"/>
+                <path d="M145,140 Q150,135 155,140 Q160,145 165,140 Q170,135 175,140"/>
+            </g>
+        </svg>
     </div>
 </div>
 """, unsafe_allow_html=True)
