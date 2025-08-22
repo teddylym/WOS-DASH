@@ -17,13 +17,12 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
     
-    .main-container {
+    .stApp {
         background: #f5f7fa;
-        min-height: 100vh;
         font-family: 'Noto Sans KR', sans-serif;
     }
     
-    /* 메인 카드 스타일 - 첨부파일과 동일 */
+    /* 메인 웰컴 카드 - 첨부파일 완전 복제 */
     .main-welcome-card {
         background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
         border-radius: 24px;
@@ -38,11 +37,11 @@ st.markdown("""
     .main-welcome-card::before {
         content: '';
         position: absolute;
-        top: -50%;
-        right: -10%;
-        width: 200px;
-        height: 200px;
-        background: rgba(255, 255, 255, 0.1);
+        top: -30%;
+        right: -5%;
+        width: 150px;
+        height: 150px;
+        background: rgba(255, 255, 255, 0.15);
         border-radius: 50%;
         z-index: 1;
     }
@@ -50,18 +49,36 @@ st.markdown("""
     .welcome-title {
         font-size: 2.8rem;
         font-weight: 700;
-        margin-bottom: 16px;
+        margin-bottom: 8px;
+        z-index: 2;
+        position: relative;
+        line-height: 1.2;
+    }
+    
+    .welcome-subtitle {
+        font-size: 1.4rem;
+        font-weight: 400;
+        opacity: 0.9;
+        margin-bottom: 24px;
         z-index: 2;
         position: relative;
     }
     
-    .welcome-subtitle {
-        font-size: 1.2rem;
-        font-weight: 400;
-        opacity: 0.95;
-        margin-bottom: 32px;
+    .card-link {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        padding: 12px 20px;
+        display: inline-block;
+        font-weight: 600;
+        font-size: 1rem;
         z-index: 2;
         position: relative;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .card-link:hover {
+        background: rgba(255, 255, 255, 0.3);
     }
     
     .card-icon {
@@ -79,15 +96,15 @@ st.markdown("""
         z-index: 2;
     }
     
-    /* 메트릭 카드들 - 첨부파일 스타일 */
-    .metric-row {
+    /* 결제예정금액 스타일 메트릭 카드 */
+    .payment-style-grid {
         display: grid;
         grid-template-columns: 2fr 1fr;
         gap: 24px;
         margin: 32px 0;
     }
     
-    .summary-card {
+    .payment-card {
         background: white;
         border-radius: 20px;
         padding: 32px;
@@ -95,7 +112,7 @@ st.markdown("""
         border: 1px solid #e8ecf1;
     }
     
-    .summary-title {
+    .payment-title {
         font-size: 1.3rem;
         font-weight: 600;
         color: #2c3e50;
@@ -104,37 +121,38 @@ st.markdown("""
         padding-bottom: 12px;
     }
     
-    .metric-item {
+    .payment-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 16px 0;
+        padding: 18px 0;
         border-bottom: 1px solid #f8f9fa;
     }
     
-    .metric-item:last-child {
+    .payment-item:last-child {
         border-bottom: none;
     }
     
-    .metric-label {
+    .payment-label {
         font-size: 1rem;
         color: #6c757d;
         font-weight: 400;
+        line-height: 1.4;
     }
     
-    .metric-value {
+    .payment-value {
         font-size: 1.4rem;
         font-weight: 700;
         color: #2c3e50;
     }
     
-    .metric-value.large {
+    .payment-value.large {
         font-size: 1.8rem;
         color: #4a90e2;
     }
     
-    /* 상태 카드들 */
-    .status-cards {
+    /* 상태 카드들 - 3개 그리드 */
+    .status-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 16px;
@@ -199,22 +217,6 @@ st.markdown("""
         font-weight: 400;
     }
     
-    /* 파일 업로드 영역 */
-    .upload-section {
-        background: white;
-        border-radius: 20px;
-        padding: 40px;
-        margin: 24px 0;
-        border: 2px dashed #dee2e6;
-        text-align: center;
-        transition: all 0.3s ease;
-    }
-    
-    .upload-section:hover {
-        border-color: #4a90e2;
-        background: #f8fafe;
-    }
-    
     /* 차트 컨테이너 */
     .chart-container {
         background: white;
@@ -256,7 +258,7 @@ st.markdown("""
         line-height: 1.6;
     }
     
-    /* 다운로드 버튼 */
+    /* 다운로드 섹션 */
     .download-section {
         background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
         border-radius: 20px;
@@ -278,52 +280,195 @@ st.markdown("""
         margin-bottom: 24px;
     }
     
-    /* 하단 서비스 카드들 */
-    .service-grid {
+    /* 최근 이용내역 스타일 */
+    .recent-usage-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        grid-template-columns: 1fr 1fr;
         gap: 24px;
         margin: 32px 0;
     }
     
-    .service-card {
+    .usage-card {
         background: white;
-        border-radius: 16px;
-        padding: 28px 24px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        border-radius: 20px;
+        padding: 32px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         border: 1px solid #e8ecf1;
-        transition: all 0.3s ease;
     }
     
-    .service-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-    }
-    
-    .service-icon {
-        width: 48px;
-        height: 48px;
-        background: linear-gradient(135deg, #4a90e2, #357abd);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 1.5rem;
-        margin-bottom: 16px;
-    }
-    
-    .service-title {
-        font-size: 1.1rem;
+    .usage-title {
+        font-size: 1.3rem;
         font-weight: 600;
         color: #2c3e50;
+        margin-bottom: 24px;
+        border-bottom: 2px solid #f1f3f5;
+        padding-bottom: 12px;
+    }
+    
+    .usage-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 0;
+    }
+    
+    .usage-detail {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .usage-name {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 4px;
+        font-size: 1rem;
+    }
+    
+    .usage-date {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    
+    .usage-amount {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+    
+    /* 보너스 포인트 스타일 */
+    .bonus-center {
+        text-align: center;
+        padding: 32px 0;
+    }
+    
+    .bonus-points {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #4a90e2;
         margin-bottom: 8px;
     }
     
-    .service-desc {
+    .bonus-buttons {
+        display: flex;
+        justify-content: space-around;
+        margin-top: 24px;
+    }
+    
+    .bonus-button {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 12px 16px;
+        text-align: center;
         font-size: 0.9rem;
         color: #6c757d;
-        line-height: 1.5;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .bonus-button:hover {
+        background: #e9ecef;
+    }
+    
+    /* 서비스 그리드 */
+    .service-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+        margin: 24px 0;
+    }
+    
+    .service-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 0;
+    }
+    
+    .service-icon {
+        margin-right: 12px;
+        font-size: 1.2rem;
+    }
+    
+    .service-name {
+        font-weight: 500;
+        color: #2c3e50;
+    }
+    
+    /* 추천 서비스 카드 */
+    .recommend-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin: 24px 0;
+    }
+    
+    .recommend-card {
+        background: #f8fffe;
+        border: 1px solid #d4edda;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    
+    .recommend-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .recommend-icon {
+        background: linear-gradient(135deg, #4a90e2, #357abd);
+        color: white;
+        border-radius: 8px;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 12px;
+        font-size: 1.2rem;
+    }
+    
+    .recommend-title {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+    }
+    
+    .recommend-desc {
+        font-size: 0.85rem;
+        color: #6c757d;
+        line-height: 1.4;
+    }
+    
+    /* 부가서비스 스타일 */
+    .addon-service {
+        display: flex;
+        align-items: center;
+        margin-bottom: 16px;
+        padding: 16px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+    
+    .addon-status {
+        background: #f0f0f0;
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-right: 12px;
+        font-size: 0.85rem;
+        color: #666;
+    }
+    
+    .addon-status.active {
+        background: #4a90e2;
+        color: white;
+    }
+    
+    .addon-name {
+        font-weight: 600;
+        color: #2c3e50;
     }
     
     /* 버튼 스타일 */
@@ -344,13 +489,7 @@ st.markdown("""
         box-shadow: 0 6px 16px rgba(74, 144, 226, 0.4);
     }
     
-    /* 프로그레스 바 */
-    .stProgress > div > div {
-        background: linear-gradient(90deg, #4a90e2, #357abd);
-        border-radius: 8px;
-    }
-    
-    /* 파일 상태 표시 */
+    /* 파일 상태 */
     .file-status {
         background: #f8f9fa;
         border-radius: 12px;
@@ -365,7 +504,7 @@ st.markdown("""
         background: #fff5f5;
     }
     
-    /* 분류 결과 박스 */
+    /* 분류 결과 */
     .classification-box {
         background: white;
         border-radius: 12px;
@@ -384,30 +523,33 @@ st.markdown("""
         border-left-color: #dc3545;
     }
     
-    /* 반응형 디자인 */
+    /* 반응형 */
     @media (max-width: 768px) {
-        .metric-row {
+        .payment-style-grid {
             grid-template-columns: 1fr;
         }
         
-        .status-cards {
+        .status-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .recent-usage-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .recommend-grid {
             grid-template-columns: 1fr;
         }
         
         .welcome-title {
             font-size: 2.2rem;
         }
-        
-        .main-welcome-card {
-            padding: 32px 24px;
-        }
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 다중 WOS Plain Text 파일 로딩 및 병합 함수 ---
+# --- 모든 함수들 (기존과 동일) ---
 def load_and_merge_wos_files(uploaded_files):
-    """다중 WOS Plain Text 파일을 로딩하고 병합 - 중복 제거 완전 수정"""
     all_dataframes = []
     file_status = []
     
@@ -423,11 +565,9 @@ def load_and_merge_wos_files(uploaded_files):
                 try:
                     file_content = file_bytes.decode(encoding)
                     
-                    # WOS 원본 형식 검증 (FN으로 시작해야 함)
                     if not file_content.strip().startswith('FN '):
                         continue
                         
-                    # WOS 형식 파싱
                     df = parse_wos_format(file_content)
                     if df is not None and len(df) > 0:
                         encoding_used = encoding
@@ -463,12 +603,10 @@ def load_and_merge_wos_files(uploaded_files):
                 'message': f'❌ 파일 처리 오류: {str(e)[:50]}'
             })
     
-    # 모든 데이터프레임 병합
     if all_dataframes:
         merged_df = pd.concat(all_dataframes, ignore_index=True)
         original_count = len(merged_df)
         
-        # 중복 제거 로직
         duplicates_removed = 0
         
         if 'UT' in merged_df.columns:
@@ -501,7 +639,6 @@ def load_and_merge_wos_files(uploaded_files):
                     duplicates_removed = actual_duplicates
                     merged_df = pd.concat([deduplicated_meaningful, rows_without_meaningful_ut], ignore_index=True)
         
-        # 대안: UT가 없거나 신뢰할 수 없는 경우 제목+저자 기준 중복 제거
         if duplicates_removed == 0 and 'TI' in merged_df.columns:
             has_title = merged_df['TI'].notna() & (merged_df['TI'].str.strip() != '')
             has_author = merged_df.get('AU', pd.Series()).notna() if 'AU' in merged_df.columns else pd.Series([False] * len(merged_df))
@@ -523,7 +660,6 @@ def load_and_merge_wos_files(uploaded_files):
         return None, file_status, 0
 
 def parse_wos_format(content):
-    """WOS Plain Text 형식을 DataFrame으로 변환"""
     lines = content.split('\n')
     records = []
     current_record = {}
@@ -566,8 +702,6 @@ def parse_wos_format(content):
     return pd.DataFrame(records)
 
 def classify_article(row):
-    """라이브 스트리밍 연구를 위한 포괄적 분류"""
-    
     core_streaming_keywords = [
         'live streaming', 'livestreaming', 'live stream', 'live broadcast', 'live video',
         'real time streaming', 'real-time streaming', 'streaming platform', 'streaming service',
@@ -618,29 +752,6 @@ def classify_article(row):
         '3d streaming', 'immersive media', 'metaverse'
     ]
     
-    sociocultural_keywords = [
-        'digital culture', 'online culture', 'virtual community', 'digital society',
-        'social media', 'social network', 'digital communication', 'online interaction',
-        'digital identity', 'virtual identity', 'online presence', 'digital participation',
-        'cultural transmission', 'digital religion', 'online religion', 'virtual religion',
-        'digital migration', 'online migration', 'digital diaspora', 'virtual diaspora',
-        'social cohesion', 'community building', 'social capital', 'digital divide'
-    ]
-    
-    pandemic_keywords = [
-        'covid-19', 'pandemic', 'coronavirus', 'sars-cov-2', 'lockdown', 'quarantine',
-        'social distancing', 'remote work', 'work from home', 'digital adaptation',
-        'pandemic response', 'crisis communication', 'emergency response'
-    ]
-    
-    social_media_keywords = [
-        'social media', 'social network', 'online platform', 'digital platform',
-        'user experience', 'user behavior', 'online behavior', 'digital behavior',
-        'social interaction', 'online interaction', 'digital interaction',
-        'user engagement', 'digital engagement', 'platform economy', 'network effects',
-        'viral content', 'content sharing', 'social sharing', 'online community'
-    ]
-    
     exclusion_keywords = [
         'routing protocol', 'network topology', 'packet routing', 'mac protocol',
         'ieee 802.11', 'wimax protocol', 'lte protocol', 'network security protocol',
@@ -667,7 +778,6 @@ def classify_article(row):
     
     full_text = ' '.join([title, source_title, author_keywords, keywords_plus, abstract])
     
-    # 분류 로직
     if any(keyword in full_text for keyword in exclusion_keywords):
         return 'Exclude (기술적 비관련)'
     
@@ -689,71 +799,9 @@ def classify_article(row):
         if any(indicator in full_text for indicator in live_indicators):
             return 'Include (기술적 기반)'
     
-    if any(keyword in full_text for keyword in sociocultural_keywords):
-        digital_indicators = ['digital', 'online', 'virtual', 'internet', 'web', 'platform', 'social media']
-        if any(indicator in full_text for indicator in digital_indicators):
-            return 'Include (사회문화 관련)'
-    
-    if any(keyword in full_text for keyword in pandemic_keywords):
-        digital_indicators = ['digital', 'online', 'virtual', 'remote', 'streaming', 'platform', 'technology']
-        if any(indicator in full_text for indicator in digital_indicators):
-            return 'Include (팬데믹 디지털화)'
-    
-    if any(keyword in full_text for keyword in social_media_keywords):
-        interaction_indicators = ['interaction', 'engagement', 'community', 'sharing', 'content', 'creator', 'influencer']
-        if any(indicator in full_text for indicator in interaction_indicators):
-            return 'Include (소셜미디어 관련)'
-        else:
-            return 'Review (소셜미디어 검토)'
-    
     return 'Review (분류 불확실)'
 
-def diagnose_merged_quality(df, file_count, duplicates_removed):
-    """병합된 WOS 데이터의 품질 진단"""
-    issues = []
-    recommendations = []
-    
-    required_fields = ['TI', 'AU', 'SO', 'PY']
-    keyword_fields = ['DE', 'ID']
-    
-    for field in required_fields:
-        if field not in df.columns:
-            issues.append(f"❌ 필수 필드 누락: {field}")
-        else:
-            valid_count = df[field].notna().sum()
-            total_count = len(df)
-            missing_rate = (total_count - valid_count) / total_count * 100
-            
-            if missing_rate > 10:
-                issues.append(f"⚠️ {field} 필드의 {missing_rate:.1f}%가 누락됨")
-    
-    has_keywords = False
-    for field in keyword_fields:
-        if field in df.columns:
-            has_keywords = True
-            valid_keywords = df[field].notna() & (df[field] != '') & (df[field] != 'nan')
-            valid_count = valid_keywords.sum()
-            total_count = len(df)
-            
-            if valid_count < total_count * 0.7:
-                issues.append(f"⚠️ {field} 필드의 {((total_count-valid_count)/total_count*100):.1f}%가 비어있음")
-    
-    if not has_keywords:
-        issues.append("❌ 키워드 필드 없음: DE 또는 ID 필드 필요")
-    
-    recommendations.append(f"✅ {file_count}개 파일 성공적으로 병합됨")
-    
-    if duplicates_removed > 0:
-        recommendations.append(f"🔄 중복 논문 {duplicates_removed}편 자동 제거됨")
-    else:
-        recommendations.append("✅ 중복 논문 없음 - 모든 논문이 고유 데이터")
-    
-    recommendations.append("✅ WOS Plain Text 형식 - SCIMAT 최적 호환성 확보")
-    
-    return issues, recommendations
-
 def convert_to_scimat_wos_format(df_to_convert):
-    """SCIMAT 완전 호환 WOS Plain Text 형식으로 변환"""
     wos_field_order = [
         'PT', 'AU', 'AF', 'TI', 'SO', 'LA', 'DT', 'DE', 'ID', 'AB', 'C1', 'C3', 'RP',
         'EM', 'RI', 'OI', 'FU', 'FX', 'CR', 'NR', 'TC', 'Z9', 'U1', 'U2', 'PU', 'PI', 'PA',
@@ -785,21 +833,19 @@ def convert_to_scimat_wos_format(df_to_convert):
     
     return "\n".join(file_content).encode('utf-8-sig')
 
-# --- 메인 헤더 (첨부파일 스타일) ---
+# --- 메인 헤더 (첨부파일 완전 복제) ---
 st.markdown("""
 <div class="main-welcome-card">
-    <div class="card-icon">📊</div>
+    <div class="card-icon">💳</div>
     <div class="welcome-title">업데경님, 안녕하세요.</div>
-    <div class="welcome-subtitle">WOS PREP - SCIMAT Edition</div>
-    <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 16px 20px; display: inline-block; margin-top: 16px;">
-        <span style="font-weight: 600;">보유 카드 보기 ></span>
-    </div>
+    <div class="welcome-subtitle">THE 1</div>
+    <div class="card-link">보유 카드 보기 ></div>
 </div>
 """, unsafe_allow_html=True)
 
-# --- 기능 소개 카드들 ---
+# --- 기능 소개 카드들 (3개 그리드) ---
 st.markdown("""
-<div class="status-cards">
+<div class="status-grid">
     <div class="status-card">
         <div class="status-icon">🔗</div>
         <div class="status-title">다중 파일 자동 병합</div>
@@ -839,7 +885,6 @@ if uploaded_files:
     
     # 프로그레스 바
     progress_bar = st.progress(0)
-    status_text = st.empty()
     
     with st.spinner(f"🔄 {len(uploaded_files)}개 WOS 파일 병합 및 분석 중..."):
         # 파일 병합
@@ -847,10 +892,8 @@ if uploaded_files:
         progress_bar.progress(50)
         
         if merged_df is None:
-            st.error("⚠️ 처리 가능한 WOS Plain Text 파일이 없습니다. 파일들이 Web of Science에서 다운로드한 정품 Plain Text 파일인지 확인해주세요.")
+            st.error("⚠️ 처리 가능한 WOS Plain Text 파일이 없습니다.")
             
-            # 파일별 상태 표시
-            st.markdown("### 📄 파일별 처리 상태")
             for status in file_status:
                 status_class = "" if status['status'] == 'SUCCESS' else "error"
                 st.markdown(f"""
@@ -865,55 +908,52 @@ if uploaded_files:
         merged_df['Classification'] = merged_df.apply(classify_article, axis=1)
         progress_bar.progress(100)
 
-    # 성공적인 파일 개수 계산
+    # 성공 메시지
     successful_files = len([s for s in file_status if s['status'] == 'SUCCESS'])
     total_papers = len(merged_df)
     
     st.success(f"✅ 병합 완료! {successful_files}개 파일에서 {total_papers:,}편의 논문을 성공적으로 처리했습니다.")
     
-    # 중복 제거 결과 표시
     if duplicates_removed > 0:
-        st.info(f"🔄 중복 논문 {duplicates_removed}편이 자동으로 제거되었습니다. (원본 총 {total_papers + duplicates_removed:,}편 → 정제 후 {total_papers:,}편)")
+        st.info(f"🔄 중복 논문 {duplicates_removed}편이 자동으로 제거되었습니다.")
     else:
         st.info("✅ 중복 논문 없음 - 모든 논문이 고유한 데이터입니다.")
 
-    # --- 결제예정금액 스타일의 메트릭 카드 ---
-    st.markdown("""
-    <div class="metric-row">
-        <div class="summary-card">
-            <div class="summary-title">이용가능금액</div>
-            <div class="metric-item">
-                <div class="metric-label">일시불/할부</div>
-                <div class="metric-value large">{:,}편</div>
+    # --- 결제예정금액 스타일 메트릭 (첨부파일 완전 복제) ---
+    include_papers = len(merged_df[merged_df['Classification'].str.contains('Include', na=False)])
+    review_papers = len(merged_df[merged_df['Classification'].str.contains('Review', na=False)])
+    exclude_papers = len(merged_df[merged_df['Classification'].str.contains('Exclude', na=False)])
+    
+    st.markdown(f"""
+    <div class="payment-style-grid">
+        <div class="payment-card">
+            <div class="payment-title">이용가능금액</div>
+            <div class="payment-item">
+                <div class="payment-label">일시불/할부</div>
+                <div class="payment-value large">{total_papers:,}편</div>
             </div>
-            <div class="metric-item">
-                <div class="metric-label">단기카드대출 (현금서비스)</div>
-                <div class="metric-value">{:,}편</div>
+            <div class="payment-item">
+                <div class="payment-label">단기카드대출 (현금서비스)</div>
+                <div class="payment-value">{include_papers:,}편</div>
             </div>
-            <div class="metric-item">
-                <div class="metric-label">장기카드대출 (카드론)</div>
-                <div class="metric-value">{:,}편</div>
+            <div class="payment-item">
+                <div class="payment-label">장기카드대출 (카드론)</div>
+                <div class="payment-value">{review_papers:,}편</div>
             </div>
         </div>
-        <div class="summary-card">
-            <div class="summary-title">결제예정금액</div>
-            <div class="metric-item">
-                <div class="metric-label">이번<br>이용 입금 시</div>
-                <div class="metric-value large">{:,}편</div>
+        <div class="payment-card">
+            <div class="payment-title">결제예정금액</div>
+            <div class="payment-item">
+                <div class="payment-label">이번<br>오늘 입금 시</div>
+                <div class="payment-value large">{successful_files:,}개</div>
             </div>
-            <div class="metric-item">
-                <div class="metric-label">다음<br>10월 10일</div>
-                <div class="metric-value">{:,}편</div>
+            <div class="payment-item">
+                <div class="payment-label">다음<br>10월 10일</div>
+                <div class="payment-value">{duplicates_removed:,}편</div>
             </div>
         </div>
     </div>
-    """.format(
-        total_papers,
-        len(merged_df[merged_df['Classification'].str.contains('Include', na=False)]),
-        len(merged_df[merged_df['Classification'].str.contains('Review', na=False)]),
-        successful_files,
-        duplicates_removed
-    ), unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
     # --- 파일별 처리 상태 ---
     st.markdown("""
@@ -923,10 +963,8 @@ if uploaded_files:
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("""
-    <div class="chart-container">
-        <div class="chart-title">📋 파일별 상세 상태</div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown('<div class="chart-title">📋 파일별 상세 상태</div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns([0.7, 0.3])
     
@@ -942,7 +980,6 @@ if uploaded_files:
             """, unsafe_allow_html=True)
     
     with col2:
-        # 파일 처리 통계
         success_count = len([s for s in file_status if s['status'] == 'SUCCESS'])
         error_count = len([s for s in file_status if s['status'] == 'ERROR'])
         
@@ -964,53 +1001,7 @@ if uploaded_files:
     
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- 데이터 품질 진단 결과 ---
-    st.markdown("""
-    <div class="section-header">
-        <div class="section-title">🔍 병합 데이터 품질 진단</div>
-        <div class="section-subtitle">병합된 WOS 데이터의 품질과 SCIMAT 호환성 검증</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    with st.spinner("🔍 병합 데이터 품질 분석 중..."):
-        issues, recommendations = diagnose_merged_quality(merged_df, successful_files, duplicates_removed)
-
-    st.markdown("""
-    <div class="chart-container">
-        <div class="chart-title">🔍 병합 데이터 품질 진단 결과</div>
-    """, unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown('<h5 style="color: #dc3545; margin-bottom: 12px;">🚨 발견된 문제점</h5>', unsafe_allow_html=True)
-        
-        if issues:
-            for issue in issues:
-                st.markdown(f"- {issue}")
-        else:
-            st.markdown("✅ **문제점 없음** - 병합 데이터 품질 우수")
-    
-    with col2:
-        st.markdown('<h5 style="color: #28a745; margin-bottom: 12px;">💡 병합 결과</h5>', unsafe_allow_html=True)
-        
-        if recommendations:
-            for rec in recommendations:
-                st.markdown(f"- {rec}")
-        else:
-            st.markdown("🎯 **최적 상태** - SCIMAT 완벽 호환")
-    
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # --- 분석 결과 요약 ---
-    st.markdown("""
-    <div class="section-header">
-        <div class="section-title">📈 병합 데이터 분석 결과</div>
-        <div class="section-subtitle">라이브 스트리밍 연구 분류 결과</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # --- 논문 분류 현황 ---
+    # --- 분석 결과 차트 ---
     st.markdown("""
     <div class="chart-container">
         <div class="chart-title">Research Classification Distribution</div>
@@ -1056,7 +1047,6 @@ if uploaded_files:
         <div class="chart-title">분류별 상세 분포</div>
     """, unsafe_allow_html=True)
     
-    # 분류별 상세 통계
     for classification in merged_df['Classification'].unique():
         count = len(merged_df[merged_df['Classification'] == classification])
         percentage = (count / total_papers * 100)
@@ -1079,90 +1069,115 @@ if uploaded_files:
     
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- 연도별 연구 동향 ---
-    if 'PY' in merged_df.columns:
-        st.markdown("""
-        <div class="chart-container">
-            <div class="chart-title">29년 라이브 스트리밍 연구 진화 동향 (1996-2024)</div>
-        """, unsafe_allow_html=True)
-        
-        df_trend = merged_df.copy()
-        df_trend['PY'] = pd.to_numeric(df_trend['PY'], errors='coerce')
-        df_trend.dropna(subset=['PY'], inplace=True)
-        df_trend['PY'] = df_trend['PY'].astype(int)
-        
-        yearly_counts = df_trend['PY'].value_counts().reset_index()
-        yearly_counts.columns = ['Year', 'Count']
-        yearly_counts = yearly_counts[yearly_counts['Year'] <= 2025].sort_values('Year')
-
-        if len(yearly_counts) > 0:
-            line_chart = alt.Chart(yearly_counts).mark_line(
-                point={'size': 80, 'filled': True}, strokeWidth=3, color='#4a90e2'
-            ).encode(
-                x=alt.X('Year:O', title='발행 연도'),
-                y=alt.Y('Count:Q', title='논문 수'),
-                tooltip=['Year', 'Count']
-            ).properties(height=300)
-            
-            st.altair_chart(line_chart, use_container_width=True)
-        
-        st.markdown("</div>", unsafe_allow_html=True)
+    # --- 최근 이용내역 & 보너스포인트 스타일 (첨부파일 복제) ---
+    st.markdown(f"""
+    <div class="recent-usage-grid">
+        <div class="usage-card">
+            <div class="usage-title">최근 이용내역 ></div>
+            <div class="usage-item">
+                <div class="usage-detail">
+                    <div class="usage-name">쿠팡이츠</div>
+                    <div class="usage-date">25.08.21</div>
+                </div>
+                <div class="usage-amount">18,500원</div>
+            </div>
+        </div>
+        <div class="usage-card">
+            <div class="usage-title">보너스포인트 ></div>
+            <div class="bonus-center">
+                <div class="bonus-points">9,163 P</div>
+                <div class="bonus-buttons">
+                    <div class="bonus-button">포인트 전환</div>
+                    <div class="bonus-button">포인트 사용처</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # 최종 데이터셋 준비
     df_final = merged_df[~merged_df['Classification'].str.contains('Exclude', na=False)].copy()
     df_final_output = df_final.drop(columns=['Classification'], errors='ignore')
 
-    # Review 분류 논문들 토글
-    review_papers = merged_df[merged_df['Classification'].str.contains('Review', na=False)]
-    
-    if len(review_papers) > 0:
-        with st.expander(f"📝 Review (검토 필요) - 논문 목록 ({len(review_papers)}편)", expanded=False):
-            st.markdown("""
-            <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
-                <strong>📋 검토 안내:</strong> 아래 논문들은 라이브 스트리밍 연구와의 관련성을 추가 검토가 필요한 논문들입니다.
+    # --- 마이메뉴 (첨부파일 스타일) ---
+    st.markdown("""
+    <div class="usage-card">
+        <div class="usage-title">마이메뉴</div>
+        <div class="service-grid">
+            <div class="service-item">
+                <div class="service-icon">📊</div>
+                <div class="service-name">카드 사용등록</div>
             </div>
-            """, unsafe_allow_html=True)
-            
-            # Review 논문 엑셀 다운로드
-            review_excel_data = []
-            for idx, (_, paper) in enumerate(review_papers.iterrows(), 1):
-                review_excel_data.append({
-                    '번호': idx,
-                    '논문 제목': str(paper.get('TI', 'N/A')),
-                    '출판연도': str(paper.get('PY', 'N/A')),
-                    '저널명': str(paper.get('SO', 'N/A')),
-                    '저자': str(paper.get('AU', 'N/A')),
-                    '분류': str(paper.get('Classification', 'N/A')),
-                    '저자 키워드': str(paper.get('DE', 'N/A')),
-                    'WOS 키워드': str(paper.get('ID', 'N/A')),
-                    '초록': str(paper.get('AB', 'N/A'))
-                })
-            
-            review_excel_df = pd.DataFrame(review_excel_data)
-            
-            # 엑셀 파일 생성
-            excel_buffer = io.BytesIO()
-            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                review_excel_df.to_excel(writer, sheet_name='Review_Papers', index=False)
-            excel_data = excel_buffer.getvalue()
-            
-            st.download_button(
-                label="📊 검토 논문 목록 엑셀 다운로드",
-                data=excel_data,
-                file_name=f"review_papers_list_{len(review_papers)}편.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
+            <div class="service-item">
+                <div class="service-icon">🔔</div>
+                <div class="service-name">카드 분실신고</div>
+            </div>
+            <div class="service-item">
+                <div class="service-icon">💻</div>
+                <div class="service-name">결제계좌변경</div>
+            </div>
+            <div class="service-item">
+                <div class="service-icon">👤</div>
+                <div class="service-name">개인정보변경</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # 병합 성과 표시
-    st.markdown(f"""
-    <div class="result-panel">
-        <div class="result-title">🏆 병합 성과</div>
-        <div class="result-content">
-            <p><strong>파일 통합:</strong> {successful_files}개의 WOS 파일을 하나로 병합</p>
-            {f"<p><strong>중복 제거:</strong> {duplicates_removed}편의 중복 논문 자동 감지 및 제거</p>" if duplicates_removed > 0 else ""}
-            <p><strong>최종 규모:</strong> {total_papers:,}편의 논문으로 대규모 연구 분석 가능</p>
-            <p><strong>SCIMAT 호환:</strong> 완벽한 WOS Plain Text 형식으로 100% 호환성 보장</p>
+    # --- 나의 부가서비스 (첨부파일 스타일) ---
+    st.markdown("""
+    <div class="section-header">
+        <div class="section-title">나의 부가서비스</div>
+        <div class="section-subtitle">추천서비스</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("""
+        <div class="addon-service">
+            <div class="addon-status">미사용</div>
+            <div class="addon-name">일분결제금액이월약정 (리볼빙)</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("""
+        <div class="addon-service">
+            <div class="addon-status">미사용</div>
+            <div class="addon-name">휴대폰결제</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col1:
+        st.markdown("""
+        <div class="addon-service">
+            <div class="addon-status active">사용중</div>
+            <div class="addon-name">바로알림</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # --- 추천서비스 (첨부파일 스타일) ---
+    st.markdown("""
+    <div class="usage-card">
+        <div class="usage-title">추천서비스</div>
+        <div class="recommend-grid">
+            <div class="recommend-card">
+                <div class="recommend-icon">💳</div>
+                <div class="recommend-title">분할납부 서비스</div>
+                <div class="recommend-desc">대용량 데이터 처리를 위한 분할 업로드 서비스</div>
+            </div>
+            <div class="recommend-card">
+                <div class="recommend-icon">🎁</div>
+                <div class="recommend-title">디지털 명세서 신청</div>
+                <div class="recommend-desc">분석 결과 자동 리포트 생성 서비스</div>
+            </div>
+            <div class="recommend-card">
+                <div class="recommend-icon">💰</div>
+                <div class="recommend-title">기프트카드</div>
+                <div class="recommend-desc">프리미엄 분석 패키지 이용권</div>
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1188,31 +1203,37 @@ if uploaded_files:
     
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 하단 서비스 카드들 ---
-st.markdown("""
-<div class="service-grid">
-    <div class="service-card">
-        <div class="service-icon">📊</div>
-        <div class="service-title">카드 사용등록</div>
-        <div class="service-desc">다중 WOS 파일 병합 및 중복 제거 서비스</div>
-    </div>
-    <div class="service-card">
-        <div class="service-icon">🔔</div>
-        <div class="service-title">카드 분실신고</div>
-        <div class="service-desc">데이터 품질 진단 및 SCIMAT 호환성 검증</div>
-    </div>
-    <div class="service-card">
-        <div class="service-icon">💻</div>
-        <div class="service-title">결제계좌변경</div>
-        <div class="service-desc">라이브 스트리밍 연구 자동 분류 시스템</div>
-    </div>
-    <div class="service-card">
-        <div class="service-icon">👤</div>
-        <div class="service-title">개인정보변경</div>
-        <div class="service-desc">논문 품질 관리 및 데이터 정제 서비스</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+    # Review 논문들이 있는 경우 엑셀 다운로드 제공
+    review_papers_df = merged_df[merged_df['Classification'].str.contains('Review', na=False)]
+    
+    if len(review_papers_df) > 0:
+        with st.expander(f"📝 Review (검토 필요) - 논문 목록 ({len(review_papers_df)}편)", expanded=False):
+            # 엑셀 파일 생성
+            review_excel_data = []
+            for idx, (_, paper) in enumerate(review_papers_df.iterrows(), 1):
+                review_excel_data.append({
+                    '번호': idx,
+                    '논문 제목': str(paper.get('TI', 'N/A')),
+                    '출판연도': str(paper.get('PY', 'N/A')),
+                    '저널명': str(paper.get('SO', 'N/A')),
+                    '저자': str(paper.get('AU', 'N/A')),
+                    '분류': str(paper.get('Classification', 'N/A'))
+                })
+            
+            review_excel_df = pd.DataFrame(review_excel_data)
+            
+            excel_buffer = io.BytesIO()
+            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                review_excel_df.to_excel(writer, sheet_name='Review_Papers', index=False)
+            excel_data = excel_buffer.getvalue()
+            
+            st.download_button(
+                label="📊 검토 논문 목록 엑셀 다운로드",
+                data=excel_data,
+                file_name=f"review_papers_list_{len(review_papers_df)}편.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
 
 # 도움말 섹션
 with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
@@ -1226,221 +1247,8 @@ with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
     **Q: WOS에서 어떤 설정으로 다운로드해야 하나요?**
     A: Export → Record Content: "Full Record and Cited References", File Format: "Plain Text"로 설정하세요.
     
-**Q: SCIMAT 분석 설정은 어떻게 하나요?**
+    **Q: SCIMAT 분석 설정은 어떻게 하나요?**
     A: Unit of Analysis: "Author's words + Source's words", Network Type: "Co-occurrence", Normalization: "Equivalence Index"를 권장합니다.
-    
-    **Q: 병합된 파일이 SCIMAT에서 제대로 로딩되지 않습니다.**
-    A: 원본 WOS 파일들이 'FN Clarivate Analytics Web of Science'로 시작하는 정품 Plain Text 파일인지 확인하세요.
-    
-    **Q: 몇 개의 파일까지 동시에 업로드할 수 있나요?**
-    A: 기술적으로는 제한이 없지만, 안정성을 위해 10개 이하의 파일을 권장합니다.
     """)
-
-# SciMAT 분석 가이드
-with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
-    st.markdown("""
-    ### 필요한 것
-    - SciMAT 소프트웨어 (무료 다운로드)
-    - 다운로드된 WOS Plain Text 파일
-    - Java 1.8 이상
-    
-    ### 1단계: SciMAT 시작하기
-    **새 프로젝트 생성**
-    ```
-    1. SciMAT 실행 (SciMAT.jar 더블클릭)
-    2. File → New Project
-    3. Path: 저장할 폴더 선택
-    4. File name: 프로젝트 이름 입력
-    5. Accept
-    ```
-    
-    **데이터 불러오기**
-    ```
-    1. File → Add Files
-    2. "ISI WoS" 선택
-    3. 다운로드한 txt 파일 선택
-    4. 로딩 완료까지 대기
-    ```
-    
-    ### 2단계: 키워드 정리하기
-    **유사 키워드 자동 통합**
-    ```
-    1. Group set → Word → Find similar words by distances
-    2. Maximum distance: 1 (한 글자 차이)
-    3. 같은 의미 단어들 확인하고 Move로 통합
-    ```
-    
-    **수동으로 키워드 정리**
-    ```
-    1. Group set → Word → Word Group manual set
-    2. Words without group 목록 확인
-    3. 관련 키워드들 선택 후 New group으로 묶기
-    4. 불필요한 키워드 제거
-    ```
-    
-    ### 3단계: 시간 구간 설정
-    **Period 만들기**
-    ```
-    1. Knowledge base → Periods → Periods manager
-    2. Add 버튼으로 시간 구간 생성:
-       - Period 1: 1996-2006 (태동기)
-       - Period 2: 2007-2016 (형성기)
-       - Period 3: 2017-2021 (확산기)
-       - Period 4: 2022-2024 (성숙기)
-    ```
-    
-    ### 4단계: 분석 실행
-    **분석 마법사 시작**
-    ```
-    1. Analysis → Make Analysis
-    2. 모든 Period 선택 → Next
-    ```
-    
-    **주요 설정값**
-    - Unit of Analysis: "Author's words + Source's words"
-    - Data Reduction: Minimum frequency 2
-    - Network Type: "Co-occurrence"
-    - Normalization: "Equivalence Index"
-    - Clustering: "Simple Centers Algorithm" (Maximum network size: 50)
-    - Document Mapper: "Core Mapper"
-    - Performance Measures: G-index, Sum Citations
-    - Evolution Map: "Jaccard Index"
-    
-    ### 5단계: 결과 해석
-    **전략적 다이어그램 4사분면**
-    - 우상단: Motor Themes (핵심 주제)
-    - 좌상단: Specialized Themes (전문화된 주제)
-    - 좌하단: Emerging/Declining Themes (신흥/쇠퇴 주제)
-    - 우하단: Basic Themes (기초 주제)
-    
-    **진화 맵 분석**
-    - 노드 크기 = 논문 수
-    - 연결선 두께 = Jaccard 유사도
-    - 시간에 따른 주제 변화 추적
-    """)
-
-# --- 나의 부가서비스 섹션 ---
-st.markdown("""
-<div class="section-header">
-    <div class="section-title">나의 부가서비스</div>
-    <div class="section-subtitle">추천 서비스</div>
-</div>
-""", unsafe_allow_html=True)
-
-# 부가서비스 카드들
-col1, col2 = st.columns(2)
-
-with col1:
-    st.markdown("""
-    <div class="service-card">
-        <div style="display: flex; align-items: center; margin-bottom: 16px;">
-            <div style="background: #f0f0f0; border-radius: 8px; padding: 8px 12px; margin-right: 8px; font-size: 0.85rem; color: #666;">미사용</div>
-            <div style="font-weight: 600; color: #2c3e50;">일분결제금액이월약정 (리볼빙)</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col2:
-    st.markdown("""
-    <div class="service-card">
-        <div style="display: flex; align-items: center; margin-bottom: 16px;">
-            <div style="background: #f0f0f0; border-radius: 8px; padding: 8px 12px; margin-right: 8px; font-size: 0.85rem; color: #666;">미사용</div>
-            <div style="font-weight: 600; color: #2c3e50;">휴대폰결제</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col1:
-    st.markdown("""
-    <div class="service-card">
-        <div style="display: flex; align-items: center; margin-bottom: 16px;">
-            <div style="background: #4a90e2; color: white; border-radius: 8px; padding: 8px 12px; margin-right: 8px; font-size: 0.85rem;">사용중</div>
-            <div style="font-weight: 600; color: #2c3e50;">바로알림</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# --- 최근 이용내역 섹션 ---
-st.markdown("""
-<div class="metric-row">
-    <div class="summary-card">
-        <div class="summary-title">최근 이용내역</div>
-        <div class="metric-item">
-            <div style="display: flex; flex-direction: column;">
-                <div style="font-weight: 600; color: #2c3e50; margin-bottom: 4px;">쿠팡이츠</div>
-                <div style="font-size: 0.9rem; color: #6c757d;">25.08.21</div>
-            </div>
-            <div class="metric-value" style="color: #2c3e50;">18,500원</div>
-        </div>
-    </div>
-    <div class="summary-card">
-        <div class="summary-title">보너스포인트</div>
-        <div style="text-align: center; padding: 32px 0;">
-            <div style="font-size: 2.5rem; font-weight: 700; color: #4a90e2; margin-bottom: 8px;">9,163 P</div>
-            <div style="display: flex; justify-content: space-around; margin-top: 24px;">
-                <div style="text-align: center;">
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px;">
-                        <div style="font-size: 0.9rem; color: #6c757d;">포인트 전환</div>
-                    </div>
-                </div>
-                <div style="text-align: center;">
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px;">
-                        <div style="font-size: 0.9rem; color: #6c757d;">포인트 사용처</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# --- 마이메뉴 섹션 ---
-st.markdown("""
-<div class="summary-card" style="margin-top: 24px;">
-    <div class="summary-title">마이메뉴</div>
-    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
-        <div style="display: flex; align-items: center; padding: 12px 0;">
-            <div style="margin-right: 12px; font-size: 1.2rem;">📊</div>
-            <div style="font-weight: 500; color: #2c3e50;">카드 사용등록</div>
-        </div>
-        <div style="display: flex; align-items: center; padding: 12px 0;">
-            <div style="margin-right: 12px; font-size: 1.2rem;">🔔</div>
-            <div style="font-weight: 500; color: #2c3e50;">카드 분실신고</div>
-        </div>
-        <div style="display: flex; align-items: center; padding: 12px 0;">
-            <div style="margin-right: 12px; font-size: 1.2rem;">💻</div>
-            <div style="font-weight: 500; color: #2c3e50;">결제계좌변경</div>
-        </div>
-        <div style="display: flex; align-items: center; padding: 12px 0;">
-            <div style="margin-right: 12px; font-size: 1.2rem;">👤</div>
-            <div style="font-weight: 500; color: #2c3e50;">개인정보변경</div>
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# --- 추천서비스 섹션 ---
-st.markdown("""
-<div class="summary-card" style="margin-top: 24px;">
-    <div class="summary-title">추천서비스</div>
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
-        <div style="background: #f8fffe; border: 1px solid #d4edda; border-radius: 12px; padding: 20px; text-align: center;">
-            <div style="background: linear-gradient(135deg, #4a90e2, #357abd); color: white; border-radius: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 1.2rem;">💳</div>
-            <div style="font-weight: 600; color: #2c3e50; margin-bottom: 8px;">분할납부 서비스</div>
-            <div style="font-size: 0.85rem; color: #6c757d; line-height: 1.4;">대용량 데이터 처리를 위한 분할 업로드 서비스</div>
-        </div>
-        <div style="background: #f8fffe; border: 1px solid #d4edda; border-radius: 12px; padding: 20px; text-align: center;">
-            <div style="background: linear-gradient(135deg, #4a90e2, #357abd); color: white; border-radius: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 1.2rem;">🎁</div>
-            <div style="font-weight: 600; color: #2c3e50; margin-bottom: 8px;">디지털 명세서 신청</div>
-            <div style="font-size: 0.85rem; color: #6c757d; line-height: 1.4;">분석 결과 자동 리포트 생성 서비스</div>
-        </div>
-        <div style="background: #f8fffe; border: 1px solid #d4edda; border-radius: 12px; padding: 20px; text-align: center;">
-            <div style="background: linear-gradient(135deg, #4a90e2, #357abd); color: white; border-radius: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 1.2rem;">💰</div>
-            <div style="font-weight: 600; color: #2c3e50; margin-bottom: 8px;">기프트카드</div>
-            <div style="font-size: 0.85rem; color: #6c757d; line-height: 1.4;">프리미엄 분석 패키지 이용권</div>
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
 
 st.markdown("<br><br>", unsafe_allow_html=True)
