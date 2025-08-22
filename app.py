@@ -758,22 +758,10 @@ def convert_to_scimat_wos_format(df_to_convert):
 st.markdown("""
 <div style="position: relative; text-align: center; padding: 3rem 0 4rem 0; background: linear-gradient(135deg, #0064ff, #0050cc); color: white; border-radius: 24px; margin-bottom: 2rem; box-shadow: 0 8px 32px rgba(0,100,255,0.15); overflow: hidden;">
     <div style="position: absolute; top: 0; right: 0; width: 200px; height: 200px; background: rgba(255,255,255,0.05); border-radius: 50%; transform: translate(60px, -60px);"></div>
-    <div style="position: absolute; top: 1.5rem; left: 2rem; color: white; display: flex; align-items: center; gap: 12px;">
-        <div>
-            <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px; letter-spacing: 0.5px;">HANYANG UNIVERSITY</div>
-            <div style="font-size: 12px; opacity: 0.9; font-weight: 500;">Technology Management Research</div>
-            <div style="font-size: 11px; opacity: 0.8; margin-top: 6px; font-weight: 400;">mot.hanyang.ac.kr</div>
-        </div>
-        <div style="width: 45px; height: 45px; opacity: 0.7; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 8px;">
-            <svg viewBox="0 0 200 200" width="32" height="32">
-                <circle cx="100" cy="100" r="95" fill="#1e4a73" stroke="#1e4a73" stroke-width="10"/>
-                <circle cx="100" cy="100" r="75" fill="white"/>
-                <text x="100" y="60" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1e4a73">HANYANG</text>
-                <text x="100" y="80" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1e4a73">UNIVERSITY</text>
-                <text x="100" y="110" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#1e4a73">한양</text>
-                <text x="100" y="150" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#1e4a73">1939</text>
-            </svg>
-        </div>
+    <div style="position: absolute; top: 1.5rem; left: 2rem; color: white;">
+        <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px; letter-spacing: 0.5px;">HANYANG UNIVERSITY</div>
+        <div style="font-size: 12px; opacity: 0.9; font-weight: 500;">Technology Management Research</div>
+        <div style="font-size: 11px; opacity: 0.8; margin-top: 6px; font-weight: 400;">mot.hanyang.ac.kr</div>
     </div>
     <div style="position: absolute; top: 1.5rem; right: 2rem; text-align: right; color: rgba(255,255,255,0.9); font-size: 13px;">
         <p style="margin: 0; font-weight: 600;">Developed by: 임태경 (Teddy Lym)</p>
