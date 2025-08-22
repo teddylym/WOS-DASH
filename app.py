@@ -1173,4 +1173,453 @@ if uploaded_files:
         </div>
         """, unsafe_allow_html=True)
     
-    with col
+    with col3:
+        review_count = len(merged_df[merged_df['Classification'].str.contains('Review', na=False)])
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">🔍</div>
+            <div class="metric-value">{review_count:,}</div>
+            <div class="metric-label">검토 대상</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        exclude_count = len(exclude_papers)
+        # 제외 박스 - 다른 박스들과 동일한 크기 및 스타일
+        col4_inner1, col4_inner2 = st.columns([3, 1])
+        
+        with col4_inner1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-icon">❌</div>
+                <div class="metric-value">{exclude_count:,}</div>
+                <div class="metric-label">제외 대상</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4_inner2:
+            st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)  # 상단 여백
+            if st.button(
+                "📋", 
+                key="exclude_toggle_button",
+                help="제외된 논문 목록 보기"
+            ):
+                st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
+
+    # 제외 박스 클릭 시 상세 정보 토글
+    if st.session_state.get('show_exclude_details', False) and len(exclude_papers) > 0:
+        st.markdown("""
+        <div style="background: #fef2f2; padding: 20px; border-radius: 16px; margin: 20px 0; border: 1px solid #ef4444;">
+            <h4 style="color: #dc2626; margin-bottom: 16px; font-weight: 700;">❌ 제외된 논문 상세 목록</h4>
+            <p style="color: #dc2626; margin-bottom: 20px; font-weight: 500;">
+                <strong>🚫 제외 사유:</strong> 라이브 스트리밍 연구와 관련성이 낮은 기술적 비관련 연구들입니다.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        for idx, (_, paper) in enumerate(exclude_papers.head(10).iterrows(), 1):  # 최대 10개만 표시
+            title = str(paper.get('TI', 'N/A'))[:100] + "..." if len(str(paper.get('TI', 'N/A'))) > 100 else str(paper.get('TI', 'N/A'))
+            year = str(paper.get('PY', 'N/A'))
+            source = str(paper.get('SO', 'N/A'))[:50] + "..." if len(str(paper.get('SO', 'N/A'))) > 50 else str(paper.get('SO', 'N/A'))
+            
+            st.markdown(f"""
+            <div style="margin: 12px 0; padding: 16px; background: white; border-left: 4px solid #ef4444; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                    <span style="background: #ef4444; color: white; padding: 4px 12px; border-radius: 16px; font-size: 12px; margin-right: 12px; font-weight: 600;">제외</span>
+                    <span style="color: #8b95a1; font-size: 14px;">#{idx}</span>
+                </div>
+                <div style="font-weight: 600; color: #191f28; margin-bottom: 6px; line-height: 1.5;">
+                    {title}
+                </div>
+                <div style="font-size: 14px; color: #8b95a1;">
+                    <strong>연도:</strong> {year} | <strong>저널:</strong> {source}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        if len(exclude_papers) > 10:
+            st.markdown(f"<p style='color: #8b95a1; text-align: center; margin: 20px 0; font-weight: 500;'>... 외 {len(exclude_papers) - 10}편 더</p>", unsafe_allow_html=True)
+
+    # --- 분류별 논문 상세 목록 (Review만 토글로 유지) ---
+    # Review 분류 논문들 토글
+    review_papers = merged_df[merged_df['Classification'].str.contains('Review', na=False)]
+    
+    if len(review_papers) > 0:
+        with st.expander(f"🔍 Review (검토 필요) - 논문 목록 ({len(review_papers)}편)", expanded=False):
+            st.markdown("""
+            <div style="background: #fffbeb; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #f59e0b;">
+                <strong style="color: #92400e;">📋 검토 안내:</strong> 아래 논문들은 라이브 스트리밍 연구와의 관련성을 추가 검토가 필요한 논문들입니다.
+                제목과 출판 정보를 확인하여 연구 범위에 포함할지 결정하세요.
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Review 논문 엑셀 다운로드 버튼
+            review_excel_data = []
+            for idx, (_, paper) in enumerate(review_papers.iterrows(), 1):
+                review_excel_data.append({
+                    '번호': idx,
+                    '논문 제목': str(paper.get('TI', 'N/A')),
+                    '출판연도': str(paper.get('PY', 'N/A')),
+                    '저널명': str(paper.get('SO', 'N/A')),
+                    '저자': str(paper.get('AU', 'N/A')),
+                    '분류': str(paper.get('Classification', 'N/A')),
+                    '저자 키워드': str(paper.get('DE', 'N/A')),
+                    'WOS 키워드': str(paper.get('ID', 'N/A')),
+                    '초록': str(paper.get('AB', 'N/A'))
+                })
+            
+            review_excel_df = pd.DataFrame(review_excel_data)
+            
+            # 엑셀 파일 생성
+            excel_buffer = io.BytesIO()
+            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                review_excel_df.to_excel(writer, sheet_name='Review_Papers', index=False)
+            excel_data = excel_buffer.getvalue()
+            
+            st.download_button(
+                label="📊 검토 논문 목록 엑셀 다운로드",
+                data=excel_data,
+                file_name=f"review_papers_list_{len(review_papers)}편.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                type="secondary",
+                use_container_width=True
+            )
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            for idx, (_, paper) in enumerate(review_papers.iterrows(), 1):
+                title = str(paper.get('TI', 'N/A'))
+                year = str(paper.get('PY', 'N/A'))
+                source = str(paper.get('SO', 'N/A'))
+                classification = str(paper.get('Classification', 'N/A'))
+                
+                # 분류별 색상 설정
+                if '불확실' in classification:
+                    badge_color = "#8b5cf6"
+                    badge_text = "분류 불확실"
+                elif '소셜미디어' in classification:
+                    badge_color = "#06b6d4"
+                    badge_text = "소셜미디어"
+                elif '비즈니스' in classification:
+                    badge_color = "#10b981"
+                    badge_text = "비즈니스"
+                elif '기술적' in classification:
+                    badge_color = "#f97316"
+                    badge_text = "기술적"
+                elif '교육' in classification:
+                    badge_color = "#8b5cf6"
+                    badge_text = "교육"
+                else:
+                    badge_color = "#f59e0b"
+                    badge_text = "기타"
+                
+                st.markdown(f"""
+                <div style="margin: 12px 0; padding: 16px; background: white; border-left: 4px solid #f59e0b; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                        <span style="background: {badge_color}; color: white; padding: 4px 12px; border-radius: 16px; font-size: 12px; margin-right: 12px; font-weight: 600;">{badge_text}</span>
+                        <span style="color: #8b95a1; font-size: 14px;">#{idx}</span>
+                    </div>
+                    <div style="font-weight: 600; color: #191f28; margin-bottom: 6px; line-height: 1.5;">
+                        {title}
+                    </div>
+                    <div style="font-size: 14px; color: #8b95a1;">
+                        <strong>연도:</strong> {year} | <strong>저널:</strong> {source}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    # 병합 성과 강조 - 실제 데이터 기반
+    success_info = []
+    success_info.append(f"<strong>파일 통합:</strong> {successful_files}개의 WOS 파일을 하나로 병합")
+    
+    if duplicates_removed > 0:
+        success_info.append(f"<strong>중복 제거:</strong> {duplicates_removed}편의 중복 논문 자동 감지 및 제거")
+    
+    success_info.append(f"<strong>최종 규모:</strong> {total_papers:,}편의 논문으로 대규모 연구 분석 가능")
+    success_info.append("<strong>SCIMAT 호환:</strong> 완벽한 WOS Plain Text 형식으로 100% 호환성 보장")
+    
+    success_content = "".join([f"<p style='color: #0064ff; margin: 6px 0; font-weight: 500;'>{info}</p>" for info in success_info])
+    
+    st.markdown(f"""
+    <div class="info-panel">
+        <h4 style="color: #0064ff; margin-bottom: 16px; font-weight: 700;">🏆 병합 성과</h4>
+        {success_content}
+    </div>
+    """, unsafe_allow_html=True)
+
+    # --- 최종 파일 다운로드 섹션 ---
+    st.markdown("""
+    <div class="section-header">
+        <div class="section-title">🔥 SCIMAT 분석용 파일 다운로드</div>
+        <div class="section-subtitle">병합 및 정제된 WOS Plain Text 파일</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # SCIMAT 호환 파일 다운로드
+    text_data = convert_to_scimat_wos_format(df_final_output)
+    
+    download_clicked = st.download_button(
+        label="🔥 다운로드",
+        data=text_data,
+        file_name="live_streaming_merged_scimat_ready.txt",
+        mime="text/plain",
+        type="primary",
+        use_container_width=True,
+        key="download_final_file",
+        help="SCIMAT에서 바로 사용 가능한 WOS Plain Text 파일"
+    )
+
+# --- 하단 여백 및 추가 정보 ---
+st.markdown("<br>", unsafe_allow_html=True)
+
+# 도움말 섹션 - 항상 표시
+with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
+    st.markdown("""
+    **Q: 여러 WOS 파일을 어떻게 한 번에 처리하나요?**
+    A: WOS에서 여러 번 Plain Text 다운로드한 후, 모든 .txt 파일을 한 번에 업로드하면 자동으로 병합됩니다.
+    
+    **Q: 중복된 논문이 있을까봐 걱정됩니다.**
+    A: UT(Unique Article Identifier) 기준으로 자동 중복 제거되며, UT가 없으면 제목+저자 조합으로 중복을 감지합니다.
+    
+    **Q: WOS에서 어떤 설정으로 다운로드해야 하나요?**
+    A: Export → Record Content: "Full Record and Cited References", File Format: "Plain Text"로 설정하세요. 인용 관계 분석을 위해 참고문헌 정보가 필수입니다.
+    
+    **Q: SCIMAT에서 키워드 정리를 어떻게 하나요?**
+    A: Group set → Word → Find similar words by distances (Maximum distance: 1)로 유사 키워드를 자동 통합하고, Word Group manual set에서 수동으로 관련 키워드들을 그룹화하세요.
+    
+    **Q: SCIMAT 분석 설정은 어떻게 하나요?**
+    A: Unit of Analysis: "Author's words + Source's words", Network Type: "Co-occurrence", Normalization: "Equivalence Index", Clustering: "Simple Centers Algorithm" (Maximum network size: 50)를 권장합니다.
+    
+    **Q: 병합된 파일이 SCIMAT에서 제대로 로딩되지 않습니다.**
+    A: 원본 WOS 파일들이 'FN Clarivate Analytics Web of Science'로 시작하는 정품 Plain Text 파일인지 확인하세요.
+    
+    **Q: SCIMAT에서 Period는 어떻게 설정하나요?**
+    A: 연구 분야의 진화 단계를 반영하여 의미 있게 구분하되, 각 Period당 최소 50편 이상의 논문을 포함하도록 설정하세요.
+    
+    **Q: 몇 개의 파일까지 동시에 업로드할 수 있나요?**
+    A: 기술적으로는 제한이 없지만, 안정성을 위해 10개 이하의 파일을 권장합니다. 매우 큰 데이터셋의 경우 나누어서 처리하세요.
+    """)
+
+# SciMAT 분석 가이드 - 항상 표시
+with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
+    st.markdown("""
+    ### 필요한 것
+    - SciMAT 소프트웨어 (무료 다운로드)
+    - 다운로드된 WOS Plain Text 파일
+    - Java 1.8 이상
+    
+    ### 1단계: SciMAT 시작하기
+    
+    **새 프로젝트 생성**
+    ```
+    1. SciMAT 실행 (SciMAT.jar 더블클릭)
+    2. File → New Project
+    3. Path: 저장할 폴더 선택
+    4. File name: 프로젝트 이름 입력
+    5. Accept
+    ```
+    
+    **데이터 불러오기**
+    ```
+    1. File → Add Files
+    2. "ISI WoS" 선택
+    3. 다운로드한 txt 파일 선택
+    4. 로딩 완료까지 대기
+    ```
+    
+    ### 2단계: 키워드 정리하기
+    
+    **유사 키워드 자동 통합**
+    ```
+    1. Group set → Word → Find similar words by distances
+    2. Maximum distance: 1 (한 글자 차이)
+    3. 같은 의미 단어들 확인하고 Move로 통합
+    ```
+    의미: 철자가 1글자만 다른 단어들을 찾아서 제안 (예: "platform" ↔ "platforms")
+    
+    **수동으로 키워드 정리**
+    ```
+    1. Group set → Word → Word Group manual set
+    2. Words without group 목록 확인
+    3. 관련 키워드들 선택 후 New group으로 묶기
+    4. 불필요한 키워드 제거
+    ```
+    목적: 데이터 품질 향상, 의미 있는 클러스터 형성
+    
+    ### 3단계: 시간 구간 설정
+    
+    **Period 만들기**
+    ```
+    1. Knowledge base → Periods → Periods manager
+    2. Add 버튼으로 시간 구간 생성:
+       - Period 1: 1996-2006 (태동기)
+       - Period 2: 2007-2016 (형성기)
+       - Period 3: 2017-2021 (확산기)
+       - Period 4: 2022-2024 (성숙기)
+    ```
+    원리: 연구 분야의 진화 단계를 반영한 의미 있는 구분
+    
+    **각 Period에 논문 할당**
+    ```
+    1. Period 1 클릭 → Add
+    2. 해당 연도 논문들 선택
+    3. 오른쪽 화살표로 이동
+    4. 다른 Period들도 동일하게 반복
+    ```
+    
+    ### 4단계: 분석 실행
+    
+    **분석 마법사 시작**
+    ```
+    1. Analysis → Make Analysis
+    2. 모든 Period 선택 → Next
+    ```
+    
+    **Step 1: Unit of Analysis**
+    - "Word Group" 선택
+    - "Author's words + Source's words" 선택
+    
+    의미: 저자 키워드와 저널 키워드를 모두 사용해서 포괄적 분석
+    
+    **Step 2: Data Reduction**
+    - **Minimum frequency: 2** (최소 2번 출현)
+    
+    목적: 노이즈 제거, 한 번만 나타나는 희귀 키워드 배제
+    
+    **Step 3: Network Type**
+    - "Co-occurrence" 선택
+    
+    의미: 키워드들이 동시에 나타나는 빈도로 관련성 측정
+    
+    **Step 4: Normalization**
+    - "Equivalence Index" 선택
+    
+    Equivalence Index란?
+    - 키워드 간 연관성을 측정하는 정규화 방법
+    - 네트워크의 밀도를 적절히 조정하여 의미 있는 클러스터 형성
+    - 다른 방법(Jaccard, Cosine)보다 SciMAT에서 권장하는 표준 방법
+    
+    **Step 5: Clustering**
+    - "Simple Centers Algorithm" 선택
+    - **Maximum network size: 50**
+    
+    Simple Centers Algorithm이란?
+    - 클러스터의 중심이 되는 핵심 키워드를 찾아서 그룹을 형성하는 방법
+    - 복잡한 알고리즘보다 해석이 용이하고 안정적인 결과 제공
+    
+    왜 50인가?
+    - 너무 크면(100+): 복잡해서 해석 어려움
+    - 너무 작으면(10-20): 중요한 연결 관계 누락
+    - 50개: 의미 있는 키워드들을 포함하면서도 시각적으로 분석 가능한 적정 크기
+    - 경험적으로 검증된 최적 크기
+    
+    **Step 6: Document Mapper**
+    - "Core Mapper" 선택
+    
+    Core Mapper란?
+    - 각 주제 클러스터를 대표하는 "핵심 논문들"을 식별하는 방법
+    - Core documents = 해당 주제의 키워드를 다수 포함하는 중요 논문들
+    - 클러스터의 실제 내용을 이해하는 데 필수적
+    
+    왜 Core Mapper?
+    - 주제별로 가장 대표적인 논문들을 찾아서 클러스터의 의미 파악 가능
+    - 단순한 빈도 기반보다 질적으로 우수한 논문 선별
+    
+    **Step 7: Performance Measures**
+    - **G-index, Sum Citations** 모두 선택
+    
+    각 지표의 의미:
+    - **G-index**: h-index의 개선된 버전, 고인용 논문들의 영향력을 더 정확히 측정
+      - 예: 논문 10편 중 상위 5편이 각각 100회 이상 인용되면 높은 G-index
+    - **Sum Citations**: 총 인용 횟수, 해당 주제의 전체적인 학술적 영향력
+    - **Average Citations**: 논문당 평균 인용 수, 주제의 질적 수준
+    
+    왜 여러 지표? 다각도로 주제의 중요성과 영향력 평가
+    
+    **Step 8: Evolution Map**
+    - "Jaccard Index" 선택
+    
+    Jaccard Index란?
+    - 두 시기 간 주제의 연속성을 측정하는 유사도 지표
+    - 공식: 교집합을 합집합으로 나눈 값 (0과 1 사이)
+    - 0~1 사이 값: 1에 가까울수록 두 주제가 매우 유사
+    
+    예시:
+    - Period 1의 스트리밍 기술 키워드: platform, streaming, video, real-time
+    - Period 2의 플랫폼 기술 키워드: platform, streaming, service, user
+    - Jaccard = 공통 키워드 2개 나누기 전체 키워드 6개 = 2/6 = 0.33
+    
+    **분석 실행**
+    ```
+    - Finish 클릭
+    - 완료까지 대기 (10-30분)
+    ```
+    처리 과정: 키워드 매트릭스 생성 → 클러스터링 → 진화 분석 → 시각화
+    
+    ### 5단계: 결과 보기
+    
+    **전략적 다이어그램 확인**
+    ```
+    1. Period View에서 각 시기별 다이어그램 확인
+    2. 4사분면 해석:
+       - 우상단: Motor Themes (핵심 주제) - 중심성↑, 밀도↑
+       - 좌상단: Specialized Themes (전문화된 주제) - 중심성↓, 밀도↑
+       - 좌하단: Emerging/Declining Themes (신흥/쇠퇴 주제) - 중심성↓, 밀도↓
+       - 우하단: Basic Themes (기초 주제) - 중심성↑, 밀도↓
+    ```
+    
+    **클러스터 세부 확인**
+    ```
+    1. 각 주제 클릭하면 세부 키워드 네트워크 확인
+    2. Core documents 클릭하면 논문 수 확인
+    3. G-index 클릭하면 인용 수 확인
+    ```
+    
+    **진화 맵 확인**
+    ```
+    1. 시간에 따른 주제 변화 추적
+    2. 노드 크기 = 논문 수 (클수록 더 많은 연구)
+    3. 연결선 두께 = Jaccard 유사도 (두꺼울수록 더 연관성 높음)
+    ```
+    
+    ### 6단계: 결과 저장
+    
+    **보고서 생성**
+    ```
+    1. File → Export
+    2. HTML 또는 LaTeX 선택
+    3. 파일명 입력 후 저장
+    ```
+    
+    **결과물**
+    - 전략적 다이어그램 이미지들
+    - 진화 맵
+    - 클러스터 네트워크 이미지들
+    - 통계 데이터
+    
+    ### 문제 해결
+    
+    **자주 발생하는 문제**
+    - **임포트 안됨**: WOS 파일이 Plain Text인지 확인
+    - **분석 중단**: Java 메모리 부족 → 재시작
+    - **한글 깨짐**: 파일 인코딩 UTF-8로 변경
+    
+    **키워드 정리**: 시간을 투자해서 꼼꼼히 정리 (분석품질의 핵심!)
+    **Period 구분**: 너무 세분화하지 말고 의미있는 구간으로 (각 구간당 최소 50편)
+    **논문 수**: 각 Period당 최소 50편 이상 권장 (통계적 의미 확보)
+    **설정값 조정**: 분야 특성에 따라 Maximum network size 조정 가능 (30-100)
+    
+    ### 결과 해석 가이드
+    
+    **Motor Themes (핵심 주제) 해석**
+    - 해당 시기의 연구 분야를 이끄는 중심 주제
+    - 많은 연구가 집중되고, 다른 주제와 연결성이 높음
+    - 투자와 연구가 활발한 "핫" 영역
+    
+    **Emerging Themes (신흥 주제) 주목**
+    - 아직 연구가 적지만 향후 성장 가능성 높은 영역
+    - 다음 Period에서 Motor Theme으로 발전할 가능성
+    - 선행 연구 기회가 많은 "블루오션"
+    """)
+
+st.markdown("<br><br>", unsafe_allow_html=True)
