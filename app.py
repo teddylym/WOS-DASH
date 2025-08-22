@@ -18,29 +18,29 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap');
     
     .main-container {
-        background: #f9fafb;
+        background: #f2f4f6;
         min-height: 100vh;
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     }
     
     .metric-card {
         background: white;
-        border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: none;
         border: 1px solid #e5e8eb;
-        margin-bottom: 16px;
+        margin-bottom: 12px;
         transition: all 0.2s ease;
     }
     
     .metric-card:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         transform: translateY(-1px);
-        border-color: #0064ff;
+        border-color: #3182f6;
     }
     
     .metric-value {
-        font-size: 2.5rem;
+        font-size: 2.2rem;
         font-weight: 700;
         color: #191f28;
         margin: 0;
@@ -49,51 +49,51 @@ st.markdown("""
     }
     
     .metric-label {
-        font-size: 14px;
+        font-size: 13px;
         color: #8b95a1;
-        margin: 8px 0 0 0;
+        margin: 6px 0 0 0;
         font-weight: 500;
         letter-spacing: -0.01em;
     }
     
     .metric-icon {
-        background: linear-gradient(135deg, #0064ff, #0050cc);
+        background: #3182f6;
         color: white;
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 20px;
-        margin-bottom: 16px;
-        box-shadow: 0 2px 8px rgba(0,100,255,0.2);
+        font-size: 16px;
+        margin-bottom: 12px;
     }
     
     .chart-container {
         background: white;
-        border-radius: 16px;
-        padding: 32px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: none;
         border: 1px solid #e5e8eb;
-        margin: 20px 0;
+        margin: 16px 0;
     }
     
     .chart-title {
-        font-size: 18px;
-        font-weight: 700;
+        font-size: 16px;
+        font-weight: 600;
         color: #191f28;
-        margin-bottom: 20px;
-        letter-spacing: -0.02em;
+        margin-bottom: 16px;
+        letter-spacing: -0.01em;
     }
     
     .section-header {
-        background: linear-gradient(135deg, #0064ff, #0050cc);
-        color: white;
-        padding: 32px;
-        border-radius: 20px;
-        margin: 32px 0 20px 0;
-        box-shadow: 0 4px 20px rgba(0,100,255,0.15);
+        background: white;
+        color: #191f28;
+        padding: 16px 20px;
+        border-radius: 8px;
+        margin: 20px 0 12px 0;
+        box-shadow: none;
+        border: 1px solid #e5e8eb;
         position: relative;
         overflow: hidden;
     }
@@ -102,190 +102,175 @@ st.markdown("""
         content: '';
         position: absolute;
         top: 0;
-        right: 0;
-        width: 100px;
-        height: 100px;
-        background: rgba(255,255,255,0.1);
-        border-radius: 50%;
-        transform: translate(30px, -30px);
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: #3182f6;
     }
     
     .section-title {
-        font-size: 24px;
-        font-weight: 700;
+        font-size: 16px;
+        font-weight: 600;
         margin: 0;
-        letter-spacing: -0.02em;
+        letter-spacing: -0.01em;
+        color: #191f28;
     }
     
     .section-subtitle {
-        font-size: 16px;
-        opacity: 0.9;
-        margin: 8px 0 0 0;
-        font-weight: 500;
-        letter-spacing: -0.01em;
+        font-size: 13px;
+        color: #8b95a1;
+        margin: 4px 0 0 0;
+        font-weight: 400;
+        letter-spacing: 0;
     }
     
     .info-panel {
-        background: #f0f6ff;
-        border: 1px solid #b3d7ff;
-        border-radius: 16px;
-        padding: 24px;
-        margin: 20px 0;
+        background: #f8fafe;
+        border: 1px solid #e1f2ff;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 12px 0;
         position: relative;
     }
     
     .success-panel {
-        background: #f0fdf9;
-        border: 1px solid #86efac;
-        border-radius: 16px;
-        padding: 24px;
-        margin: 20px 0;
+        background: #f0fdf4;
+        border: 1px solid #dcfce7;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 12px 0;
         position: relative;
     }
     
     .warning-panel {
         background: #fffbeb;
-        border: 1px solid #fbbf24;
-        border-radius: 16px;
-        padding: 24px;
-        margin: 20px 0;
+        border: 1px solid #fed7aa;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 12px 0;
         position: relative;
     }
     
     .feature-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        gap: 20px;
-        margin: 32px 0;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 12px;
+        margin: 20px 0;
     }
     
     .feature-card {
         background: white;
-        border-radius: 20px;
-        padding: 32px 24px;
+        border-radius: 8px;
+        padding: 20px;
         text-align: center;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        box-shadow: none;
         border: 1px solid #e5e8eb;
         transition: all 0.2s ease;
         position: relative;
         overflow: hidden;
     }
     
-    .feature-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, #0064ff, #0050cc);
-        transform: scaleX(0);
-        transition: transform 0.2s ease;
-    }
-    
-    .feature-card:hover::before {
-        transform: scaleX(1);
-    }
-    
     .feature-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-        border-color: #0064ff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-color: #3182f6;
     }
     
     .feature-icon {
-        font-size: 48px;
-        margin-bottom: 20px;
-        color: #0064ff;
+        font-size: 32px;
+        margin-bottom: 12px;
+        color: #3182f6;
     }
     
     .feature-title {
-        font-size: 18px;
-        font-weight: 700;
+        font-size: 15px;
+        font-weight: 600;
         color: #191f28;
-        margin-bottom: 12px;
-        letter-spacing: -0.02em;
+        margin-bottom: 8px;
+        letter-spacing: -0.01em;
     }
     
     .feature-desc {
-        font-size: 14px;
+        font-size: 13px;
         color: #8b95a1;
-        line-height: 1.6;
-        letter-spacing: -0.01em;
+        line-height: 1.5;
+        letter-spacing: 0;
     }
     
     .upload-zone {
         background: white;
-        border: 2px dashed #c7d2fe;
-        border-radius: 16px;
-        padding: 48px 24px;
+        border: 1px dashed #d1d5db;
+        border-radius: 8px;
+        padding: 24px;
         text-align: center;
-        margin: 24px 0;
+        margin: 16px 0;
         transition: all 0.2s ease;
     }
     
     .upload-zone:hover {
-        background: #f8faff;
-        border-color: #0064ff;
+        background: #f8fafe;
+        border-color: #3182f6;
     }
     
     .progress-indicator {
-        background: linear-gradient(90deg, #0064ff, #0050cc);
-        height: 4px;
+        background: #3182f6;
+        height: 3px;
         border-radius: 2px;
-        margin: 20px 0;
+        margin: 12px 0;
         animation: pulse 2s infinite;
     }
     
     .file-status {
-        background: #f8faff;
-        border-radius: 12px;
-        padding: 16px;
-        margin: 12px 0;
-        border-left: 4px solid #0064ff;
+        background: #f8fafe;
+        border-radius: 6px;
+        padding: 12px;
+        margin: 8px 0;
+        border-left: 3px solid #3182f6;
         font-family: 'Pretendard', sans-serif;
     }
     
     /* 토스 스타일 버튼 */
     .stDownloadButton > button {
-        background: linear-gradient(135deg, #0064ff, #0050cc) !important;
+        background: #3182f6 !important;
         color: white !important;
         border: none !important;
-        border-radius: 16px !important;
-        padding: 16px 32px !important;
-        font-weight: 700 !important;
-        font-size: 16px !important;
+        border-radius: 8px !important;
+        padding: 12px 24px !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
         letter-spacing: -0.01em !important;
         transition: all 0.2s ease !important;
-        box-shadow: 0 4px 12px rgba(0,100,255,0.2) !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
         font-family: 'Pretendard', sans-serif !important;
     }
     
     .stDownloadButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(0,100,255,0.3) !important;
+        background: #1c64f2 !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15) !important;
     }
     
     /* 토스 스타일 expander */
     .streamlit-expanderHeader {
         background: white !important;
-        border-radius: 16px !important;
+        border-radius: 8px !important;
         border: 1px solid #e5e8eb !important;
-        font-weight: 600 !important;
+        font-weight: 500 !important;
         color: #191f28 !important;
         font-family: 'Pretendard', sans-serif !important;
+        font-size: 14px !important;
     }
     
     /* 데이터프레임 스타일링 */
     .stDataFrame {
-        border-radius: 12px !important;
+        border-radius: 8px !important;
         overflow: hidden !important;
         border: 1px solid #e5e8eb !important;
     }
     
     /* 스피너 스타일링 */
     .stSpinner {
-        color: #0064ff !important;
+        color: #3182f6 !important;
     }
     
     @keyframes pulse {
@@ -295,36 +280,56 @@ st.markdown("""
     
     /* 메인 컨테이너 여백 조정 */
     .main .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
         max-width: 1200px;
     }
     
     /* 알림 메시지 스타일링 */
     .stAlert {
-        border-radius: 16px !important;
+        border-radius: 8px !important;
         border: none !important;
         font-family: 'Pretendard', sans-serif !important;
+        font-size: 14px !important;
     }
     
     .stSuccess {
-        background: #f0fdf9 !important;
-        color: #065f46 !important;
+        background: #f0fdf4 !important;
+        color: #15803d !important;
     }
     
     .stInfo {
-        background: #f0f6ff !important;
-        color: #1e40af !important;
+        background: #f8fafe !important;
+        color: #1d4ed8 !important;
     }
     
     .stWarning {
         background: #fffbeb !important;
-        color: #92400e !important;
+        color: #d97706 !important;
     }
     
     .stError {
         background: #fef2f2 !important;
         color: #dc2626 !important;
+    }
+    
+    /* 글자 크기 및 색상 통일 */
+    .main-text {
+        font-size: 14px;
+        color: #191f28;
+        line-height: 1.5;
+    }
+    
+    .sub-text {
+        font-size: 13px;
+        color: #8b95a1;
+        line-height: 1.4;
+    }
+    
+    .small-text {
+        font-size: 12px;
+        color: #8b95a1;
+        line-height: 1.3;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -756,23 +761,22 @@ def convert_to_scimat_wos_format(df_to_convert):
 
 # --- 메인 헤더 ---
 st.markdown("""
-<div style="position: relative; text-align: center; padding: 3rem 0 4rem 0; background: linear-gradient(135deg, #0064ff, #0050cc); color: white; border-radius: 24px; margin-bottom: 2rem; box-shadow: 0 8px 32px rgba(0,100,255,0.15); overflow: hidden;">
-    <div style="position: absolute; top: 0; right: 0; width: 200px; height: 200px; background: rgba(255,255,255,0.05); border-radius: 50%; transform: translate(60px, -60px);"></div>
-    <div style="position: absolute; top: 1.5rem; left: 2rem; color: white;">
-        <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px; letter-spacing: 0.5px;">HANYANG UNIVERSITY</div>
-        <div style="font-size: 12px; opacity: 0.9; font-weight: 500;">Technology Management Research</div>
-        <div style="font-size: 11px; opacity: 0.8; margin-top: 6px; font-weight: 400;">mot.hanyang.ac.kr</div>
+<div style="position: relative; text-align: center; padding: 2.5rem 0 3rem 0; background: linear-gradient(135deg, #3182f6, #1c64f2); color: white; border-radius: 8px; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(49,130,246,0.15); overflow: hidden;">
+    <div style="position: absolute; top: 1rem; left: 1.5rem; color: white;">
+        <div style="font-size: 12px; font-weight: 600; margin-bottom: 3px; letter-spacing: 0.3px;">HANYANG UNIVERSITY</div>
+        <div style="font-size: 11px; opacity: 0.9; font-weight: 500;">Technology Management Research</div>
+        <div style="font-size: 10px; opacity: 0.8; margin-top: 4px; font-weight: 400;">mot.hanyang.ac.kr</div>
     </div>
-    <div style="position: absolute; top: 1.5rem; right: 2rem; text-align: right; color: rgba(255,255,255,0.9); font-size: 13px;">
-        <p style="margin: 0; font-weight: 600;">Developed by: 임태경 (Teddy Lym)</p>
+    <div style="position: absolute; top: 1rem; right: 1.5rem; text-align: right; color: rgba(255,255,255,0.9); font-size: 11px;">
+        <p style="margin: 0; font-weight: 500;">Developed by: 임태경 (Teddy Lym)</p>
     </div>
-    <h1 style="font-size: 4rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.03em;">
+    <h1 style="font-size: 3rem; font-weight: 700; margin-bottom: 0.3rem; letter-spacing: -0.02em;">
         WOS PREP
     </h1>
-    <p style="font-size: 1.4rem; margin: 0; font-weight: 500; opacity: 0.95; letter-spacing: -0.01em;">
+    <p style="font-size: 1.1rem; margin: 0; font-weight: 500; opacity: 0.95; letter-spacing: -0.01em;">
         SCIMAT Edition
     </p>
-    <div style="width: 120px; height: 4px; background-color: rgba(255,255,255,0.3); margin: 2.5rem auto; border-radius: 2px;"></div>
+    <div style="width: 80px; height: 3px; background-color: rgba(255,255,255,0.3); margin: 1.5rem auto; border-radius: 2px;"></div>
 </div>
 """, unsafe_allow_html=True)
 
