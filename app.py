@@ -613,16 +613,18 @@ def classify_article(row):
     if any(indicator in full_text for indicator in duplicate_indicators):
         return 'EC2 - 중복 게재'
     
+    # 공통 변수 정의 (EC3, EC6에서 공통 사용)
+    has_core_livestreaming = any(keyword in full_text for keyword in core_livestreaming_keywords)
+    
     # EC6: VOD/일반 비디오 배제 (라이브 스트리밍 키워드 없으면서 VOD 지표 있으면)
-    has_livestreaming = any(keyword in full_text for keyword in core_livestreaming_keywords)
     has_vod_indicators = any(indicator in full_text for indicator in vod_general_video_indicators)
-    if has_vod_indicators and not has_livestreaming:
+    if has_vod_indicators and not has_core_livestreaming:
         return 'EC6 - VOD/일반비디오 (실시간성 부재)'
     
     # EC3: 순수 하드웨어 구현 (사회-기술 맥락 전혀 없음)
     has_hardware_only = any(keyword in full_text for keyword in pure_hardware_exclusions)
     has_social_tech_context = any(keyword in full_text for keyword in social_tech_system_keywords)
-    if has_hardware_only and not (has_livestreaming or has_social_tech_context):
+    if has_hardware_only and not (has_core_livestreaming or has_social_tech_context):
         return 'EC3 - 순수 하드웨어 구현'
     
     # === 2단계: 핵심 포함기준 검증 (AND 조건) ===
