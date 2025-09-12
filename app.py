@@ -925,7 +925,7 @@ if uploaded_files:
             st.stop()
         
         # 새로운 논문 분류 함수 적용
-        merged_df['Classification'] = merged_df.apply(classify_livestreaming_paper, axis=1)
+        merged_df['Classification'] = merged_df.apply(classify_paper, axis=1)
 
     # 성공적인 파일 개수 계산
     successful_files = len([s for s in file_status if s['status'] == 'SUCCESS'])
