@@ -924,8 +924,8 @@ if uploaded_files:
                 """, unsafe_allow_html=True)
             st.stop()
         
-        # 논문 분류 수행 - PRISMA 기준 적용
-        merged_df['Classification'] = merged_df.apply(classify_article, axis=1)
+        # 논문 분류 수행 - 새로운 분류 함수 사용
+        merged_df['Classification'] = merged_df.apply(classify_article_v2, axis=1)
 
     # 성공적인 파일 개수 계산
     successful_files = len([s for s in file_status if s['status'] == 'SUCCESS'])
