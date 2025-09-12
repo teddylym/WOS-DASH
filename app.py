@@ -629,14 +629,9 @@ def classify_article(row):
     
     # === 2단계: 핵심 포함기준 검증 (AND 조건) ===
     
-    # 핵심 라이브 스트리밍 키워드 존재 여부
-    has_core_livestreaming = any(keyword in full_text for keyword in core_livestreaming_keywords)
+    # 주요 변수들 먼저 정의
     has_extended_livestreaming = any(keyword in full_text for keyword in extended_livestreaming_keywords)
-    
-    # 실시간 양방향 상호작용 키워드 존재 여부  
     has_interactive_element = any(keyword in full_text for keyword in interactive_realtime_keywords)
-    
-    # 사회-기술 시스템 맥락 존재 여부
     has_social_tech_system = any(keyword in full_text for keyword in social_tech_system_keywords)
     
     # === Tier 1: 핵심 라이브 스트리밍 연구 (가장 높은 우선순위) ===
