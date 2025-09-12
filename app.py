@@ -672,7 +672,7 @@ def classify_article(row):
     
     # === 최종: 관련성 없음 ===
     else:
-        return 'Exclude - 라이브스트리밍 관련성 없음' any(indicator in full_text for indicator in vod_general_video_indicators)
+        return 'Exclude - 라이브스트리밍 관련성 없음'
         if has_vod_indicators and not has_interactive_element:
             return 'EC5 - VOD/일반비디오와 구분불가'
         
