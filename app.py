@@ -507,93 +507,155 @@ def parse_wos_format(content):
         
     return pd.DataFrame(records)
 
-# --- 개선된 라이브 스트리밍 특화 분류 함수 ---
+# --- 라이브 스트리밍 특화 분류 함수 ---
 def classify_article(row):
-    """PRISMA 2020 기반 라이브 스트리밍 연구 분류 - EC1-EC8 강화 및 명확한 포함기준 적용"""
+    """학술적 엄밀성을 반영한 라이브 스트리밍 연구 분류 함수"""
     
-    # === PRISMA 최종 포함기준 (IC: Inclusion Criteria) ===
-    
-    # IC1: 사회-기술 시스템으로서의 라이브 스트리밍 연구
-    core_livestreaming_keywords = [
+    # 핵심 라이브 스트리밍 키워드 (직접적 관련성)
+    core_streaming_keywords = [
         'live streaming', 'livestreaming', 'live stream', 'live broadcast', 'live video',
         'real time streaming', 'real-time streaming', 'streaming platform', 'streaming service',
         'live webcast', 'webcasting', 'live transmission', 'interactive broadcasting',
         'live commerce', 'live shopping', 'live selling', 'livestream commerce',
         'live e-commerce', 'social commerce', 'live marketing', 'streaming monetization',
+        'live retail', 'shoppertainment', 'live sales', 'streaming sales',
         'streamer', 'viewer', 'audience engagement', 'streaming audience', 'live audience',
         'streaming behavior', 'viewer behavior', 'streaming experience', 'live interaction',
         'streaming community', 'online community', 'digital community', 'virtual community',
         'parasocial relationship', 'streamer-viewer', 'live chat', 'chat interaction',
         'twitch', 'youtube live', 'facebook live', 'instagram live', 'tiktok live',
-        'periscope', 'douyin', 'kuaishou', 'taobao live', 'amazon live', 'shopee live'
+        'periscope', 'mixer', 'douyin', 'kuaishou', 'taobao live', 'tmall live',
+        'amazon live', 'shopee live', 'live.ly', 'bigo live',
+        'live gaming', 'game streaming', 'esports streaming', 'streaming content',
+        'live entertainment', 'live performance', 'virtual concert', 'live music'
     ]
     
-    # IC2: 실시간 양방향 상호작용 필수 키워드
+    # EC1. 기술적 전송 방식에만 국한된 키워드 (명확한 배제)
+    technical_only_exclusions = [
+        # 네트워크 프로토콜 관련
+        'routing protocol', 'network topology', 'packet routing', 'mac protocol',
+        'ieee 802.11', 'wimax protocol', 'lte protocol', 'network security protocol',
+        'tcp/ip', 'udp protocol', 'http streaming', 'rtmp protocol', 'hls protocol',
+        'dash protocol', 'rtp protocol', 'rtcp protocol',
+        
+        # 미디어 압축/코덱 기술
+        'video codec', 'audio codec', 'h.264', 'h.265', 'hevc', 'avc',
+        'mpeg encoding', 'video compression algorithm', 'bitrate optimization',
+        'transcoding', 'video encoding optimization', 'codec performance',
+        
+        # 서버 인프라만 다루는 키워드
+        'cdn architecture', 'server load balancing', 'edge server', 'cache optimization',
+        'bandwidth allocation', 'quality of service', 'network optimization',
+        'latency reduction', 'buffer management', 'adaptive bitrate',
+        
+        # 하드웨어 구현
+        'vlsi design', 'circuit design', 'antenna design', 'rf circuit',
+        'hardware implementation', 'fpga implementation', 'asic design',
+        'signal processing algorithm', 'modulation scheme', 'channel estimation',
+        'beamforming algorithm', 'mimo antenna', 'ofdm modulation',
+        
+        # 비관련 기술 분야
+        'satellite communication', 'underwater communication', 'space communication',
+        'biomedical signal', 'medical imaging', 'radar system', 'sonar system',
+        'geological survey', 'seismic data', 'astronomical data', 'climate modeling'
+    ]
+    
+    # EC2. 피상적 언급 탐지를 위한 중요도 없는 키워드
+    superficial_mention_indicators = [
+        'for example', 'such as', 'including', 'among others', 'furthermore',
+        'future work', 'future research', 'future study', 'recommendation',
+        'suggestion', 'potential application', 'possible use'
+    ]
+    
+    # EC4. 실시간 양방향 상호작용 필수 키워드
     interactive_realtime_keywords = [
         'real-time interaction', 'real time interaction', 'interactive', 'bidirectional',
         'two-way communication', 'audience participation', 'user engagement',
         'live feedback', 'instant response', 'synchronous', 'chat', 'comment',
-        'like', 'share', 'donate', 'gift', 'emoji reaction', 'viewer response',
-        'interactive media', 'user participation', 'audience interaction'
+        'like', 'share', 'donate', 'gift', 'emoji reaction', 'viewer response'
     ]
     
-    # IC3: 플랫폼 생태계 맥락 키워드
-    platform_ecosystem_keywords = [
-        'platform', 'ecosystem', 'digital platform', 'online platform',
-        'platform economy', 'network effects', 'multi-sided market',
-        'platform governance', 'platform design', 'platform strategy'
-    ]
-    
-    # === 엄격한 배제기준 (EC) ===
-    
-    # EC1: 비학술 문서
+    # EC6. 문서 유형 배제
     excluded_document_types = [
         'editorial', 'letter', 'proceedings paper', 'book chapter', 'review',
         'correction', 'erratum', 'retracted publication', 'meeting abstract',
-        'conference paper', 'conference review', 'note', 'short survey',
-        'correspondence', 'commentary', 'opinion'
+        'conference paper', 'conference review', 'note', 'short survey'
     ]
     
-    # EC2: 중복 게재
+    # EC7. 중복 게재 탐지 키워드
     duplicate_indicators = [
         'extended version', 'preliminary version', 'conference version',
-        'short version', 'extended abstract', 'brief version',
-        'expanded study', 'follow-up study', 'updated analysis'
+        'short version', 'extended abstract', 'brief version'
     ]
     
-    # EC3: 순수 하드웨어 구현 (응용 맥락 없음)
-    pure_hardware_exclusions = [
-        'vlsi design', 'circuit design', 'antenna design', 'rf circuit',
-        'hardware implementation', 'fpga implementation', 'asic design',
-        'chip design', 'integrated circuit', 'semiconductor design'
+    # 확장된 비즈니스 및 커머스 관련 키워드
+    business_commerce_keywords = [
+        'e-commerce', 'online shopping', 'digital commerce', 'mobile commerce', 'm-commerce',
+        'social commerce', 'influencer marketing', 'content creator', 'digital marketing', 
+        'brand engagement', 'consumer behavior', 'purchase intention', 'buying behavior',
+        'social influence', 'word of mouth', 'viral marketing', 'user generated content',
+        'brand advocacy', 'customer engagement', 'social media marketing', 'digital influence',
+        'online influence', 'interactive marketing', 'personalized marketing', 'real-time marketing',
+        'digital transformation', 'omnichannel', 'customer experience', 'user experience',
+        'engagement marketing', 'social selling', 'digital retail', 'online retail'
     ]
     
-    # EC4: 미래 연구 제안에만 언급
-    future_only_patterns = [
-        'future work', 'future research', 'future study', 'future direction',
-        'recommendation', 'suggestion', 'further research', 'next step'
+    # 교육 및 학습 관련 키워드
+    education_keywords = [
+        'online education', 'e-learning', 'distance learning', 'remote learning',
+        'virtual classroom', 'online teaching', 'digital learning', 'mooc',
+        'educational technology', 'learning management system', 'blended learning',
+        'medical education', 'nursing education', 'surgical training', 'clinical education',
+        'telemedicine', 'telehealth', 'digital health', 'health education',
+        'interactive learning', 'synchronous learning', 'real-time learning'
     ]
     
-    # EC5: 피상적 언급 지표
-    superficial_mention_indicators = [
-        'for example', 'such as', 'including', 'among others',
-        'could be applied', 'might be useful', 'has potential', 'may benefit'
+    # 기술적 기반 키워드
+    technical_keywords = [
+        'real time video', 'real-time video', 'video streaming', 'audio streaming',
+        'multimedia streaming', 'video compression', 'video encoding', 'video delivery',
+        'content delivery', 'cdn', 'edge computing', 'multimedia communication',
+        'video communication', 'webrtc', 'peer to peer streaming', 'p2p streaming',
+        'distributed streaming', 'mobile streaming', 'mobile video', 'wireless streaming',
+        'mobile broadcast', 'smartphone streaming', 'live video transmission',
+        'streaming technology', 'adaptive streaming', 'video quality', 'streaming latency',
+        'interactive media', 'virtual reality', 'augmented reality', 'vr', 'ar',
+        '3d streaming', 'immersive media', 'metaverse'
     ]
     
-    # EC6: VOD/일반 비디오 (실시간성 없음)
-    vod_general_video_indicators = [
-        'video on demand', 'vod', 'recorded video', 'offline video',
-        'pre-recorded content', 'stored video', 'archived content',
-        'downloaded video', 'cached video', 'static content',
-        'non-live content', 'traditional media', 'conventional broadcasting'
+    # 사회문화적 영향 키워드
+    sociocultural_keywords = [
+        'digital culture', 'online culture', 'virtual community', 'digital society',
+        'social media', 'social network', 'digital communication', 'online interaction',
+        'digital identity', 'virtual identity', 'online presence', 'digital participation',
+        'cultural transmission', 'digital religion', 'online religion', 'virtual religion',
+        'digital migration', 'online migration', 'digital diaspora', 'virtual diaspora',
+        'social cohesion', 'community building', 'social capital', 'digital divide'
     ]
     
-    # === 텍스트 추출 및 전처리 ===
+    # COVID-19 및 팬데믹 관련 키워드
+    pandemic_keywords = [
+        'covid-19', 'pandemic', 'coronavirus', 'sars-cov-2', 'lockdown', 'quarantine',
+        'social distancing', 'remote work', 'work from home', 'digital adaptation',
+        'pandemic response', 'crisis communication', 'emergency response'
+    ]
+    
+    # 소셜 미디어 키워드
+    social_media_keywords = [
+        'social media', 'social network', 'online platform', 'digital platform',
+        'user experience', 'user behavior', 'online behavior', 'digital behavior',
+        'social interaction', 'online interaction', 'digital interaction',
+        'user engagement', 'digital engagement', 'platform economy', 'network effects',
+        'viral content', 'content sharing', 'social sharing', 'online community'
+    ]
+
+    # 텍스트 추출 함수
     def extract_text(value):
         if pd.isna(value) or value is None:
             return ""
         return str(value).lower().strip()
     
+    # 텍스트 필드별 추출
     title = extract_text(row.get('TI', ''))
     source_title = extract_text(row.get('SO', ''))
     author_keywords = extract_text(row.get('DE', ''))
@@ -601,159 +663,97 @@ def classify_article(row):
     abstract = extract_text(row.get('AB', ''))
     document_type = extract_text(row.get('DT', ''))
     
+    # 전체 텍스트 결합
     full_text = ' '.join([title, source_title, author_keywords, keywords_plus, abstract])
     
-    # === 1단계: 엄격한 배제기준 적용 (우선순위) ===
+    # === 엄격한 배제 기준 적용 (우선순위) ===
     
-    # EC1: 비학술 문서 배제
+    # EC6. 문서 유형 배제 - 최우선 적용
     if any(doc_type in document_type for doc_type in excluded_document_types):
-        return 'EC1 - 비학술 문서'
+        return 'EC6 - 문서유형 배제 (비학술논문)'
     
-    # EC2: 중복 게재 논문 배제
+    # EC1. 기술적 전송 방식에만 국한 - 명확한 배제
+    if any(keyword in full_text for keyword in technical_only_exclusions):
+        # 라이브 스트리밍 맥락 없이 순수 기술만 다루는 경우
+        has_streaming_context = any(keyword in full_text for keyword in core_streaming_keywords)
+        if not has_streaming_context:
+            return 'EC1 - 기술적 전송방식만 다룸'
+    
+    # EC7. 중복 게재 논문 배제
     if any(indicator in full_text for indicator in duplicate_indicators):
-        return 'EC2 - 중복 게재'
+        return 'EC7 - 중복게재 의심'
     
-    # 공통 변수 정의 (EC3, EC6에서 공통 사용)
-    has_core_livestreaming = any(keyword in full_text for keyword in core_livestreaming_keywords)
-    
-    # EC6: VOD/일반 비디오 배제 (라이브 스트리밍 키워드 없으면서 VOD 지표 있으면)
-    has_vod_indicators = any(indicator in full_text for indicator in vod_general_video_indicators)
-    if has_vod_indicators and not has_core_livestreaming:
-        return 'EC6 - VOD/일반비디오 (실시간성 부재)'
-    
-    # EC3: 순수 하드웨어 구현 (사회-기술 맥락 전혀 없음)
-    has_hardware_only = any(keyword in full_text for keyword in pure_hardware_exclusions)
-    has_social_tech_context = any(keyword in full_text for keyword in social_tech_system_keywords)
-    if has_hardware_only and not (has_core_livestreaming or has_social_tech_context):
-        return 'EC3 - 순수 하드웨어 구현'
-    
-    # === 2단계: 핵심 포함기준 검증 (AND 조건) ===
-    
-    # 주요 변수들 먼저 정의
-    has_extended_livestreaming = any(keyword in full_text for keyword in extended_livestreaming_keywords)
-    has_interactive_element = any(keyword in full_text for keyword in interactive_realtime_keywords)
-    has_social_tech_system = any(keyword in full_text for keyword in social_tech_system_keywords)
-    
-    # === Tier 1: 핵심 라이브 스트리밍 연구 (가장 높은 우선순위) ===
-    if has_core_livestreaming and has_interactive_element and has_social_tech_system:
-        # EC4, EC5 추가 검증
-        future_mentions = sum(1 for pattern in future_only_patterns if pattern in full_text)
-        superficial_mentions = sum(1 for indicator in superficial_mention_indicators if indicator in full_text)
+    # EC4. 실시간 양방향 상호작용 필수 조건 확인
+    has_core_streaming = any(keyword in full_text for keyword in core_streaming_keywords)
+    if has_core_streaming:
+        # 핵심 스트리밍 키워드가 있을 때만 상호작용성 검증
+        has_interactive_element = any(keyword in full_text for keyword in interactive_realtime_keywords)
         
-        if future_mentions > 0 and 'method' not in full_text and 'analysis' not in full_text:
-            return 'EC4 - 미래연구 제안에만 언급'
-        
-        if superficial_mentions >= 2:  # 피상적 언급이 많은 경우
-            return 'EC5 - 피상적 언급'
-        
-        return 'Include - Tier 1 핵심연구 (라이브스트리밍+상호작용+사회기술)'
-    
-    # === Tier 2: 확장 라이브 스트리밍 연구 ===
-    elif has_extended_livestreaming and (has_interactive_element or has_social_tech_system):
-        # 라이브 커머스, 교육, 엔터테인먼트 등의 확장 맥락
-        return 'Include - Tier 2 확장연구 (라이브스트리밍 확장맥락)'
-    
-    # === Tier 3: 간접 관련 연구 (제한적 포함) ===
-    elif has_core_livestreaming and (has_interactive_element or has_social_tech_system):
-        # 핵심 키워드는 있으나 한 요소 부족
-        return 'Review - Tier 3 부분충족 (추가검토 필요)'
-    
-    # === 기타 경계 사례 ===
-    elif has_core_livestreaming:
-        # 핵심 키워드만 있는 경우
-        return 'Review - 라이브스트리밍 언급 (맥락 검토 필요)'
-    
-    elif has_extended_livestreaming:
-        # 확장 키워드만 있는 경우  
-        return 'Review - 확장맥락 언급 (관련성 검토 필요)'
-    
-    # === 최종: 관련성 없음 ===
-    else:
-        return 'Exclude - 라이브스트리밍 관련성 없음'
-        if has_vod_indicators and not has_interactive_element:
-            return 'EC5 - VOD/일반비디오와 구분불가'
-        
-        # 최종 포함 판정
-        if has_interactive_element and (has_platform_context or 'platform' in full_text):
-            return 'Include - 핵심연구 (IC1+IC2+IC3 충족)'
-        elif has_interactive_element:
-            return 'Include - 핵심연구 (IC1+IC2 충족)'
+        if has_interactive_element:
+            return 'Include - 핵심연구 (라이브스트리밍+상호작용)'
         else:
-            return 'Review - 상호작용성 추가검토 필요'
-    
-    # === 3단계: 확장 포함기준 (간접적 관련성) ===
-    
-    # 비즈니스/커머스 + 디지털/실시간 지표
-    business_keywords = [
-        'e-commerce', 'online shopping', 'digital commerce', 'social commerce',
-        'influencer marketing', 'content creator', 'digital marketing',
-        'consumer behavior', 'purchase intention', 'social influence',
-        'brand engagement', 'customer engagement', 'social selling'
-    ]
-    
-    if any(keyword in full_text for keyword in business_keywords):
-        digital_live_indicators = [
-            'digital', 'online', 'real-time', 'live', 'streaming', 
-            'interactive', 'platform', 'social media', 'virtual'
-        ]
-        if any(indicator in full_text for indicator in digital_live_indicators):
-            # EC2 검증: 피상적 언급인지 확인
-            meaningful_mentions = sum(1 for kw in business_keywords if kw in full_text)
-            superficial_mentions = sum(1 for ind in superficial_mention_indicators if ind in full_text)
-            
-            if superficial_mentions >= meaningful_mentions:
-                return 'EC2 - 피상적 언급 (형용사 수준)'
+            # EC5. 명확한 라이브 스트리밍 맥락 부재 - VOD/일반 비디오와 구분 불가
+            vod_indicators = ['video on demand', 'vod', 'recorded video', 'offline video', 
+                            'pre-recorded', 'asynchronous', 'non-live', 'stored video']
+            if any(indicator in full_text for indicator in vod_indicators):
+                return 'EC5 - 라이브스트리밍 맥락 부재 (VOD/일반비디오)'
             else:
-                return 'Include - 비즈니스 관련 (간접적 관련성)'
+                return 'Review - 상호작용성 검토필요'
     
-    # 교육 + 온라인/실시간 지표
-    education_keywords = [
-        'online education', 'e-learning', 'distance learning', 'remote learning',
-        'virtual classroom', 'online teaching', 'digital learning',
-        'educational technology', 'interactive learning', 'synchronous learning'
-    ]
+    # EC2. 피상적 언급 탐지
+    streaming_mentions = sum(1 for keyword in core_streaming_keywords if keyword in full_text)
+    superficial_mentions = sum(1 for indicator in superficial_mention_indicators if indicator in full_text)
     
+    if streaming_mentions > 0 and superficial_mentions >= streaming_mentions:
+        return 'EC2 - 피상적 언급 (형용사 수준)'
+    
+    # === 포용적 포함 기준 ===
+    
+    # 비즈니스/커머스 + 디지털 지표
+    if any(keyword in full_text for keyword in business_commerce_keywords):
+        digital_indicators = ['digital', 'online', 'internet', 'web', 'social media', 'platform', 'mobile', 'app', 'virtual', 'interactive']
+        if any(indicator in full_text for indicator in digital_indicators):
+            return 'Include - 비즈니스 관련'
+    
+    # 교육 + 온라인/디지털 지표
     if any(keyword in full_text for keyword in education_keywords):
-        realtime_indicators = [
-            'real-time', 'synchronous', 'live', 'interactive', 
-            'immediate', 'instant', 'streaming'
-        ]
-        if any(indicator in full_text for indicator in realtime_indicators):
-            return 'Include - 교육 관련 (간접적 관련성)'
+        online_indicators = ['online', 'digital', 'virtual', 'remote', 'distance', 'interactive', 'real-time', 'synchronous']
+        if any(indicator in full_text for indicator in online_indicators):
+            return 'Include - 교육 관련'
     
-    # 소셜미디어 + 상호작용 지표
-    social_media_keywords = [
-        'social media', 'social network', 'online platform', 'digital platform',
-        'user behavior', 'online behavior', 'social interaction', 'online interaction',
-        'user engagement', 'digital engagement', 'online community'
-    ]
+    # 기술적 기반 + 라이브/실시간 지표
+    if any(keyword in full_text for keyword in technical_keywords):
+        live_indicators = ['live', 'real time', 'real-time', 'streaming', 'broadcast', 'interactive', 'synchronous', 'instant']
+        if any(indicator in full_text for indicator in live_indicators):
+            return 'Include - 기술적 기반'
     
+    # 사회문화적 + 디지털 지표
+    if any(keyword in full_text for keyword in sociocultural_keywords):
+        digital_indicators = ['digital', 'online', 'virtual', 'internet', 'web', 'platform', 'social media']
+        if any(indicator in full_text for indicator in digital_indicators):
+            return 'Include - 사회문화 관련'
+    
+    # 팬데믹 관련 + 디지털 지표
+    if any(keyword in full_text for keyword in pandemic_keywords):
+        digital_indicators = ['digital', 'online', 'virtual', 'remote', 'streaming', 'platform', 'technology']
+        if any(indicator in full_text for indicator in digital_indicators):
+            return 'Include - 팬데믹 디지털화'
+    
+    # 소셜 미디어 일반 - 조건부 포함
     if any(keyword in full_text for keyword in social_media_keywords):
-        interaction_indicators = [
-            'interaction', 'engagement', 'community', 'participation',
-            'sharing', 'content creator', 'influencer', 'real-time'
-        ]
+        interaction_indicators = ['interaction', 'engagement', 'community', 'sharing', 'content', 'creator', 'influencer']
         if any(indicator in full_text for indicator in interaction_indicators):
-            return 'Include - 소셜미디어 관련 (간접적 관련성)'
+            return 'Include - 소셜미디어 관련'
         else:
-            return 'Review - 소셜미디어 맥락검토 필요'
+            return 'Review - 소셜미디어 검토'
     
-    # === 4단계: 나머지 배제기준 적용 ===
+    # EC3. 미래 연구 제안에만 언급 - 기타로 분류하여 수동 검토
+    future_only_indicators = ['future work', 'future research', 'future study', 'recommendation', 'suggestion']
+    if any(indicator in full_text for indicator in future_only_indicators) and streaming_mentions > 0:
+        return 'EC3 - 미래연구 제안에만 언급'
     
-    # EC3: 미래 연구 제안에만 언급
-    if any(pattern in full_text for pattern in future_only_patterns):
-        # 실제 연구 내용에서는 다루지 않고 미래 연구에서만 언급하는 경우
-        has_actual_research_content = (
-            'method' in full_text or 'analysis' in full_text or 
-            'result' in full_text or 'finding' in full_text or 
-            'data' in full_text or 'experiment' in full_text
-        )
-        if not has_actual_research_content:
-            return 'EC3 - 미래연구 제안에만 언급'
-    
-    # 최종 - 분류 불확실
-    return 'Review - 포함여부 수동검토 필요'
-
+    # 기타 - 분류 불확실
+    return 'Review - 분류 불확실'
 
 # --- 데이터 품질 진단 함수 ---
 def diagnose_merged_quality(df, file_count, duplicates_removed):
@@ -853,7 +853,7 @@ st.markdown("""
         WOS PREP
     </h1>
     <p style="font-size: 1.1rem; margin: 0; font-weight: 500; opacity: 0.95; letter-spacing: -0.01em;">
-        SCIMAT Edition - PRISMA 2020 Enhanced
+        SCIMAT Edition
     </p>
     <div style="width: 80px; height: 3px; background-color: rgba(255,255,255,0.3); margin: 1.5rem auto; border-radius: 2px;"></div>
 </div>
@@ -874,12 +874,8 @@ st.markdown("""
     </div>
     <div class="feature-card">
         <div class="feature-icon">🎯</div>
-        <div class="feature-title">PRISMA 기준 적용</div>
-        <div class="feature-desc">IC1-IC3 포함기준 + EC1-EC8 배제기준 체계적 적용</div>
-    </div>
-    <div class="feature-card">
-        <div class="feature-title">학술적 엄밀성 강화</div>
-        <div class="feature-desc">사회-기술 시스템 관점 + 실시간 양방향 상호작용 필수 검증</div>
+        <div class="feature-title">학술적 엄밀성</div>
+        <div class="feature-desc">EC1-EC7 배제 기준 체계적 적용</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -906,7 +902,7 @@ if uploaded_files:
     # 프로그레스 인디케이터
     st.markdown('<div class="progress-indicator"></div>', unsafe_allow_html=True)
     
-    with st.spinner(f"🔄 {len(uploaded_files)}개 WOS 파일 병합 및 PRISMA 기준 적용 중..."):
+    with st.spinner(f"🔄 {len(uploaded_files)}개 WOS 파일 병합 및 학술적 엄밀성 적용 중..."):
         # 파일 병합
         merged_df, file_status, duplicates_removed = load_and_merge_wos_files(uploaded_files)
         
@@ -924,14 +920,14 @@ if uploaded_files:
                 """, unsafe_allow_html=True)
             st.stop()
         
-        # 새로운 논문 분류 함수 적용
-        merged_df['Classification'] = merged_df.apply(classify_livestreaming_paper, axis=1)
+        # 논문 분류 수행 - EC1-EC7 배제 기준 적용
+        merged_df['Classification'] = merged_df.apply(classify_article, axis=1)
 
     # 성공적인 파일 개수 계산
     successful_files = len([s for s in file_status if s['status'] == 'SUCCESS'])
     total_papers = len(merged_df)
     
-    st.success(f"✅ 병합 및 PRISMA 기준 적용 완료! {successful_files}개 파일에서 {total_papers:,}편의 논문을 성공적으로 처리했습니다.")
+    st.success(f"✅ 병합 및 학술적 정제 완료! {successful_files}개 파일에서 {total_papers:,}편의 논문을 성공적으로 처리했습니다.")
     
     # 중복 제거 결과 표시 - 실제 결과만
     if duplicates_removed > 0:
@@ -1028,26 +1024,25 @@ if uploaded_files:
     
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # PRISMA 적용 성공 알림
+    # 병합 성공 알림
     st.markdown("""
     <div class="success-panel">
-        <h4 style="color: #065f46; margin-bottom: 20px; font-weight: 700;">🎯 PRISMA 2020 기준 적용 완료!</h4>
-        <p style="color: #065f46; margin: 6px 0; font-weight: 500;">다중 WOS Plain Text 파일이 성공적으로 하나로 병합되었습니다.</p>
-        <p style="color: #065f46; margin: 6px 0; font-weight: 500;"><strong>포함기준 (IC):</strong> IC1(사회-기술시스템) + IC2(실시간 양방향 상호작용) + IC3(플랫폼 생태계) 체계적 검증</p>
-        <p style="color: #065f46; margin: 6px 0; font-weight: 500;"><strong>배제기준 (EC):</strong> EC1-EC8 배제기준을 체계적으로 적용하여 연구의 신뢰성을 확보했습니다.</p>
+        <h4 style="color: #065f46; margin-bottom: 20px; font-weight: 700;">🎯 다중 파일 병합 및 학술적 정제 성공!</h4>
+        <p style="color: #065f46; margin: 6px 0; font-weight: 500;">여러 WOS Plain Text 파일이 성공적으로 하나로 병합되었습니다.</p>
+        <p style="color: #065f46; margin: 6px 0; font-weight: 500;"><strong>학술적 엄밀성:</strong> EC1-EC7 배제 기준을 체계적으로 적용하여 연구의 신뢰성을 확보했습니다.</p>
         <p style="color: #065f46; margin: 6px 0; font-weight: 500;"><strong>SCIMAT 호환성:</strong> 병합된 파일은 SCIMAT에서 100% 정상 작동합니다.</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # --- PRISMA 적용 결과 요약 ---
+    # --- 분석 결과 요약 ---
     st.markdown("""
     <div class="section-header">
-        <div class="section-title">📈 PRISMA 2020 기준 적용 결과</div>
-        <div class="section-subtitle">IC1-IC3 포함기준 + EC1-EC8 배제기준 적용 후 라이브 스트리밍 연구 분류 결과</div>
+        <div class="section-title">📈 학술적 정제 결과</div>
+        <div class="section-subtitle">EC1-EC7 배제 기준 적용 후 라이브 스트리밍 연구 분류 결과</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # 최종 데이터셋 준비 - 엄격한 배제기준 반영
+    # 최종 데이터셋 준비 - 엄격한 배제 기준 반영
     # EC 코드로 시작하는 논문들은 완전히 제외
     df_excluded_strict = merged_df[merged_df['Classification'].str.startswith('EC', na=False)]
     df_for_analysis = merged_df[~merged_df['Classification'].str.startswith('EC', na=False)].copy()
@@ -1066,7 +1061,7 @@ if uploaded_files:
         <div class="metric-card">
             <div class="metric-icon">📋</div>
             <div class="metric-value">{len(df_final_output):,}</div>
-            <div class="metric-label">최종 분석 대상<br><small style="color: #8b95a1;">(PRISMA 적용후)</small></div>
+            <div class="metric-label">최종 분석 대상<br><small style="color: #8b95a1;">(EC 기준 적용후)</small></div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1077,7 +1072,7 @@ if uploaded_files:
         <div class="metric-card">
             <div class="metric-icon">✅</div>
             <div class="metric-value">{include_papers:,}</div>
-            <div class="metric-label">핵심 포함 연구<br><small style="color: #8b95a1;">(IC1+IC2 충족)</small></div>
+            <div class="metric-label">핵심 포함 연구</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1087,7 +1082,7 @@ if uploaded_files:
         <div class="metric-card">
             <div class="metric-icon">📊</div>
             <div class="metric-value">{processing_rate:.1f}%</div>
-            <div class="metric-label">핵심연구 비율</div>
+            <div class="metric-label">포함 비율</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1100,7 +1095,7 @@ if uploaded_files:
             <div class="metric-card">
                 <div class="metric-icon">⛔</div>
                 <div class="metric-value">{total_excluded:,}</div>
-                <div class="metric-label">PRISMA 배제<br><small style="color: #8b95a1;">(EC1-EC8)</small></div>
+                <div class="metric-label">학술적 배제</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -1117,20 +1112,19 @@ if uploaded_files:
     if st.session_state.get('show_exclude_details', False) and total_excluded > 0:
         st.markdown("""
         <div style="background: #fef2f2; padding: 20px; border-radius: 16px; margin: 20px 0; border: 1px solid #ef4444;">
-            <h4 style="color: #dc2626; margin-bottom: 16px; font-weight: 700;">⛔ PRISMA 배제기준에 따른 제외 논문 (EC1-EC8)</h4>
+            <h4 style="color: #dc2626; margin-bottom: 16px; font-weight: 700;">⛔ 학술적 배제 기준에 따른 제외 논문</h4>
         </div>
         """, unsafe_allow_html=True)
         
         # 배제 기준별 분류 및 표시
         exclusion_categories = {
-            'EC1': '순수기술연구 (사회-기술맥락 부재)',
+            'EC1': '기술적 전송방식만 다룸',
             'EC2': '피상적 언급 (형용사 수준)',
             'EC3': '미래연구 제안에만 언급',
             'EC4': '실시간 양방향 상호작용 미고려',
-            'EC5': 'VOD/일반비디오와 구분불가',
+            'EC5': '라이브스트리밍 맥락 부재',
             'EC6': '문서유형 배제 (비학술논문)',
-            'EC7': '중복게재 의심',
-            'EC8': '실험실환경검증 (실사용맥락 부재)'
+            'EC7': '중복게재 의심'
         }
         
         # EC 기준별 배제 현황
@@ -1160,27 +1154,21 @@ if uploaded_files:
                 if len(ec_papers) > 5:
                     st.markdown(f"<p style='color: #8b95a1; text-align: right; margin: 8px 20px 16px 20px; font-size: 12px;'>... 외 {len(ec_papers) - 5}편 더</p>", unsafe_allow_html=True)
 
-    # PRISMA 적용 결과 요약
+    # 배제 기준 적용 결과 요약
     st.markdown(f"""
     <div class="info-panel">
-        <h4 style="color: #0064ff; margin-bottom: 16px; font-weight: 700;">📊 PRISMA 2020 기준 적용 결과</h4>
+        <h4 style="color: #0064ff; margin-bottom: 16px; font-weight: 700;">📊 학술적 엄밀성 확보</h4>
         <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>총 입력:</strong> {total_papers:,}편의 논문</p>
-        <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>PRISMA 배제:</strong> {total_excluded:,}편 제외 ({(total_excluded/total_papers*100):.1f}%)</p>
+        <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>배제 적용:</strong> {total_excluded:,}편 제외 ({(total_excluded/total_papers*100):.1f}%)</p>
         <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>최종 분석:</strong> {len(df_final_output):,}편으로 정제된 고품질 데이터셋</p>
         <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>핵심 연구:</strong> {include_papers:,}편의 직접 관련 라이브스트리밍 연구 확보</p>
-        <div style="margin-top: 16px; padding: 12px; background: rgba(0,100,255,0.1); border-radius: 8px;">
-            <p style='color: #0064ff; margin: 0; font-weight: 600; font-size: 14px;'>
-            💡 <strong>IC1(사회-기술시스템)</strong> + <strong>IC2(실시간 양방향 상호작용)</strong> + <strong>IC3(플랫폼 생태계)</strong> 포함기준과 
-            <strong>EC1-EC8 배제기준</strong>을 체계적으로 적용하여 연구의 학술적 엄밀성을 확보했습니다.
-            </p>
-        </div>
     </div>
     """, unsafe_allow_html=True)
 
     # --- 논문 분류 현황 ---
     st.markdown("""
     <div class="chart-container">
-        <div class="chart-title">PRISMA 적용 후 연구 분류 분포</div>
+        <div class="chart-title">학술적 정제 후 연구 분류 분포</div>
     """, unsafe_allow_html=True)
 
     classification_counts_df = df_for_analysis['Classification'].value_counts().reset_index()
@@ -1206,7 +1194,7 @@ if uploaded_files:
         text_total = alt.Chart(pd.DataFrame([{'value': f'{len(df_final_output)}'}])).mark_text(
             align='center', baseline='middle', fontSize=45, fontWeight='bold', color='#0064ff'
         ).encode(text='value:N')
-        text_label = alt.Chart(pd.DataFrame([{'value': 'PRISMA Papers'}])).mark_text(
+        text_label = alt.Chart(pd.DataFrame([{'value': 'Refined Papers'}])).mark_text(
             align='center', baseline='middle', fontSize=16, dy=30, color='#8b95a1'
         ).encode(text='value:N')
 
@@ -1220,7 +1208,7 @@ if uploaded_files:
     # --- 분류 상세 결과 ---
     st.markdown("""
     <div class="chart-container">
-        <div class="chart-title">분류별 상세 분포 (PRISMA 기준 적용 후)</div>
+        <div class="chart-title">분류별 상세 분포 (배제 기준 적용 후)</div>
     """, unsafe_allow_html=True)
     
     # 분류별 상세 통계 (EC 제외)
@@ -1231,20 +1219,16 @@ if uploaded_files:
         if classification.startswith('Include'):
             color = "#10b981"
             icon = "✅"
-            desc = "PRISMA 포함기준 충족"
         elif classification.startswith('Review'):
             color = "#f59e0b"
             icon = "🔍"
-            desc = "추가 검토 필요"
         else:
             color = "#8b5cf6"
             icon = "❓"
-            desc = "기타 분류"
         
         st.markdown(f"""
         <div style="margin: 16px 0; padding: 20px; background: white; border-left: 4px solid {color}; border-radius: 12px; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
             <strong>{icon} {classification}:</strong> {count:,}편 ({percentage:.1f}%)
-            <br><small style="color: #8b95a1;">{desc}</small>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1254,7 +1238,7 @@ if uploaded_files:
     if 'PY' in df_final_output.columns:
         st.markdown("""
         <div class="chart-container">
-            <div class="chart-title">정제된 라이브 스트리밍 연구 동향 (PRISMA 적용 후)</div>
+            <div class="chart-title">정제된 라이브 스트리밍 연구 동향 (학술적 배제 기준 적용 후)</div>
         """, unsafe_allow_html=True)
         
         df_trend = df_final_output.copy()
@@ -1330,7 +1314,7 @@ if uploaded_files:
             st.markdown("""
             <div style="background: #fffbeb; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #f59e0b;">
                 <strong style="color: #92400e;">📋 검토 안내:</strong> 아래 논문들은 라이브 스트리밍 연구와의 관련성을 추가 검토가 필요한 논문들입니다.
-                제목과 출판 정보를 확인하여 연구 범위에 포함할지 결정하세요. 엄격한 PRISMA 배제기준(EC1-EC8)은 이미 적용되었습니다.
+                제목과 출판 정보를 확인하여 연구 범위에 포함할지 결정하세요. 엄격한 배제 기준(EC1-EC7)은 이미 적용되었습니다.
             </div>
             """, unsafe_allow_html=True)
             
@@ -1340,7 +1324,7 @@ if uploaded_files:
                 review_excel_data.append({
                     '번호': idx,
                     '논문 제목': str(paper.get('TI', 'N/A')),
-                    '출간연도': str(paper.get('PY', 'N/A')),
+                    '출판연도': str(paper.get('PY', 'N/A')),
                     '저널명': str(paper.get('SO', 'N/A')),
                     '저자': str(paper.get('AU', 'N/A')),
                     '분류': str(paper.get('Classification', 'N/A')),
@@ -1361,7 +1345,7 @@ if uploaded_files:
             st.download_button(
                 label="📊 검토 논문 목록 엑셀 다운로드",
                 data=excel_data,
-                file_name=f"review_papers_prisma_filtered_{len(review_papers)}편.xlsx",
+                file_name=f"review_papers_ec_filtered_{len(review_papers)}편.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 type="secondary",
                 use_container_width=True
@@ -1406,14 +1390,14 @@ if uploaded_files:
                 </div>
                 """, unsafe_allow_html=True)
 
-    # PRISMA 성과 강조
+    # 병합 성과 강조 - 학술적 엄밀성 반영
     success_info = []
     success_info.append(f"<strong>파일 통합:</strong> {successful_files}개의 WOS 파일을 하나로 병합")
     
     if duplicates_removed > 0:
         success_info.append(f"<strong>중복 제거:</strong> {duplicates_removed}편의 중복 논문 자동 감지 및 제거")
     
-    success_info.append(f"<strong>PRISMA 적용:</strong> IC1-IC3 포함기준 + EC1-EC8 배제기준으로 {total_excluded}편 제외")
+    success_info.append(f"<strong>학술적 엄밀성:</strong> EC1-EC7 배제 기준 적용으로 {total_excluded}편 제외")
     success_info.append(f"<strong>최종 규모:</strong> {len(df_final_output):,}편의 고품질 논문으로 정제된 데이터셋")
     success_info.append(f"<strong>핵심 연구:</strong> {include_papers}편의 직접 관련 라이브스트리밍 연구 확보")
     success_info.append("<strong>SCIMAT 호환:</strong> 완벽한 WOS Plain Text 형식으로 100% 호환성 보장")
@@ -1422,12 +1406,12 @@ if uploaded_files:
     
     st.markdown(f"""
     <div class="info-panel">
-        <h4 style="color: #0064ff; margin-bottom: 16px; font-weight: 700;">🎯 PRISMA 2020 데이터 정제 완료</h4>
+        <h4 style="color: #0064ff; margin-bottom: 16px; font-weight: 700;">🎯 학술적 데이터 정제 완료</h4>
         {success_content}
         <div style="margin-top: 16px; padding: 12px; background: rgba(0,100,255,0.1); border-radius: 8px;">
             <p style='color: #0064ff; margin: 0; font-weight: 600; font-size: 14px;'>
-            💡 <strong>PRISMA 적용률:</strong> {(total_excluded/total_papers*100):.1f}% 
-            - 피상적 언급, 순수 기술연구, 비학술 문서 등을 체계적으로 제거하여 연구의 학술적 엄밀성을 확보했습니다.
+            💡 <strong>배제 기준 적용률:</strong> {(total_excluded/total_papers*100):.1f}% 
+            - 피상적 언급, 기술적 전송방식, 비학술 문서 등을 체계적으로 제거하여 연구의 학술적 엄밀성을 확보했습니다.
             </p>
         </div>
     </div>
@@ -1436,8 +1420,8 @@ if uploaded_files:
     # --- 최종 파일 다운로드 섹션 ---
     st.markdown("""
     <div class="section-header">
-        <div class="section-title">📥 PRISMA 2020 적용 완료 - SCIMAT 분석용 파일 다운로드</div>
-        <div class="section-subtitle">IC1-IC3 포함기준 + EC1-EC8 배제기준 적용 후 정제된 고품질 WOS Plain Text 파일</div>
+        <div class="section-title">📥 학술적 정제 완료 - SCIMAT 분석용 파일 다운로드</div>
+        <div class="section-subtitle">EC1-EC7 배제 기준 적용 후 정제된 고품질 WOS Plain Text 파일</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -1447,12 +1431,12 @@ if uploaded_files:
     download_clicked = st.download_button(
         label="📥 다운로드",
         data=text_data,
-        file_name=f"live_streaming_prisma2020_filtered_scimat_{len(df_final_output)}papers.txt",
+        file_name=f"live_streaming_academic_filtered_scimat_{len(df_final_output)}papers.txt",
         mime="text/plain",
         type="primary",
         use_container_width=True,
         key="download_final_file",
-        help="PRISMA 2020 기준 적용 후 SCIMAT에서 바로 사용 가능한 WOS Plain Text 파일"
+        help="학술적 배제 기준 적용 후 SCIMAT에서 바로 사용 가능한 WOS Plain Text 파일"
     )
 
 # --- 하단 여백 및 추가 정보 ---
@@ -1461,17 +1445,8 @@ st.markdown("<br>", unsafe_allow_html=True)
 # 도움말 섹션 - 항상 표시
 with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
     st.markdown("""
-    **Q: PRISMA 2020 기준이란 무엇인가요?**
-    A: 체계적 문헌고찰의 국제표준으로, 본 도구는 라이브 스트리밍 연구에 특화된 IC1-IC3 포함기준과 EC1-EC8 배제기준을 적용합니다.
-    
-    **Q: IC1-IC3 포함기준은 무엇인가요?**
-    A: IC1(사회-기술시스템으로서의 라이브 스트리밍), IC2(실시간 양방향 상호작용 필수), IC3(플랫폼 생태계 맥락) - 연구의 핵심 특성을 정의합니다.
-    
-    **Q: EC1-EC8 배제기준은 무엇인가요?**
-    A: EC1(순수기술연구), EC2(피상적 언급), EC3(미래연구 제안만), EC4(상호작용 미고려), EC5(VOD와 구분불가), EC6(비학술문서), EC7(중복게재), EC8(실험실환경만) - 학술적 엄밀성을 위한 체계적 배제기준입니다.
-    
     **Q: 여러 WOS 파일을 어떻게 한 번에 처리하나요?**
-    A: WOS에서 여러 번 Plain Text 다운로드한 후, 모든 .txt 파일을 한 번에 업로드하면 자동으로 병합되며 PRISMA 기준이 적용됩니다.
+    A: WOS에서 여러 번 Plain Text 다운로드한 후, 모든 .txt 파일을 한 번에 업로드하면 자동으로 병합됩니다.
     
     **Q: 중복된 논문이 있을까봐 걱정됩니다.**
     A: UT(Unique Article Identifier) 기준으로 자동 중복 제거되며, UT가 없으면 제목+저자 조합으로 중복을 감지합니다.
@@ -1479,14 +1454,20 @@ with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
     **Q: WOS에서 어떤 설정으로 다운로드해야 하나요?**
     A: Export → Record Content: "Full Record and Cited References", File Format: "Plain Text"로 설정하세요. 인용 관계 분석을 위해 참고문헌 정보가 필수입니다.
     
-    **Q: Review 논문들은 어떻게 처리해야 하나요?**
-    A: Review로 분류된 논문들은 추가 수동 검토가 필요합니다. 엑셀 다운로드 후 제목과 초록을 확인하여 연구 범위 포함 여부를 결정하세요.
+    **Q: 배제 기준 EC1-EC7은 무엇인가요?**
+    A: EC1(기술적 전송방식만), EC2(피상적 언급), EC3(미래연구 제안), EC4(상호작용 미고려), EC5(라이브스트리밍 맥락 부재), EC6(비학술 문서), EC7(중복게재) - 학술적 엄밀성을 위한 체계적 배제 기준입니다.
     
     **Q: SCIMAT에서 키워드 정리를 어떻게 하나요?**
     A: Group set → Word → Find similar words by distances (Maximum distance: 1)로 유사 키워드를 자동 통합하고, Word Group manual set에서 수동으로 관련 키워드들을 그룹화하세요.
     
+    **Q: SCIMAT 분석 설정은 어떻게 하나요?**
+    A: Unit of Analysis: "Author's words + Source's words", Network Type: "Co-occurrence", Normalization: "Equivalence Index", Clustering: "Simple Centers Algorithm" (Maximum network size: 50)를 권장합니다.
+    
     **Q: 병합된 파일이 SCIMAT에서 제대로 로딩되지 않습니다.**
     A: 원본 WOS 파일들이 'FN Clarivate Analytics Web of Science'로 시작하는 정품 Plain Text 파일인지 확인하세요.
+    
+    **Q: SCIMAT에서 Period는 어떻게 설정하나요?**
+    A: 연구 분야의 진화 단계를 반영하여 의미 있게 구분하되, 각 Period당 최소 50편 이상의 논문을 포함하도록 설정하세요.
     
     **Q: 몇 개의 파일까지 동시에 업로드할 수 있나요?**
     A: 기술적으로는 제한이 없지만, 안정성을 위해 10개 이하의 파일을 권장합니다. 매우 큰 데이터셋의 경우 나누어서 처리하세요.
@@ -1601,92 +1582,6 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     - Period별 최소 50편 이상 권장
     - Java 메모리 부족시 재시작
     - 인코딩 문제시 UTF-8로 변경
-    """)
-
-# 새로운 단순화된 기준 상세 가이드 
-with st.expander("📋 새로운 단순화된 포함/배제 기준 상세 가이드", expanded=False):
-    st.markdown("""
-    ### 포함기준 (Inclusion Criteria)
-    
-    **IC1: 동료 심사를 거친 독창적 연구 논문**
-    ```
-    ✅ 포함: Article (연구논문)
-    ❌ 제외: Review, Editorial, Letter, Meeting Abstract, Book Chapter
-    ```
-    
-    **IC2: 라이브 스트리밍을 사회-기술 시스템으로 다룸**
-    ```
-    ✅ 포함되는 연구:
-    - 라이브 스트리밍이 연구의 핵심 주제
-    - 스트리머-시청자-플랫폼 간의 상호작용 분석
-    - 라이브 스트리밍 생태계 연구
-    
-    ❌ 제외되는 연구:
-    - 라이브 스트리밍을 단순 예시로만 언급
-    - VOD나 일반 비디오 중심 연구
-    - 피상적 언급만 있는 연구
-    ```
-    
-    **IC3: 관계 분석 (상호작용 연구)**
-    ```
-    ✅ 포함되는 연구:
-    - 사용자 간 상호작용 분석
-    - 플랫폼-사용자 관계 연구  
-    - 기술-사회 관계 분석
-    - 참여, 행동, 경험 연구
-    
-    ❌ 제외되는 연구:
-    - 순수 기술 성능만 측정
-    - 관계나 상호작용 무시
-    ```
-    
-    ### 배제기준 (Exclusion Criteria)
-    
-    **EC1: 독창적 연구 논문이 아닌 경우**
-    ```
-    제외 대상:
-    - Review, Editorial, Letter
-    - Meeting Abstract, Book Chapter
-    - Conference Proceedings
-    - Note, Correction
-    ```
-    
-    **EC2: 중복 게재 논문**
-    ```
-    제외 대상:
-    - "Extended version" 표기
-    - "Preliminary version" 표기  
-    - "Conference version" 표기
-    ```
-    
-    **EC3: 라이브 스트리밍이 핵심 주제가 아닌 경우**
-    ```
-    제외 대상:
-    - 라이브 스트리밍 키워드 없음
-    - "for example", "such as" 등으로만 언급
-    - "future work"에서만 제안
-    ```
-    
-    **EC4: 순수 기술 연구 (사회적 맥락 없음)**
-    ```
-    제외 대상:
-    - 알고리즘, 프로토콜만 다룸
-    - 하드웨어 구현만 다룸
-    - 사용자, 사회적 맥락 전혀 없음
-    ```
-    
-    ### 최종 분류 결과
-    
-    **연구대상**: 모든 포함기준 충족
-    **검토필요**: 일부 기준만 충족 (수동 검토)
-    **제외-XXX**: 명확한 배제 사유
-    
-    ### 적용 순서
-    ```
-    1. EC1-EC4 배제기준 우선 확인
-    2. IC1-IC3 포함기준 순차 검증
-    3. 최종 3단계 분류
-    ```
     """)
 
 st.markdown("<br><br>", unsafe_allow_html=True)
