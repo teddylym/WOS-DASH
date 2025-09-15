@@ -555,7 +555,7 @@ def classify_article(row):
     # IC1: 주제 적합성 (핵심 주제)
     core_streaming_keywords = ['live stream', 'livestream', 'live broadcast']
     if not any(core_keyword in full_text for core_keyword in core_streaming_keywords):
-        return 'Exclude - IC1 (주제 부적합)' # 핵심 키워드 부재
+        return 'Exclude - IC1 (주제 부적합)' 
 
     # IC2: 개념적 핵심성 (실시간/양방향)
     interactive_keywords = ['interactive', 'interaction', 'real-time', 'synchronous', 'chat', 'engagement', 'two-way']
@@ -592,7 +592,6 @@ def classify_article(row):
 
     # 모든 기준 통과
     return 'Include - 분석 대상'
-
 
 # --- 데이터 품질 진단 함수 ---
 def diagnose_merged_quality(df, file_count, duplicates_removed):
@@ -881,7 +880,7 @@ if uploaded_files:
     </div>
     """, unsafe_allow_html=True)
 
-    # 최종 데이터셋 준비
+    # 최종 데이터셋 준비 - 엄격한 배제 기준 반영
     df_excluded = merged_df[merged_df['Classification'].str.startswith('Exclude', na=False)]
     df_review = merged_df[merged_df['Classification'].str.startswith('Review', na=False)]
     df_include = merged_df[merged_df['Classification'].str.startswith('Include', na=False)]
@@ -942,38 +941,22 @@ if uploaded_files:
     classification_counts = merged_df['Classification'].value_counts().reset_index()
     classification_counts.columns = ['분류', '논문 수']
     
-    # 색상 맵핑
-    color_map = {
-        'Include - 분석 대상': '#10b981',
-        'Review - 상호작용성 검토 필요': '#f59e0b',
-        'Review - 시간적 관련성 검토 필요 (오래된 플랫폼)': '#f97316',
-        'Exclude - EC1 (사회-기술적 맥락 부재)': '#ef4444',
-        'Exclude - EC1 (핵심 속성 부재 - 비실시간/단방향)': '#dc2626',
-        'Exclude - EC2 (주제의 주변성)': '#e11d48',
-        'Exclude - EC3 (문서유형 부적합)': '#991b1b',
-        'Exclude - EC3 (중복 연구)': '#7f1d1d',
-        'Exclude - IC1 (주제 부적합)': '#fca5a5',
-        'Exclude - IC2 (개념 부적합 - 비실시간)': '#f87171',
-        'Exclude - IC3 (분석적 기여도 부재)': '#ef4444'
-    }
-    
-    # 도넛 차트 데이터 준비 (Include, Review, Exclude 그룹화)
-    donut_data = {
-        'Category': ['Include', 'Review', 'Exclude'],
-        'Count': [
-            len(df_include),
-            len(df_review),
-            total_excluded
-        ]
-    }
-    donut_df = pd.DataFrame(donut_data)
-    
     col1, col2 = st.columns([0.4, 0.6])
     with col1:
         st.dataframe(classification_counts, use_container_width=True, hide_index=True)
 
     with col2:
         # 도넛 차트
+        donut_data = {
+            'Category': ['Include', 'Review', 'Exclude'],
+            'Count': [
+                len(df_include),
+                len(df_review),
+                total_excluded
+            ]
+        }
+        donut_df = pd.DataFrame(donut_data)
+        
         selection = alt.selection_point(fields=['Category'], on='mouseover', nearest=True)
 
         base = alt.Chart(donut_df).encode(
