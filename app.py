@@ -31,6 +31,10 @@ st.markdown("""
         border: 1px solid #e5e8eb;
         margin-bottom: 12px;
         transition: all 0.2s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
     
     .metric-card:hover {
@@ -920,9 +924,8 @@ if uploaded_files:
     df_final_output = df_for_analysis.drop(columns=['Classification'], errors='ignore')
     
     # 메트릭 카드들
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
+    columns = st.columns(4)
+    with columns[0]:
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-icon">📋</div>
@@ -933,7 +936,7 @@ if uploaded_files:
     
     include_papers = len(df_for_analysis[df_for_analysis['Classification'].str.contains('Include', na=False)])
     
-    with col2:
+    with columns[1]:
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-icon">✅</div>
@@ -942,7 +945,7 @@ if uploaded_files:
         </div>
         """, unsafe_allow_html=True)
     
-    with col3:
+    with columns[2]:
         processing_rate = (len(df_final_output) / total_papers_before_filter * 100) if total_papers_before_filter > 0 else 0
         st.markdown(f"""
         <div class="metric-card">
@@ -952,27 +955,44 @@ if uploaded_files:
         </div>
         """, unsafe_allow_html=True)
     
-    with col4:
-        # 배제된 논문들을 위한 토글 버튼이 있는 박스
-        col4_inner1, col4_inner2 = st.columns([3, 1])
-        
-        with col4_inner1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-icon">⛔</div>
-                <div class="metric-value">{total_excluded:,}</div>
-                <div class="metric-label">학술적 배제</div>
+    with columns[3]:
+        # '학술적 배제' 카드를 클릭 가능한 버튼으로 변경
+        button_html_label = f"""
+        <div style="text-align: center; line-height: 1.2; color: #191f28; font-family: 'Pretendard', sans-serif;">
+            <div style="font-size: 16px; margin-bottom: 12px; background: #3182f6; color: white; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-left: auto; margin-right: auto;">⛔</div>
+            <div style="font-size: 2.2rem; font-weight: 700; color: #191f28; letter-spacing: -0.02em;">{total_excluded:,}</div>
+            <div style="font-size: 13px; color: #8b95a1; font-weight: 500; letter-spacing: -0.01em; margin-top: 6px;">
+                학술적 배제<br>(상세보기 및 다운로드)
             </div>
-            """, unsafe_allow_html=True)
-        
-        with col4_inner2:
-            st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-            if st.button(
-                "📋", 
-                key="exclude_details_button",
-                help="배제된 논문 상세 보기"
-            ):
-                st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
+        </div>
+        """
+        if st.button(button_html_label, key="exclude_details_button_card", use_container_width=True):
+            st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
+
+        # 버튼 스타일을 카드처럼 보이게 하기 위한 CSS 추가
+        st.markdown("""
+            <style>
+                div[data-testid="stButton"][key="exclude_details_button_card"] > button {
+                    background-color: white;
+                    border: 1px solid #e5e8eb;
+                    padding: 20px;
+                    border-radius: 8px;
+                    transition: all 0.2s ease;
+                    height: 100%;
+                    width: 100%;
+                }
+                div[data-testid="stButton"][key="exclude_details_button_card"] > button:hover {
+                    border-color: #3182f6;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                    transform: translateY(-1px);
+                }
+                div[data-testid="stButton"][key="exclude_details_button_card"] > button:focus {
+                    box-shadow: 0 0 0 2px #3182f640 !important;
+                    border-color: #3182f6 !important;
+                }
+            </style>
+        """, unsafe_allow_html=True)
+
 
     # 배제된 논문 상세 정보 토글 표시
     if st.session_state.get('show_exclude_details', False) and total_excluded > 0:
