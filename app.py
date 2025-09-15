@@ -507,9 +507,9 @@ def parse_wos_format(content):
         
     return pd.DataFrame(records)
 
-# --- 라이브 스트리밍 특화 분류 함수 (강화된 포함/배제 기준 적용) ---
+# --- 라이브 스트리밍 특화 분류 함수 (강화된 포함/배제 기준 적용 + 한국어 병기) ---
 def classify_article(row):
-    """강화된 포함/배제 기준을 적용한 라이브 스트리밍 연구 분류 함수"""
+    """강화된 포함/배제 기준을 적용한 라이브 스트리밍 연구 분류 함수 (한국어 병기)"""
     
     # --- 키워드 셋 정의 ---
     # IC1: 주제 적합성 (라이브 스트리밍 핵심)
@@ -537,6 +537,16 @@ def classify_article(row):
         'Commercial Application': ['commerce', 'marketing', 'influencer', 'brand', 'purchase intention', 'advertising', 'e-commerce', 'social commerce'],
         'Educational Use': ['education', 'learning', 'teaching', 'pedagogy', 'student engagement', 'mooc', 'virtual classroom'],
         'Technical Implementation': ['architecture', 'algorithm', 'latency', 'quality of service', 'qos', 'video quality', 'webrtc', 'cdn']
+    }
+    
+    # 국문 매핑
+    category_map_ko = {
+        'Platform Ecosystem': '플랫폼 생태계',
+        'User Behavior/Psychology': '사용자 행동/심리',
+        'Socio-Cultural Impact': '사회/문화적 영향',
+        'Commercial Application': '상업적 응용',
+        'Educational Use': '교육적 활용',
+        'Technical Implementation': '기술적 구현'
     }
 
     # EC1: 사회-기술적 맥락 부재 (순수 기술)
@@ -578,7 +588,6 @@ def classify_article(row):
     # --- 분류 로직 (계층적 필터링) ---
     
     # Stage 1: 방법론적 부적합성 배제 (EC3)
-    # IC4 (Article, Review만 허용)의 역 lógica
     if not any(doc in document_type for doc in ['article', 'review']):
         return 'EC3 - 방법론적 부적합성'
     if any(indicator in full_text for indicator in duplicate_indicators):
@@ -589,31 +598,25 @@ def classify_article(row):
     if not has_core_streaming:
         return 'EC2 - 높은 주제 주변성'
 
-    # 피상적 언급 확인
     if any(indicator in full_text for indicator in peripheral_mention_indicators):
-        # 핵심 키워드가 1~2회 정도만 언급되고, 주변성 지표와 함께 나타날 경우 배제
         if sum(1 for kw in core_streaming_keywords if kw in full_text) <= 2:
             return 'EC2 - 높은 주제 주변성'
 
     # Stage 3: 개념적 핵심성(IC2) 및 사회-기술적 맥락(EC1) 검증
     has_interaction = any(kw in full_text for kw in realtime_interaction_keywords)
     if not has_interaction:
-        # 라이브 스트리밍은 언급했지만, 상호작용성이 부재한 경우
-        # 순수 기술 논문인지 확인하여 EC1으로 분류
         if any(kw in full_text for kw in pure_tech_exclusions):
             return 'EC1 - 사회-기술적 맥락 부재'
         else:
-            # VOD 등 일방향 스트리밍으로 간주, 맥락 부재
             return 'EC1 - 사회-기술적 맥락 부재'
             
     # Stage 4: 분석적 기여도(IC3) 확인
-    # 이 단계까지 통과한 논문은 '실시간 상호작용'을 다루는 '라이브 스트리밍' 연구임
-    for category, keywords in analytical_contribution_keywords.items():
+    for category_en, keywords in analytical_contribution_keywords.items():
         if any(kw in full_text for kw in keywords):
-            return f'Include - {category}'
+            category_ko = category_map_ko.get(category_en, category_en)
+            return f'Include - {category_en} ({category_ko})'
 
-    # 모든 기준을 통과했으나 명확한 분석 차원을 찾지 못한 경우
-    return 'Review - Contribution Unclear'
+    return 'Review - Contribution Unclear (기여도 불분명)'
 
 # --- 데이터 품질 진단 함수 ---
 def diagnose_merged_quality(df, file_count, duplicates_removed):
@@ -976,6 +979,38 @@ if uploaded_files:
             <h4 style="color: #dc2626; margin-bottom: 16px; font-weight: 700;">⛔ 학술적 배제 기준에 따른 제외 논문</h4>
         </div>
         """, unsafe_allow_html=True)
+
+        # --- NEW: 제외 논문 엑셀 다운로드 버튼 ---
+        excluded_excel_data = []
+        for idx, (_, paper) in enumerate(df_excluded_strict.iterrows(), 1):
+            excluded_excel_data.append({
+                '번호': idx,
+                '논문 제목': str(paper.get('TI', 'N/A')),
+                '출판연도': str(paper.get('PY', 'N/A')),
+                '저널명': str(paper.get('SO', 'N/A')),
+                '저자': str(paper.get('AU', 'N/A')),
+                '배제 사유': str(paper.get('Classification', 'N/A')),
+                '문서유형': str(paper.get('DT', 'N/A')),
+                '초록': str(paper.get('AB', 'N/A'))
+            })
+        
+        excluded_excel_df = pd.DataFrame(excluded_excel_data)
+        
+        excel_buffer_excluded = io.BytesIO()
+        with pd.ExcelWriter(excel_buffer_excluded, engine='openpyxl') as writer:
+            excluded_excel_df.to_excel(writer, sheet_name='Excluded_Papers', index=False)
+        excel_data_excluded = excel_buffer_excluded.getvalue()
+        
+        st.download_button(
+            label=f"📊 제외된 논문 목록 엑셀 다운로드 ({len(df_excluded_strict)}편)",
+            data=excel_data_excluded,
+            file_name=f"excluded_papers_{len(df_excluded_strict)}papers.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type="secondary",
+            use_container_width=True
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+        # --- END NEW ---
         
         # 배제 기준별 분류 및 표시
         exclusion_categories = {
@@ -1080,7 +1115,7 @@ if uploaded_files:
         elif classification.startswith('Review'):
             color = "#f59e0b"
             icon = "🔍"
-        else: # Should not happen, but as a fallback
+        else: 
             color = "#8b5cf6"
             icon = "❓"
         
