@@ -522,17 +522,19 @@ def classify_article(row):
         'game streaming', 'esports streaming'
     ]
     
-    # IC2: 개념적 핵심성 (실시간 + 양방향 상호작용)
+    # IC2: 개념적 핵심성 (실시간 + 양방향 상호작용) - 확장됨
     realtime_interaction_keywords = [
         'real-time', 'real time', 'interactive', 'interaction', 'two-way', 'bidirectional',
         'synchronous', 'live chat', 'audience participation', 'user engagement', 'live feedback',
-        'parasocial', 'viewer engagement', 'community'
+        'parasocial', 'viewer engagement', 'community',
+        # --- 확장된 학술 키워드 ---
+        'interactivity', 'social presence', 'immediacy', 'telepresence', 'responsiveness'
     ]
     
     # IC3: 분석적 기여도 (6개 차원)
     analytical_contribution_keywords = {
         'Platform Ecosystem': ['platform', 'ecosystem', 'business model', 'monetization', 'governance', 'creator economy'],
-        'User Behavior/Psychology': ['user behavior', 'psychology', 'motivation', 'engagement', 'addiction', 'parasocial', 'social presence', 'trust'],
+        'User Behavior/Psychology': ['user behavior', 'psychology', 'motivation', 'engagement', 'addiction', 'parasocial', 'social presence', 'trust', 'satisfaction'],
         'Socio-Cultural Impact': ['social impact', 'cultural', 'community', 'identity', 'online culture', 'social capital', 'digital labor'],
         'Commercial Application': ['commerce', 'marketing', 'influencer', 'brand', 'purchase intention', 'advertising', 'e-commerce', 'social commerce'],
         'Educational Use': ['education', 'learning', 'teaching', 'pedagogy', 'student engagement', 'mooc', 'virtual classroom'],
@@ -980,7 +982,7 @@ if uploaded_files:
         </div>
         """, unsafe_allow_html=True)
 
-        # --- NEW: 제외 논문 엑셀 다운로드 버튼 ---
+        # --- 제외 논문 엑셀 다운로드 버튼 ---
         excluded_excel_data = []
         for idx, (_, paper) in enumerate(df_excluded_strict.iterrows(), 1):
             excluded_excel_data.append({
@@ -1010,7 +1012,6 @@ if uploaded_files:
             use_container_width=True
         )
         st.markdown("<br>", unsafe_allow_html=True)
-        # --- END NEW ---
         
         # 배제 기준별 분류 및 표시
         exclusion_categories = {
