@@ -511,12 +511,11 @@ def parse_wos_format(content):
         
     return pd.DataFrame(records)
 
-# --- 라이브 스트리밍 특화 분류 함수 (강화된 포함/배제 기준 적용 + 한국어 병기) ---
+# --- 라이브 스트리밍 특화 분류 함수 (개선된 로직 적용) ---
 def classify_article(row):
-    """강화된 포함/배제 기준을 적용한 라이브 스트리밍 연구 분류 함수 (한국어 병기)"""
+    """개선된 포함/배제 기준을 적용한 라이브 스트리밍 연구 분류 함수"""
     
     # --- 키워드 셋 정의 ---
-    # IC1: 주제 적합성 (라이브 스트리밍 핵심)
     core_streaming_keywords = [
         'live stream', 'livestream', 'live video', 'live broadcast', 
         'real-time stream', 'streaming platform', 'streaming service',
@@ -526,26 +525,22 @@ def classify_article(row):
         'game streaming', 'esports streaming'
     ]
     
-    # IC2: 개념적 핵심성 (실시간 + 양방향 상호작용) - 확장됨
     realtime_interaction_keywords = [
         'real-time', 'real time', 'interactive', 'interaction', 'two-way', 'bidirectional',
         'synchronous', 'live chat', 'audience participation', 'user engagement', 'live feedback',
         'parasocial', 'viewer engagement', 'community',
-        # --- 확장된 학술 키워드 ---
         'interactivity', 'social presence', 'immediacy', 'telepresence', 'responsiveness'
     ]
     
-    # IC3: 분석적 기여도 (6개 차원)
     analytical_contribution_keywords = {
-        'Platform Ecosystem': ['platform', 'ecosystem', 'business model', 'monetization', 'governance', 'creator economy'],
-        'User Behavior/Psychology': ['user behavior', 'psychology', 'motivation', 'engagement', 'addiction', 'parasocial', 'social presence', 'trust', 'satisfaction'],
+        'Platform Ecosystem': ['platform', 'ecosystem', 'business model', 'monetization', 'governance', 'creator economy', 'multi-sided', 'hiring'],
+        'User Behavior/Psychology': ['user behavior', 'psychology', 'motivation', 'engagement', 'addiction', 'parasocial', 'social presence', 'trust', 'satisfaction', 'intention'],
         'Socio-Cultural Impact': ['social impact', 'cultural', 'community', 'identity', 'online culture', 'social capital', 'digital labor'],
-        'Commercial Application': ['commerce', 'marketing', 'influencer', 'brand', 'purchase intention', 'advertising', 'e-commerce', 'social commerce'],
+        'Commercial Application': ['commerce', 'marketing', 'influencer', 'brand', 'purchase', 'advertising', 'e-commerce', 'social commerce', 'sales'],
         'Educational Use': ['education', 'learning', 'teaching', 'pedagogy', 'student engagement', 'mooc', 'virtual classroom'],
         'Technical Implementation': ['architecture', 'algorithm', 'latency', 'quality of service', 'qos', 'video quality', 'webrtc', 'cdn']
     }
     
-    # 국문 매핑
     category_map_ko = {
         'Platform Ecosystem': '플랫폼 생태계',
         'User Behavior/Psychology': '사용자 행동/심리',
@@ -555,7 +550,6 @@ def classify_article(row):
         'Technical Implementation': '기술적 구현'
     }
 
-    # EC1: 사회-기술적 맥락 부재 (순수 기술)
     pure_tech_exclusions = [
         'routing protocol', 'network topology', 'mac protocol', 'tcp/ip', 'udp', 'rtmp', 'hls', 'dash',
         'video codec', 'audio codec', 'h.264', 'h.265', 'hevc', 'mpeg', 'video compression',
@@ -564,13 +558,11 @@ def classify_article(row):
         'satellite communication', 'biomedical signal', 'medical imaging', 'radar', 'sonar'
     ]
 
-    # EC2: 높은 주제 주변성 (피상적/미래 연구 언급)
     peripheral_mention_indicators = [
         'for example', 'such as', 'including', 'future work', 'future research', 'future study',
         'potential application', 'recommendation for future'
     ]
 
-    # EC3: 방법론적 부적합성
     methodological_exclusion_types = [
         'editorial material', 'letter', 'proceedings paper', 'book chapter', 'correction', 
         'retracted publication', 'meeting abstract', 'note', 'short survey'
@@ -591,7 +583,7 @@ def classify_article(row):
     
     full_text = ' '.join([title, abstract, author_keywords, keywords_plus])
     
-    # --- 분류 로직 (계층적 필터링) ---
+    # --- 개선된 분류 로직 ---
     
     # Stage 1: 방법론적 부적합성 배제 (EC3)
     if not any(doc in document_type for doc in ['article', 'review']):
@@ -599,30 +591,27 @@ def classify_article(row):
     if any(indicator in full_text for indicator in duplicate_indicators):
         return 'EC3 - 방법론적 부적합성'
 
-    # Stage 2: 주제 적합성 (IC1) 및 주변성 (EC2) 검증
+    # Stage 2: 주제 적합성(IC1) 및 주변성(EC2) 검증
     has_core_streaming = any(kw in full_text for kw in core_streaming_keywords)
     if not has_core_streaming:
         return 'EC2 - 높은 주제 주변성'
-
     if any(indicator in full_text for indicator in peripheral_mention_indicators):
         if sum(1 for kw in core_streaming_keywords if kw in full_text) <= 2:
             return 'EC2 - 높은 주제 주변성'
 
-    # Stage 3: 개념적 핵심성(IC2) 및 사회-기술적 맥락(EC1) 검증
-    has_interaction = any(kw in full_text for kw in realtime_interaction_keywords)
-    if not has_interaction:
-        if any(kw in full_text for kw in pure_tech_exclusions):
-            return 'EC1 - 사회-기술적 맥락 부재'
-        else:
-            return 'EC1 - 사회-기술적 맥락 부재'
-            
-    # Stage 4: 분석적 기여도(IC3) 확인
+    # Stage 3: 우선적 분석 차원(IC3) 검증 (로직 순서 변경)
     for category_en, keywords in analytical_contribution_keywords.items():
         if any(kw in full_text for kw in keywords):
             category_ko = category_map_ko.get(category_en, category_en)
             return f'Include - {category_en} ({category_ko})'
 
-    return 'Review - Contribution Unclear (기여도 불분명)'
+    # Stage 4: 보조적 상호작용(IC2) 검증
+    has_interaction = any(kw in full_text for kw in realtime_interaction_keywords)
+    if has_interaction:
+        return 'Include - General Interaction Study (일반 상호작용 연구)'
+
+    # Stage 5: 최종 배제
+    return 'EC1 - 사회-기술적 맥락 부재'
 
 # --- 데이터 품질 진단 함수 ---
 def diagnose_merged_quality(df, file_count, duplicates_removed):
