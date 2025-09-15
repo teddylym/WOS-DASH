@@ -409,58 +409,86 @@ def parse_wos_format(content):
     if current_record: records.append(current_record)
     return pd.DataFrame(records) if records else None
 
-# --- 최종 분류 함수 ---
+# --- 최종 분류 함수 (주제 중심성 필터 적용) ---
 def classify_article(row):
-    """최종 강화된 포함 기준(IC)을 적용한 분류 함수"""
+    """'주제 중심성' 필터가 적용된 최종 분류 함수"""
     
     # --- 키워드 셋 정의 ---
-    # IC1: 연구의 핵심 주제
-    core_streaming_keywords = ['live stream', 'livestream', 'live video', 'live broadcast', 'real-time stream', 'streaming platform', 'streaming service', 'live commerce', 'live shopping', 'shoppertainment', 'streamer', 'viewer', 'streaming audience', 'twitch', 'youtube live', 'facebook live', 'tiktok live', 'douyin', 'kuaishou', 'taobao live', 'game streaming', 'esports streaming']
+    core_streaming_keywords = [
+        'live stream', 'livestream', 'live video', 'live broadcast', 
+        'real-time stream', 'streaming platform', 'streaming service',
+        'live commerce', 'live shopping', 'shoppertainment',
+        'streamer', 'viewer', 'streaming audience',
+        'twitch', 'youtube live', 'facebook live', 'tiktok live', 'douyin', 'kuaishou', 'taobao live',
+        'game streaming', 'esports streaming'
+    ]
     
-    # IC2: 핵심 기여도 (A. 지식 종합)
-    knowledge_synthesis_keywords = ['meta-analysis', 'systematic review']
-    # IC2: 핵심 기여도 (B. 분야 구조 분석)
-    field_structure_keywords = ['bibliometric', 'scientometric', 'literature review', 'trend', 'evolution', 'overview']
-    
-    # IC3: 핵심 현상 (사회-기술적 동학 또는 플랫폼 생태계 동학)
-    core_phenomenon_keywords = [
-        'interactive', 'interaction', 'interactivity', 'social presence', 'user behavior', 'viewer behavior', 'psychology', 'motivation', 'engagement', 'parasocial', 'community', 'communities', 'cultural', 'culture',
-        'platform', 'platforms', 'ecosystem', 'ecosystems', 'business model', 'monetization', 'governance', 'creator economy', 'commerce', 'marketing', 'influencer', 'brand', 'purchase'
+    socio_technical_keywords = [
+        'interactive', 'interaction', 'interactivity', 'real-time', 'synchronous',
+        'social presence', 'telepresence', 'immediacy', 'responsiveness', 'user behavior', 
+        'viewer behavior', 'psychology', 'psychological', 'motivation', 'motivate', 
+        'engagement', 'engaging', 'addiction', 'addictive', 'loyalty', 'trust', 
+        'satisfaction', 'intention', 'intentions', 'emotion', 'affective', 'attitude',
+        'parasocial', 'social relationship', 'social support', 'social influence',
+        'community', 'communities', 'virtual community', 'online community', 
+        'cultural', 'culture', 'identity', 'identities', 'social capital', 'online culture'
     ]
 
-    # EC 키워드
-    peripheral_mention_indicators = ['for example', 'such as', 'including', 'future work', 'future research']
-    methodological_exclusion_types = ['editorial material', 'letter', 'proceedings paper', 'book chapter', 'correction', 'retracted publication', 'meeting abstract', 'note', 'short survey']
-    duplicate_indicators = ['extended version', 'preliminary version', 'conference version', 'short version']
+    platform_ecosystem_keywords = [
+        'platform', 'platforms', 'ecosystem', 'ecosystems', 'business model', 'business models',
+        'monetization', 'revenue', 'governance', 'govern', 'creator economy', 'creators',
+        'multi-sided', 'hiring', 'strategy', 'strategic', 'competitive',
+        'commerce', 'marketing', 'influencer', 'brand', 'brands', 'purchase', 'purchasing', 
+        'advertising', 'advertise', 'e-commerce', 'social commerce', 'sales', 'sale'
+    ]
+    
+    technical_keywords = [
+        'architecture', 'architectures', 'algorithm', 'algorithms', 'latency', 'quality of service', 
+        'qos', 'video quality', 'webrtc', 'cdn'
+    ]
+
+    methodological_exclusion_types = [
+        'editorial material', 'letter', 'proceedings paper', 'book chapter', 'correction', 
+        'retracted publication', 'meeting abstract', 'note', 'short survey'
+    ]
+    duplicate_indicators = [
+        'extended version', 'preliminary version', 'conference version', 'short version'
+    ]
 
     # --- 텍스트 필드 추출 ---
     def extract_text(value): return str(value).lower().strip() if pd.notna(value) else ""
-    title, abstract, author_keywords, keywords_plus, document_type = (extract_text(row.get(f, '')) for f in ['TI', 'AB', 'DE', 'ID', 'DT'])
-    full_text = ' '.join([title, abstract, author_keywords, keywords_plus])
+    title = extract_text(row.get('TI', ''))
+    author_keywords = extract_text(row.get('DE', ''))
+    keywords_plus = extract_text(row.get('ID', ''))
+    abstract = extract_text(row.get('AB', ''))
+    document_type = extract_text(row.get('DT', ''))
     
+    full_text = ' '.join([title, abstract, author_keywords, keywords_plus])
+    central_text = ' '.join([title, author_keywords, keywords_plus])
+
     # --- 최종 분류 로직 ---
-    # Stage 1: 방법론적 적합성 (EC3)
+    # Stage 1: 방법론적 부적합성 (EC3)
     if 'article' not in document_type and 'review' not in document_type: return 'EC3 - 방법론적 부적합성'
     if any(ind in full_text for ind in duplicate_indicators): return 'EC3 - 방법론적 부적합성'
 
-    # Stage 2: 핵심 주제 (IC1) 및 주변성 (EC2)
-    if not any(kw in full_text for kw in core_streaming_keywords): return 'EC2 - 높은 주제 주변성'
-    if any(ind in full_text for ind in peripheral_mention_indicators) and sum(1 for kw in core_streaming_keywords if kw in full_text) <= 2: return 'EC2 - 높은 주제 주변성'
+    # Stage 2: 주제 중심성 필터 (EC2)
+    if not any(kw in central_text for kw in core_streaming_keywords):
+        return 'EC2 - 낮은 주제 중심성'
 
-    # Stage 3: 핵심 기여도 (IC2)
-    is_knowledge_synthesis = 'review' in document_type or any(kw in full_text for kw in knowledge_synthesis_keywords)
-    is_field_structure = any(kw in full_text for kw in field_structure_keywords)
+    # Stage 3: 핵심 현상 분류 (IC)
+    if any(kw in full_text for kw in socio_technical_keywords):
+        return 'Include - Socio-Technical Dynamics (사회-기술적 동학)'
     
-    if is_knowledge_synthesis or is_field_structure:
-        # Stage 4: 핵심 현상 (IC3) - Review/분석 논문의 주제 필터링
-        if any(kw in full_text for kw in core_phenomenon_keywords):
-            if is_knowledge_synthesis: return 'Include - Knowledge Synthesis (지식 종합 연구)'
-            if is_field_structure: return 'Include - Field Structure Analysis (분야 구조 분석)'
-        else:
-            return 'EC4 - 핵심 현상 분석 부재' # 예: 순수 기술 리뷰 논문 제외
-    else:
-        # 개별 실증 연구는 모두 제외
-        return 'EC5 - Not a Summative Study (종합/구조분석 연구 아님)'
+    if any(kw in full_text for kw in platform_ecosystem_keywords):
+        return 'Include - Platform Ecosystem Dynamics (플랫폼 생태계 동학)'
+        
+    if any(kw in full_text for kw in technical_keywords):
+        context_words = ['user', 'viewer', 'audience', 'business', 'market', 'service', 'platform', 'streamer']
+        if any(cw in full_text for cw in context_words):
+             return 'Include - Technical Implementation (기술적 구현)'
+
+    # Stage 4: 핵심 현상 부재 (EC4)
+    return 'EC4 - 핵심 현상 분석 부재'
 
 # --- 데이터 품질 진단 함수 ---
 def diagnose_merged_quality(df, file_count, duplicates_removed):
@@ -495,7 +523,7 @@ def convert_to_scimat_wos_format(df_to_convert):
         file_content.append("ER")
     return "\n".join(file_content).encode('utf-8-sig')
 
-# --- 이하 UI 코드 ---
+# --- 이하 UI 코드는 원상 복구 및 유지 ---
 
 # --- 메인 헤더 ---
 st.markdown("""
@@ -533,8 +561,8 @@ st.markdown("""
     </div>
     <div class="feature-card">
         <div class="feature-icon">🎯</div>
-        <div class="feature-title">최종 학술적 정제</div>
-        <div class="feature-desc">연구 목적에 맞는 핵심 논문만 정밀 선별</div>
+        <div class="feature-title">학술적 엄밀성</div>
+        <div class="feature-desc">주제 중심성 필터로 핵심 논문 정밀 선별</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -559,7 +587,7 @@ if uploaded_files:
     st.markdown(f"📋 **선택된 파일 개수:** {len(uploaded_files)}개")
     st.markdown('<div class="progress-indicator"></div>', unsafe_allow_html=True)
     
-    with st.spinner(f"🔄 {len(uploaded_files)}개 WOS 파일 병합 및 최종 정제 적용 중..."):
+    with st.spinner(f"🔄 {len(uploaded_files)}개 WOS 파일 병합 및 학술적 정제 적용 중..."):
         merged_df, file_status, duplicates_removed = load_and_merge_wos_files(uploaded_files)
         
         if merged_df is None:
@@ -583,8 +611,8 @@ if uploaded_files:
 
     st.markdown("""
     <div class="section-header">
-        <div class="section-title">📈 최종 정제 결과 요약</div>
-        <div class="section-subtitle">강화된 포함 기준(IC) 적용 후 연구 분류 결과</div>
+        <div class="section-title">📈 학술적 정제 결과</div>
+        <div class="section-subtitle">최종 포함 기준(IC) 적용 후 연구 분류 결과</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -595,7 +623,7 @@ if uploaded_files:
     with columns[0]:
         st.markdown(f"""<div class="metric-card"><div class="metric-icon">📋</div><div class="metric-value">{len(df_final_output):,}</div><div class="metric-label">최종 분석 대상</div></div>""", unsafe_allow_html=True)
     
-    include_papers = len(df_for_analysis[df_for_analysis['Classification'].str.contains('Include', na=False)])
+    include_papers = len(df_for_analysis)
     with columns[1]:
         st.markdown(f"""<div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value">{include_papers:,}</div><div class="metric-label">핵심 포함 연구</div></div>""", unsafe_allow_html=True)
     
@@ -619,7 +647,7 @@ if uploaded_files:
         st.download_button(label=f"📊 제외된 논문 목록 엑셀 다운로드 ({len(df_excluded_strict)}편)", data=excel_buffer_excluded.getvalue(), file_name=f"excluded_papers_{len(df_excluded_strict)}papers.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="secondary", use_container_width=True)
         st.markdown("<br>", unsafe_allow_html=True)
         
-        exclusion_categories = {'EC2': '높은 주제 주변성', 'EC3': '방법론적 부적합성', 'EC4': '핵심 현상 분석 부재', 'EC5': 'Not a Summative Study (종합/구조분석 연구 아님)'}
+        exclusion_categories = {'EC2': '낮은 주제 중심성', 'EC3': '방법론적 부적합성', 'EC4': '핵심 현상 분석 부재'}
         for ec_code, description in exclusion_categories.items():
             ec_papers = df_excluded_strict[df_excluded_strict['Classification'] == ec_code]
             if not ec_papers.empty:
@@ -628,14 +656,17 @@ if uploaded_files:
     st.markdown("""<div class="chart-container"><div class="chart-title">최종 정제 후 연구 분류 분포</div>""", unsafe_allow_html=True)
     classification_counts_df = df_for_analysis['Classification'].value_counts().reset_index()
     classification_counts_df.columns = ['분류', '논문 수']
-    
-    chart = alt.Chart(classification_counts_df).mark_bar(cornerRadius=5).encode(
-        x=alt.X('논문 수:Q', title='논문 수'),
-        y=alt.Y('분류:N', title='분류', sort='-x'),
-        tooltip=['분류', '논문 수']
-    ).properties(height=200)
-    st.altair_chart(chart, use_container_width=True)
-    
+    col1, col2 = st.columns([0.4, 0.6])
+    with col1:
+        st.dataframe(classification_counts_df, use_container_width=True, hide_index=True)
+    with col2:
+        selection = alt.selection_point(fields=['분류'], on='mouseover', nearest=True)
+        base = alt.Chart(classification_counts_df).encode(theta=alt.Theta(field="논문 수", type="quantitative", stack=True), color=alt.Color(field="분류", type="nominal", title="Classification", scale=alt.Scale(scheme='tableau20'), legend=alt.Legend(orient="right")), opacity=alt.condition(selection, alt.value(1), alt.value(0.8))).add_params(selection)
+        pie = base.mark_arc(outerRadius=150, innerRadius=90)
+        text_total = alt.Chart(pd.DataFrame([{'value': f'{len(df_final_output)}'}])).mark_text(align='center', baseline='middle', fontSize=45, fontWeight='bold', color='#0064ff').encode(text='value:N')
+        text_label = alt.Chart(pd.DataFrame([{'value': 'Refined Papers'}])).mark_text(align='center', baseline='middle', fontSize=16, dy=30, color='#8b95a1').encode(text='value:N')
+        chart = (pie + text_total + text_label).properties(width=350, height=350).configure_view(strokeWidth=0)
+        st.altair_chart(chart, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("""
