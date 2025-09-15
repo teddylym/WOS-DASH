@@ -507,126 +507,141 @@ def parse_wos_format(content):
         
     return pd.DataFrame(records)
 
-# --- 라이브 스트리밍 특화 분류 함수 ---
+# --- 라이브 스트리밍 연구 문헌 선정 기준 분류 함수 ---
 def classify_article(row):
-    """학술적 엄밀성을 반영한 라이브 스트리밍 연구 분류 함수"""
+    """연구대상 논문 기준(포함기준 1-5, 배제기준 1-5)을 적용한 라이브 스트리밍 연구 분류"""
     
-    # 핵심 라이브 스트리밍 키워드 (직접적 관련성)
-    core_streaming_keywords = [
-        'live streaming', 'livestreaming', 'live stream', 'live broadcast', 'live video',
-        'real time streaming', 'real-time streaming', 'streaming platform', 'streaming service',
-        'live webcast', 'webcasting', 'live transmission', 'interactive broadcasting',
-        'live commerce', 'live shopping', 'live selling', 'livestream commerce',
-        'live e-commerce', 'social commerce', 'live marketing', 'streaming monetization',
-        'live retail', 'shoppertainment', 'live sales', 'streaming sales',
-        'streamer', 'viewer', 'audience engagement', 'streaming audience', 'live audience',
-        'streaming behavior', 'viewer behavior', 'streaming experience', 'live interaction',
-        'streaming community', 'online community', 'digital community', 'virtual community',
-        'parasocial relationship', 'streamer-viewer', 'live chat', 'chat interaction',
-        'twitch', 'youtube live', 'facebook live', 'instagram live', 'tiktok live',
-        'periscope', 'mixer', 'douyin', 'kuaishou', 'taobao live', 'tmall live',
-        'amazon live', 'shopee live', 'live.ly', 'bigo live',
-        'live gaming', 'game streaming', 'esports streaming', 'streaming content',
-        'live entertainment', 'live performance', 'virtual concert', 'live music'
-    ]
+    # 텍스트 추출 함수
+    def extract_text(value):
+        if pd.isna(value) or value is None:
+            return ""
+        return str(value).lower().strip()
     
-    # EC1. 기술적 전송 방식에만 국한된 키워드 (명확한 배제)
-    technical_only_exclusions = [
-        # 네트워크 프로토콜 관련
-        'routing protocol', 'network topology', 'packet routing', 'mac protocol',
-        'ieee 802.11', 'wimax protocol', 'lte protocol', 'network security protocol',
-        'tcp/ip', 'udp protocol', 'http streaming', 'rtmp protocol', 'hls protocol',
-        'dash protocol', 'rtp protocol', 'rtcp protocol',
-        
-        # 미디어 압축/코덱 기술
-        'video codec', 'audio codec', 'h.264', 'h.265', 'hevc', 'avc',
-        'mpeg encoding', 'video compression algorithm', 'bitrate optimization',
-        'transcoding', 'video encoding optimization', 'codec performance',
-        
-        # 서버 인프라만 다루는 키워드
-        'cdn architecture', 'server load balancing', 'edge server', 'cache optimization',
-        'bandwidth allocation', 'quality of service', 'network optimization',
-        'latency reduction', 'buffer management', 'adaptive bitrate',
-        
-        # 하드웨어 구현
-        'vlsi design', 'circuit design', 'antenna design', 'rf circuit',
-        'hardware implementation', 'fpga implementation', 'asic design',
-        'signal processing algorithm', 'modulation scheme', 'channel estimation',
-        'beamforming algorithm', 'mimo antenna', 'ofdm modulation',
-        
-        # 비관련 기술 분야
-        'satellite communication', 'underwater communication', 'space communication',
-        'biomedical signal', 'medical imaging', 'radar system', 'sonar system',
-        'geological survey', 'seismic data', 'astronomical data', 'climate modeling'
-    ]
+    # 텍스트 필드별 추출
+    title = extract_text(row.get('TI', ''))
+    source_title = extract_text(row.get('SO', ''))
+    author_keywords = extract_text(row.get('DE', ''))
+    keywords_plus = extract_text(row.get('ID', ''))
+    abstract = extract_text(row.get('AB', ''))
+    document_type = extract_text(row.get('DT', ''))
+    language = extract_text(row.get('LA', ''))
+    year = extract_text(row.get('PY', ''))
     
-    # EC2. 피상적 언급 탐지를 위한 중요도 없는 키워드
-    superficial_mention_indicators = [
-        'for example', 'such as', 'including', 'among others', 'furthermore',
-        'future work', 'future research', 'future study', 'recommendation',
-        'suggestion', 'potential application', 'possible use'
-    ]
+    # 전체 텍스트 결합
+    full_text = ' '.join([title, source_title, author_keywords, keywords_plus, abstract])
     
-    # EC4. 실시간 양방향 상호작용 필수 키워드
-    interactive_realtime_keywords = [
-        'real-time interaction', 'real time interaction', 'interactive', 'bidirectional',
-        'two-way communication', 'audience participation', 'user engagement',
-        'live feedback', 'instant response', 'synchronous', 'chat', 'comment',
-        'like', 'share', 'donate', 'gift', 'emoji reaction', 'viewer response'
-    ]
+    # === 배제 기준 우선 적용 ===
     
-    # EC6. 문서 유형 배제
-    excluded_document_types = [
-        'editorial', 'letter', 'proceedings paper', 'book chapter', 'review',
+    # 배제기준 3: 리뷰, 사설, 학회 프로시딩
+    excluded_doc_types = [
+        'review', 'editorial', 'letter', 'proceedings paper', 'book chapter',
         'correction', 'erratum', 'retracted publication', 'meeting abstract',
         'conference paper', 'conference review', 'note', 'short survey'
     ]
+    if any(doc_type in document_type for doc_type in excluded_doc_types):
+        return 'EX3 - 리뷰/사설/프로시딩'
     
-    # EC7. 중복 게재 탐지 키워드
-    duplicate_indicators = [
-        'extended version', 'preliminary version', 'conference version',
-        'short version', 'extended abstract', 'brief version'
+    # 배제기준 4: 비영어 논문
+    if language and language not in ['english', 'en', '']:
+        return 'EX4 - 비영어 논문'
+    
+    # 배제기준 1: 순수 기술 프로토콜만 다룬 연구
+    pure_technical_keywords = [
+        'routing protocol', 'network protocol', 'mac protocol', 'tcp/ip', 'udp protocol',
+        'video codec', 'audio codec', 'compression algorithm', 'encoding optimization',
+        'network topology', 'packet routing', 'bandwidth allocation', 'buffer management',
+        'cdn architecture', 'server load balancing', 'latency optimization',
+        'vlsi design', 'circuit design', 'hardware implementation', 'fpga',
+        'signal processing algorithm', 'channel estimation', 'modulation scheme'
     ]
     
-    # 확장된 비즈니스 및 커머스 관련 키워드
-    business_commerce_keywords = [
-        'e-commerce', 'online shopping', 'digital commerce', 'mobile commerce', 'm-commerce',
-        'social commerce', 'influencer marketing', 'content creator', 'digital marketing', 
-        'brand engagement', 'consumer behavior', 'purchase intention', 'buying behavior',
-        'social influence', 'word of mouth', 'viral marketing', 'user generated content',
-        'brand advocacy', 'customer engagement', 'social media marketing', 'digital influence',
-        'online influence', 'interactive marketing', 'personalized marketing', 'real-time marketing',
-        'digital transformation', 'omnichannel', 'customer experience', 'user experience',
-        'engagement marketing', 'social selling', 'digital retail', 'online retail'
+    # 라이브 스트리밍 맥락 키워드
+    live_streaming_context = [
+        'live streaming', 'livestreaming', 'live stream', 'live broadcast', 'live video',
+        'real time streaming', 'real-time streaming', 'streaming platform', 'streaming service',
+        'streamer', 'viewer', 'audience', 'interactive', 'chat', 'engagement'
     ]
     
-    # 교육 및 학습 관련 키워드
-    education_keywords = [
-        'online education', 'e-learning', 'distance learning', 'remote learning',
-        'virtual classroom', 'online teaching', 'digital learning', 'mooc',
-        'educational technology', 'learning management system', 'blended learning',
-        'medical education', 'nursing education', 'surgical training', 'clinical education',
-        'telemedicine', 'telehealth', 'digital health', 'health education',
-        'interactive learning', 'synchronous learning', 'real-time learning'
+    has_pure_technical = any(keyword in full_text for keyword in pure_technical_keywords)
+    has_streaming_context = any(keyword in full_text for keyword in live_streaming_context)
+    
+    if has_pure_technical and not has_streaming_context:
+        return 'EX1 - 순수 기술 프로토콜'
+    
+    # === 포함 기준 적용 ===
+    
+    # 포함기준 1: 라이브 스트리밍이 제목에 명시된 핵심 연구
+    title_streaming_keywords = [
+        'live streaming', 'livestreaming', 'live stream', 'live broadcast', 'live video',
+        'real time streaming', 'real-time streaming', 'streaming platform'
     ]
     
-    # 기술적 기반 키워드
-    technical_keywords = [
-        'real time video', 'real-time video', 'video streaming', 'audio streaming',
-        'multimedia streaming', 'video compression', 'video encoding', 'video delivery',
-        'content delivery', 'cdn', 'edge computing', 'multimedia communication',
-        'video communication', 'webrtc', 'peer to peer streaming', 'p2p streaming',
-        'distributed streaming', 'mobile streaming', 'mobile video', 'wireless streaming',
-        'mobile broadcast', 'smartphone streaming', 'live video transmission',
-        'streaming technology', 'adaptive streaming', 'video quality', 'streaming latency',
-        'interactive media', 'virtual reality', 'augmented reality', 'vr', 'ar',
-        '3d streaming', 'immersive media', 'metaverse'
+    if any(keyword in title for keyword in title_streaming_keywords):
+        return 'IN1 - 제목 핵심연구'
+    
+    # 포함기준 2: 실시간 양방향 상호작용을 다루는 연구
+    realtime_interaction_keywords = [
+        'real-time interaction', 'real time interaction', 'interactive streaming',
+        'live interaction', 'viewer interaction', 'audience interaction',
+        'bidirectional', 'two-way communication', 'synchronous interaction',
+        'live chat', 'live feedback', 'instant response', 'live engagement',
+        'streaming engagement', 'viewer engagement', 'audience participation'
     ]
     
-    # 사회문화적 영향 키워드
-    sociocultural_keywords = [
-        'digital culture', 'online culture', 'virtual community', 'digital society',
-        'social media', 'social network', 'digital communication', 'online interaction',
+    streaming_general_keywords = [
+        'live streaming', 'livestreaming', 'live stream', 'live broadcast',
+        'streaming platform', 'streaming service', 'live video'
+    ]
+    
+    has_realtime_interaction = any(keyword in full_text for keyword in realtime_interaction_keywords)
+    has_streaming_general = any(keyword in full_text for keyword in streaming_general_keywords)
+    
+    if has_realtime_interaction and has_streaming_general:
+        return 'IN2 - 실시간 양방향 상호작용'
+    
+    # 라이브 스트리밍 관련 플랫폼 및 서비스
+    platform_keywords = [
+        'twitch', 'youtube live', 'facebook live', 'instagram live', 'tiktok live',
+        'live commerce', 'live shopping', 'live selling', 'social commerce',
+        'streaming community', 'streamer', 'viewer behavior', 'streaming behavior'
+    ]
+    
+    if any(keyword in full_text for keyword in platform_keywords):
+        return 'IN2 - 플랫폼 기반 연구'
+    
+    # 배제기준 2: 라이브 스트리밍이 주변적으로만 언급된 연구
+    # 단순 언급 지표
+    peripheral_mention_indicators = [
+        'for example', 'such as', 'including', 'among others',
+        'future work', 'future research', 'recommendation'
+    ]
+    
+    streaming_mentions = sum(1 for keyword in streaming_general_keywords if keyword in full_text)
+    peripheral_mentions = sum(1 for indicator in peripheral_mention_indicators if indicator in full_text)
+    
+    # 스트리밍 언급이 있지만 주변적으로만 언급된 경우
+    if streaming_mentions > 0 and peripheral_mentions >= streaming_mentions:
+        return 'EX2 - 주변적 언급'
+    
+    # 스트리밍 관련 키워드가 있지만 명확하지 않은 경우
+    if has_streaming_general and not has_realtime_interaction:
+        return 'REVIEW - 관련성 검토필요'
+    
+    # 기타 디지털 미디어 관련 연구 (포함 가능성 검토)
+    digital_media_keywords = [
+        'social media', 'digital platform', 'online video', 'video sharing',
+        'user generated content', 'content creator', 'influencer marketing'
+    ]
+    
+    if any(keyword in full_text for keyword in digital_media_keywords):
+        return 'REVIEW - 디지털미디어 검토'
+    
+    # 스트리밍 언급이 없는 경우
+    if not has_streaming_general:
+        return 'EX2 - 라이브스트리밍 미언급'
+    
+    # 기타 불분명한 경우
+    return 'REVIEW - 분류 불확실' communication', 'online interaction',
         'digital identity', 'virtual identity', 'online presence', 'digital participation',
         'cultural transmission', 'digital religion', 'online religion', 'virtual religion',
         'digital migration', 'online migration', 'digital diaspora', 'virtual diaspora',
@@ -1042,13 +1057,19 @@ if uploaded_files:
     </div>
     """, unsafe_allow_html=True)
 
-    # 최종 데이터셋 준비 - 엄격한 배제 기준 반영
-    # EC 코드로 시작하는 논문들은 완전히 제외
-    df_excluded_strict = merged_df[merged_df['Classification'].str.startswith('EC', na=False)]
-    df_for_analysis = merged_df[~merged_df['Classification'].str.startswith('EC', na=False)].copy()
+    # 최종 데이터셋 준비 - 새로운 배제 기준 반영
+    # EC 코드로 시작하는 논문들과 EXCLUDE로 시작하는 논문들 완전히 제외
+    df_excluded = merged_df[
+        (merged_df['Classification'].str.startswith('EC', na=False)) |
+        (merged_df['Classification'].str.startswith('EXCLUDE', na=False))
+    ]
+    df_for_analysis = merged_df[
+        ~((merged_df['Classification'].str.startswith('EC', na=False)) |
+          (merged_df['Classification'].str.startswith('EXCLUDE', na=False)))
+    ].copy()
     
     # 총 배제된 논문 수 계산
-    total_excluded = len(df_excluded_strict)
+    total_excluded = len(df_excluded)
     
     # Classification 컬럼만 제거 (원본 WOS 형식 유지)
     df_final_output = df_for_analysis.drop(columns=['Classification'], errors='ignore')
@@ -1061,18 +1082,18 @@ if uploaded_files:
         <div class="metric-card">
             <div class="metric-icon">📋</div>
             <div class="metric-value">{len(df_final_output):,}</div>
-            <div class="metric-label">최종 분석 대상<br><small style="color: #8b95a1;">(EC 기준 적용후)</small></div>
+            <div class="metric-label">최종 분석 대상<br><small style="color: #8b95a1;">(문헌선정기준 적용)</small></div>
         </div>
         """, unsafe_allow_html=True)
     
-    include_papers = len(df_for_analysis[df_for_analysis['Classification'].str.contains('Include', na=False)])
+    include_papers = len(df_for_analysis[df_for_analysis['Classification'].str.contains('INCLUDE', na=False)])
     
     with col2:
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-icon">✅</div>
             <div class="metric-value">{include_papers:,}</div>
-            <div class="metric-label">핵심 포함 연구</div>
+            <div class="metric-label">포함 기준 충족</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1082,6 +1103,94 @@ if uploaded_files:
         <div class="metric-card">
             <div class="metric-icon">📊</div>
             <div class="metric-value">{processing_rate:.1f}%</div>
+            <div class="metric-label">포함 비율</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        # 배제된 논문들을 위한 토글 버튼이 있는 박스
+        col4_inner1, col4_inner2 = st.columns([3, 1])
+        
+        with col4_inner1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-icon">⛔</div>
+                <div class="metric-value">{total_excluded:,}</div>
+                <div class="metric-label">배제 기준 적용</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4_inner2:
+            st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+            if st.button(
+                "📋", 
+                key="exclude_details_button",
+                help="배제된 논문 상세 보기"
+            ):
+                st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
+
+    # 배제된 논문 상세 정보 토글 표시
+    if st.session_state.get('show_exclude_details', False) and total_excluded > 0:
+        st.markdown("""
+        <div style="background: #fef2f2; padding: 20px; border-radius: 16px; margin: 20px 0; border: 1px solid #ef4444;">
+            <h4 style="color: #dc2626; margin-bottom: 16px; font-weight: 700;">⛔ 문헌 선정 기준에 따른 배제 논문</h4>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 배제 기준별 분류 및 표시
+        exclusion_categories = {
+            'EC1': '사회-기술적 맥락 부재',
+            'EC2': '핵심 주제성 미충족', 
+            'EC3': '중복 및 접근 불가',
+            'EXCLUDE': '기타 배제 기준'
+        }
+        
+        # 배제 기준별 현황
+        for code, description in exclusion_categories.items():
+            if code == 'EXCLUDE':
+                papers = merged_df[merged_df['Classification'].str.startswith('EXCLUDE', na=False)]
+            else:
+                papers = merged_df[merged_df['Classification'].str.startswith(code, na=False)]
+            
+            if len(papers) > 0:
+                st.markdown(f"""
+                <div style="margin: 12px 0; padding: 16px; background: white; border-left: 4px solid #ef4444; border-radius: 12px;">
+                    <strong style="color: #dc2626;">{code}: {description}</strong> 
+                    <span style="color: #8b95a1;">({len(papers)}편)</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # 상위 3편만 샘플로 표시
+                for idx, (_, paper) in enumerate(papers.head(3).iterrows(), 1):
+                    title = str(paper.get('TI', 'N/A'))[:80] + "..." if len(str(paper.get('TI', 'N/A'))) > 80 else str(paper.get('TI', 'N/A'))
+                    year = str(paper.get('PY', 'N/A'))
+                    source = str(paper.get('SO', 'N/A'))[:40] + "..." if len(str(paper.get('SO', 'N/A'))) > 40 else str(paper.get('SO', 'N/A'))
+                    
+                    st.markdown(f"""
+                    <div style="margin: 8px 0 8px 20px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 14px;">
+                        <div style="font-weight: 500; color: #374151; margin-bottom: 4px;">{title}</div>
+                        <div style="color: #6b7280; font-size: 12px;">{year} | {source}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                if len(papers) > 3:
+                    st.markdown(f"<p style='color: #8b95a1; text-align: right; margin: 8px 20px 16px 20px; font-size: 12px;'>... 외 {len(papers) - 3}편 더</p>", unsafe_allow_html=True)
+
+    # 문헌 선정 기준 적용 결과 요약
+    st.markdown(f"""
+    <div class="info-panel">
+        <h4 style="color: #0064ff; margin-bottom: 16px; font-weight: 700;">📊 문헌 선정 기준 적용 결과</h4>
+        <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>총 입력:</strong> {total_papers:,}편의 논문</p>
+        <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>배제 적용:</strong> {total_excluded:,}편 제외 ({(total_excluded/total_papers*100):.1f}%)</p>
+        <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>최종 분석:</strong> {len(df_final_output):,}편으로 정제된 고품질 데이터셋</p>
+        <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>포함 기준 충족:</strong> {include_papers:,}편의 직접 관련 라이브스트리밍 연구</p>
+        <div style="margin-top: 12px; padding: 12px; background: rgba(0,100,255,0.1); border-radius: 8px;">
+            <p style='color: #0064ff; margin: 0; font-weight: 500; font-size: 14px;'>
+            💡 <strong>주제적 관련성, 방법론적 엄격성, 시간적 범위</strong>를 모두 충족하는 체계적 문헌 선정 완료
+            </p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)-value">{processing_rate:.1f}%</div>
             <div class="metric-label">포함 비율</div>
         </div>
         """, unsafe_allow_html=True)
@@ -1168,7 +1277,7 @@ if uploaded_files:
     # --- 논문 분류 현황 ---
     st.markdown("""
     <div class="chart-container">
-        <div class="chart-title">학술적 정제 후 연구 분류 분포</div>
+        <div class="chart-title">문헌 선정 기준 적용 후 연구 분류 분포</div>
     """, unsafe_allow_html=True)
 
     classification_counts_df = df_for_analysis['Classification'].value_counts().reset_index()
@@ -1194,7 +1303,7 @@ if uploaded_files:
         text_total = alt.Chart(pd.DataFrame([{'value': f'{len(df_final_output)}'}])).mark_text(
             align='center', baseline='middle', fontSize=45, fontWeight='bold', color='#0064ff'
         ).encode(text='value:N')
-        text_label = alt.Chart(pd.DataFrame([{'value': 'Refined Papers'}])).mark_text(
+        text_label = alt.Chart(pd.DataFrame([{'value': 'Selected Papers'}])).mark_text(
             align='center', baseline='middle', fontSize=16, dy=30, color='#8b95a1'
         ).encode(text='value:N')
 
@@ -1208,18 +1317,18 @@ if uploaded_files:
     # --- 분류 상세 결과 ---
     st.markdown("""
     <div class="chart-container">
-        <div class="chart-title">분류별 상세 분포 (배제 기준 적용 후)</div>
+        <div class="chart-title">분류별 상세 분포 (문헌 선정 기준 적용 후)</div>
     """, unsafe_allow_html=True)
     
-    # 분류별 상세 통계 (EC 제외)
+    # 분류별 상세 통계 (배제 제외)
     for classification in df_for_analysis['Classification'].unique():
         count = len(df_for_analysis[df_for_analysis['Classification'] == classification])
         percentage = (count / len(df_final_output) * 100) if len(df_final_output) > 0 else 0
         
-        if classification.startswith('Include'):
+        if classification.startswith('INCLUDE'):
             color = "#10b981"
             icon = "✅"
-        elif classification.startswith('Review'):
+        elif classification.startswith('REVIEW'):
             color = "#f59e0b"
             icon = "🔍"
         else:
@@ -1233,6 +1342,302 @@ if uploaded_files:
         """, unsafe_allow_html=True)
     
     st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- 연도별 연구 동향 ---
+    if 'PY' in df_final_output.columns:
+        st.markdown("""
+        <div class="chart-container">
+            <div class="chart-title">선정된 라이브 스트리밍 연구 동향 (1996-2024)</div>
+        """, unsafe_allow_html=True)
+        
+        df_trend = df_final_output.copy()
+        df_trend['PY'] = pd.to_numeric(df_trend['PY'], errors='coerce')
+        df_trend.dropna(subset=['PY'], inplace=True)
+        df_trend['PY'] = df_trend['PY'].astype(int)
+        
+        yearly_counts = df_trend['PY'].value_counts().reset_index()
+        yearly_counts.columns = ['Year', 'Count']
+        yearly_counts = yearly_counts[(yearly_counts['Year'] >= 1996) & (yearly_counts['Year'] <= 2024)].sort_values('Year')
+
+        if len(yearly_counts) > 0:
+            line_chart = alt.Chart(yearly_counts).mark_line(
+                point={'size': 80, 'filled': True}, strokeWidth=3, color='#0064ff'
+            ).encode(
+                x=alt.X('Year:O', title='발행 연도'),
+                y=alt.Y('Count:Q', title='논문 수'),
+                tooltip=['Year', 'Count']
+            ).properties(height=300)
+            
+            st.altair_chart(line_chart, use_container_width=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- 키워드 샘플 확인 ---
+    st.markdown("""
+    <div class="chart-container">
+        <div class="chart-title">선정된 연구의 키워드 품질 확인</div>
+    """, unsafe_allow_html=True)
+    
+    sample_data = []
+    sample_rows = df_for_analysis[df_for_analysis['Classification'].str.contains('INCLUDE', na=False)].head(3)
+    
+    for idx, row in sample_rows.iterrows():
+        title = str(row.get('TI', 'N/A'))[:80] + "..." if len(str(row.get('TI', 'N/A'))) > 80 else str(row.get('TI', 'N/A'))
+        de_keywords = str(row.get('DE', 'N/A')) if pd.notna(row.get('DE')) else 'N/A'
+        id_keywords = str(row.get('ID', 'N/A')) if pd.notna(row.get('ID')) else 'N/A'
+        
+        # 키워드 개수 계산
+        de_count = len([k.strip() for k in de_keywords.split(';') if k.strip()]) if de_keywords != 'N/A' else 0
+        id_count = len([k.strip() for k in id_keywords.split(';') if k.strip()]) if id_keywords != 'N/A' else 0
+        
+        sample_data.append({
+            '논문 제목': title,
+            'DE 키워드': de_keywords[:100] + "..." if len(de_keywords) > 100 else de_keywords,
+            'ID 키워드': id_keywords[:100] + "..." if len(id_keywords) > 100 else id_keywords,
+            'DE 개수': de_count,
+            'ID 개수': id_count
+        })
+    
+    if sample_data:
+        sample_df = pd.DataFrame(sample_data)
+        st.dataframe(sample_df, use_container_width=True, hide_index=True)
+        
+        # 키워드 품질 평가
+        avg_de = sum([d['DE 개수'] for d in sample_data]) / len(sample_data) if sample_data else 0
+        avg_id = sum([d['ID 개수'] for d in sample_data]) / len(sample_data) if sample_data else 0
+        
+        if avg_de >= 3 and avg_id >= 3:
+            st.success("✅ 키워드 품질 우수 - SCIMAT에서 원활한 그루핑 예상")
+        elif avg_de >= 2 or avg_id >= 2:
+            st.warning("⚠️ 키워드 품질 보통 - SCIMAT에서 일부 제한 가능")
+        else:
+            st.error("❌ 키워드 품질 부족 - 원본 WOS 다운로드 설정 확인 필요")
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # 분류별 논문 상세 목록 - Review만 토글로 유지
+    review_papers = df_for_analysis[df_for_analysis['Classification'].str.contains('REVIEW', na=False)]
+    
+    if len(review_papers) > 0:
+        with st.expander(f"🔍 REVIEW (추가 검토 필요) - 논문 목록 ({len(review_papers)}편)", expanded=False):
+            st.markdown("""
+            <div style="background: #fffbeb; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #f59e0b;">
+                <strong style="color: #92400e;">📋 검토 안내:</strong> 아래 논문들은 라이브 스트리밍 연구와의 관련성을 추가 검토가 필요한 논문들입니다.
+                제목과 초록을 확인하여 포함기준 충족 여부를 최종 판단하세요.
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Review 논문 엑셀 다운로드 버튼
+            review_excel_data = []
+            for idx, (_, paper) in enumerate(review_papers.iterrows(), 1):
+                review_excel_data.append({
+                    '번호': idx,
+                    '논문 제목': str(paper.get('TI', 'N/A')),
+                    '출판연도': str(paper.get('PY', 'N/A')),
+                    '저널명': str(paper.get('SO', 'N/A')),
+                    '저자': str(paper.get('AU', 'N/A')),
+                    '분류': str(paper.get('Classification', 'N/A')),
+                    '저자 키워드': str(paper.get('DE', 'N/A')),
+                    'WOS 키워드': str(paper.get('ID', 'N/A')),
+                    '초록': str(paper.get('AB', 'N/A')),
+                    '문서유형': str(paper.get('DT', 'N/A'))
+                })
+            
+            review_excel_df = pd.DataFrame(review_excel_data)
+            
+            # 엑셀 파일 생성
+            excel_buffer = io.BytesIO()
+            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                review_excel_df.to_excel(writer, sheet_name='Review_Papers', index=False)
+            excel_data = excel_buffer.getvalue()
+            
+            st.download_button(
+                label="📊 검토 논문 목록 엑셀 다운로드",
+                data=excel_data,
+                file_name=f"review_papers_systematic_{len(review_papers)}편.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                type="secondary",
+                use_container_width=True
+            )
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            for idx, (_, paper) in enumerate(review_papers.iterrows(), 1):
+                title = str(paper.get('TI', 'N/A'))
+                year = str(paper.get('PY', 'N/A'))
+                source = str(paper.get('SO', 'N/A'))
+                classification = str(paper.get('Classification', 'N/A'))
+                
+                # 분류별 색상 설정
+                if '상호작용성' in classification:
+                    badge_color = "#f97316"
+                    badge_text = "상호작용성 검토"
+                elif '관련성' in classification:
+                    badge_color = "#06b6d4"
+                    badge_text = "관련성 검토"
+                elif '불확실' in classification:
+                    badge_color = "#8b5cf6"
+                    badge_text = "분류 불확실"
+                else:
+                    badge_color = "#f59e0b"
+                    badge_text = "기타 검토"
+                
+                st.markdown(f"""
+                <div style="margin: 12px 0; padding: 16px; background: white; border-left: 4px solid #f59e0b; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                        <span style="background: {badge_color}; color: white; padding: 4px 12px; border-radius: 16px; font-size: 12px; margin-right: 12px; font-weight: 600;">{badge_text}</span>
+                        <span style="color: #8b95a1; font-size: 14px;">#{idx}</span>
+                    </div>
+                    <div style="font-weight: 600; color: #191f28; margin-bottom: 6px; line-height: 1.5;">
+                        {title}
+                    </div>
+                    <div style="font-size: 14px; color: #8b95a1;">
+                        <strong>연도:</strong> {year} | <strong>저널:</strong> {source}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    # 문헌 선정 성과 강조
+    success_info = []
+    success_info.append(f"<strong>파일 통합:</strong> {successful_files}개의 WOS 파일을 하나로 병합")
+    
+    if duplicates_removed > 0:
+        success_info.append(f"<strong>중복 제거:</strong> {duplicates_removed}편의 중복 논문 자동 감지 및 제거")
+    
+    success_info.append(f"<strong>체계적 문헌 선정:</strong> 주제적 관련성, 방법론적 엄격성, 시간적 범위 기준 적용으로 {total_excluded}편 배제")
+    success_info.append(f"<strong>최종 규모:</strong> {len(df_final_output):,}편의 고품질 라이브 스트리밍 연구로 정제")
+    success_info.append(f"<strong>포함 기준 충족:</strong> {include_papers}편의 직접 관련 연구 확보")
+    success_info.append("<strong>SCIMAT 호환:</strong> 완벽한 WOS Plain Text 형식으로 100% 호환성 보장")
+    
+    success_content = "".join([f"<p style='color: #0064ff; margin: 6px 0; font-weight: 500;'>{info}</p>" for info in success_info])
+    
+    st.markdown(f"""
+    <div class="info-panel">
+        <h4 style="color: #0064ff; margin-bottom: 16px; font-weight: 700;">🎯 체계적 문헌 선정 완료</h4>
+        {success_content}
+        <div style="margin-top: 16px; padding: 12px; background: rgba(0,100,255,0.1); border-radius: 8px;">
+            <p style='color: #0064ff; margin: 0; font-weight: 600; font-size: 14px;'>
+            💡 <strong>배제율:</strong> {(total_excluded/total_papers*100):.1f}% 
+            - 1996년 RealAudio 이후 실시간 양방향 상호작용 특성을 갖춘 라이브 스트리밍 연구만을 체계적으로 선정했습니다.
+            </p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # --- 최종 파일 다운로드 섹션 ---
+    st.markdown("""
+    <div class="section-header">
+        <div class="section-title">📥 체계적 문헌 선정 완료 - SCIMAT 분석용 파일 다운로드</div>
+        <div class="section-subtitle">문헌 선정 기준 적용 후 정제된 라이브 스트리밍 연구 WOS Plain Text 파일</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # SCIMAT 호환 파일 다운로드
+    text_data = convert_to_scimat_wos_format(df_final_output)
+    
+    download_clicked = st.download_button(
+        label="📥 다운로드",
+        data=text_data,
+        file_name=f"live_streaming_systematic_selection_{len(df_final_output)}papers.txt",
+        mime="text/plain",
+        type="primary",
+        use_container_width=True,
+        key="download_final_file",
+        help="체계적 문헌 선정 기준 적용 후 SCIMAT에서 바로 사용 가능한 WOS Plain Text 파일"
+    )
+
+# --- 하단 여백 및 추가 정보 ---
+st.markdown("<br>", unsafe_allow_html=True)
+
+# 도움말 섹션 - 항상 표시
+with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
+    st.markdown("""
+    **Q: 문헌 선정 기준은 어떻게 적용되나요?**
+    A: 포함기준(주제적 관련성, 방법론적 엄격성, 시간적 범위)과 배제기준(사회-기술적 맥락 부재, 핵심 주제성 미충족, 중복 및 접근 불가)을 체계적으로 적용합니다.
+    
+    **Q: 1996년을 시작점으로 하는 이유는?**
+    A: 1996년은 RealAudio가 최초로 실시간 스트리밍을 구현한 해로, 라이브 스트리밍 기술의 출발점입니다.
+    
+    **Q: 실시간 양방향 상호작용이란?**
+    A: 라이브 스트리밍의 핵심 특징으로, 스트리머와 시청자 간의 즉시적 소통(채팅, 피드백, 참여)을 의미합니다.
+    
+    **Q: 배제된 논문은 어떤 것들인가요?**
+    A: 순수 기술 프로토콜만 다룬 연구, 라이브 스트리밍이 예시로만 언급된 연구, 중복 게재 논문 등이 배제됩니다.
+    
+    **Q: REVIEW 분류된 논문은 어떻게 처리하나요?**
+    A: 제목과 초록을 직접 검토하여 포함기준 충족 여부를 최종 판단하고, 필요시 수동으로 포함/배제를 결정하세요.
+    
+    **Q: SCIMAT 분석에 필요한 최소 논문 수는?**
+    A: 의미 있는 분석을 위해 Period당 최소 50편, 전체 최소 200편 이상을 권장합니다.
+    
+    **Q: 병합된 파일이 SCIMAT에서 제대로 로딩되지 않습니다.**
+    A: 원본 WOS 파일들이 'FN Clarivate Analytics Web of Science'로 시작하는 정품 Plain Text 파일인지 확인하세요.
+    
+    **Q: 중복 논문 제거는 어떻게 이루어지나요?**
+    A: UT(Unique Article Identifier) 기준으로 자동 중복 제거되며, UT가 없으면 제목+저자 조합으로 중복을 감지합니다.
+    """)
+
+# SciMAT 분석 가이드 - 항상 표시
+with st.expander("📊 체계적 문헌 선정 → SciMAT 분석 가이드", expanded=False):
+    st.markdown("""
+    ### 1. 문헌 선정의 의의
+    
+    **체계적 접근의 중요성**
+    - 주제적 관련성: 라이브 스트리밍이 핵심 연구 대상인 논문만 선정
+    - 방법론적 엄격성: 동료심사 거친 학술논문으로 품질 보장
+    - 시간적 범위: 1996년 RealAudio 이후 기술 발전사 반영
+    
+    **배제 기준의 필요성**
+    - EC1: 사회-기술적 맥락이 없는 순수 기술 연구 배제
+    - EC2: 라이브 스트리밍이 부차적으로만 언급된 연구 배제  
+    - EC3: 중복 게재나 접근 불가능한 논문 배제
+    
+    ### 2. SCIMAT 분석 준비
+    
+    **Period 설정 권장안**
+    ```
+    Period 1: 1996-2005 (기술 태동기)
+    Period 2: 2006-2012 (플랫폼 등장기) 
+    Period 3: 2013-2018 (대중화 시기)
+    Period 4: 2019-2024 (성숙 및 다양화)
+    ```
+    
+    **키워드 정리 전략**
+    - 라이브 스트리밍 관련 용어 통합 (live streaming, livestreaming 등)
+    - 플랫폼별 용어 정리 (Twitch, YouTube Live 등)
+    - 기술-사회적 키워드 분리 (기술 vs 사용자 행동)
+    
+    ### 3. 분석 파라미터 최적화
+    
+    **라이브 스트리밍 연구 특성 반영**
+    - Minimum frequency: 2-3 (신흥 분야 특성상)
+    - Maximum network size: 30-50 (명확한 클러스터 형성)
+    - Normalization: Equivalence Index (키워드 간 연관성 정확 측정)
+    
+    ### 4. 결과 해석 가이드
+    
+    **Motor Themes 식별**
+    - 각 시기별 라이브 스트리밍 연구의 핵심 주제
+    - 기술 발전과 사회적 수용의 상호작용 패턴
+    
+    **Emerging Themes 주목**
+    - 차세대 라이브 스트리밍 연구 방향 예측
+    - 메타버스, AI 등 융합 기술 영역
+    
+    ### 5. 연구의 한계와 의의
+    
+    **체계적 선정의 장점**
+    - 연구 품질 보장: 동료심사 거친 학술논문만 포함
+    - 주제 일관성: 라이브 스트리밍 핵심 특성 반영 연구만 선정
+    - 시간적 완전성: 기술 출현부터 현재까지 전 기간 포괄
+    
+    **고려사항**
+    - 영어 논문 중심으로 인한 지역적 편향 가능성
+    - 신기술 영역의 빠른 변화로 인한 최신성 한계
+    - 학제간 연구 증가로 인한 경계 설정의 어려움
+    """)
+
+st.markdown("<br><br>", unsafe_allow_html=True)
 
     # --- 연도별 연구 동향 ---
     if 'PY' in df_final_output.columns:
