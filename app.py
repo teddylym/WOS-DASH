@@ -511,9 +511,9 @@ def parse_wos_format(content):
         
     return pd.DataFrame(records)
 
-# --- 라이브 스트리밍 특화 분류 함수 (개선된 로직 적용) ---
+# --- 라이브 스트리밍 특화 분류 함수 (키워드 강화 및 로직 개선) ---
 def classify_article(row):
-    """개선된 포함/배제 기준을 적용한 라이브 스트리밍 연구 분류 함수"""
+    """개선된 포함/배제 기준과 강화된 키워드를 적용한 분류 함수"""
     
     # --- 키워드 셋 정의 ---
     core_streaming_keywords = [
@@ -528,17 +528,18 @@ def classify_article(row):
     realtime_interaction_keywords = [
         'real-time', 'real time', 'interactive', 'interaction', 'two-way', 'bidirectional',
         'synchronous', 'live chat', 'audience participation', 'user engagement', 'live feedback',
-        'parasocial', 'viewer engagement', 'community',
+        'parasocial', 'viewer engagement', 'community', 'communities',
         'interactivity', 'social presence', 'immediacy', 'telepresence', 'responsiveness'
     ]
     
+    # 강화된 분석 차원 키워드 목록
     analytical_contribution_keywords = {
-        'Platform Ecosystem': ['platform', 'ecosystem', 'business model', 'monetization', 'governance', 'creator economy', 'multi-sided', 'hiring'],
-        'User Behavior/Psychology': ['user behavior', 'psychology', 'motivation', 'engagement', 'addiction', 'parasocial', 'social presence', 'trust', 'satisfaction', 'intention'],
-        'Socio-Cultural Impact': ['social impact', 'cultural', 'community', 'identity', 'online culture', 'social capital', 'digital labor'],
-        'Commercial Application': ['commerce', 'marketing', 'influencer', 'brand', 'purchase', 'advertising', 'e-commerce', 'social commerce', 'sales'],
-        'Educational Use': ['education', 'learning', 'teaching', 'pedagogy', 'student engagement', 'mooc', 'virtual classroom'],
-        'Technical Implementation': ['architecture', 'algorithm', 'latency', 'quality of service', 'qos', 'video quality', 'webrtc', 'cdn']
+        'Platform Ecosystem': ['platform', 'platforms', 'ecosystem', 'ecosystems', 'business model', 'business models', 'monetization', 'governance', 'govern', 'creator economy', 'creators', 'multi-sided', 'hiring'],
+        'User Behavior/Psychology': ['user behavior', 'psychology', 'psychological', 'motivation', 'motivate', 'engagement', 'engaging', 'addiction', 'addictive', 'parasocial', 'social presence', 'trust', 'satisfaction', 'intention', 'intentions', 'emotion'],
+        'Socio-Cultural Impact': ['social impact', 'cultural', 'culture', 'community', 'communities', 'identity', 'identities', 'online culture', 'social capital', 'digital labor'],
+        'Commercial Application': ['commerce', 'marketing', 'influencer', 'brand', 'brands', 'purchase', 'purchasing', 'advertising', 'advertise', 'e-commerce', 'social commerce', 'sales', 'sale'],
+        'Educational Use': ['education', 'educational', 'learning', 'learn', 'teaching', 'teach', 'pedagogy', 'pedagogical', 'student engagement', 'students', 'mooc', 'virtual classroom'],
+        'Technical Implementation': ['architecture', 'architectures', 'algorithm', 'algorithms', 'latency', 'quality of service', 'qos', 'video quality', 'webrtc', 'cdn']
     }
     
     category_map_ko = {
@@ -549,15 +550,7 @@ def classify_article(row):
         'Educational Use': '교육적 활용',
         'Technical Implementation': '기술적 구현'
     }
-
-    pure_tech_exclusions = [
-        'routing protocol', 'network topology', 'mac protocol', 'tcp/ip', 'udp', 'rtmp', 'hls', 'dash',
-        'video codec', 'audio codec', 'h.264', 'h.265', 'hevc', 'mpeg', 'video compression',
-        'cdn architecture', 'server load balancing', 'edge server', 'bandwidth allocation',
-        'vlsi', 'fpga', 'asic', 'signal processing', 'modulation', 'mimo', 'ofdm',
-        'satellite communication', 'biomedical signal', 'medical imaging', 'radar', 'sonar'
-    ]
-
+    
     peripheral_mention_indicators = [
         'for example', 'such as', 'including', 'future work', 'future research', 'future study',
         'potential application', 'recommendation for future'
@@ -599,7 +592,7 @@ def classify_article(row):
         if sum(1 for kw in core_streaming_keywords if kw in full_text) <= 2:
             return 'EC2 - 높은 주제 주변성'
 
-    # Stage 3: 우선적 분석 차원(IC3) 검증 (로직 순서 변경)
+    # Stage 3: 우선적 분석 차원(IC3) 검증
     for category_en, keywords in analytical_contribution_keywords.items():
         if any(kw in full_text for kw in keywords):
             category_ko = category_map_ko.get(category_en, category_en)
