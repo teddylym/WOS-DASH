@@ -507,253 +507,92 @@ def parse_wos_format(content):
         
     return pd.DataFrame(records)
 
-# --- 라이브 스트리밍 특화 분류 함수 ---
+# --- 라이브 스트리밍 특화 분류 함수 (최종 수정안) ---
 def classify_article(row):
-    """학술적 엄밀성을 반영한 라이브 스트리밍 연구 분류 함수"""
-    
-    # 핵심 라이브 스트리밍 키워드 (직접적 관련성)
-    core_streaming_keywords = [
-        'live streaming', 'livestreaming', 'live stream', 'live broadcast', 'live video',
-        'real time streaming', 'real-time streaming', 'streaming platform', 'streaming service',
-        'live webcast', 'webcasting', 'live transmission', 'interactive broadcasting',
-        'live commerce', 'live shopping', 'live selling', 'livestream commerce',
-        'live e-commerce', 'social commerce', 'live marketing', 'streaming monetization',
-        'live retail', 'shoppertainment', 'live sales', 'streaming sales',
-        'streamer', 'viewer', 'audience engagement', 'streaming audience', 'live audience',
-        'streaming behavior', 'viewer behavior', 'streaming experience', 'live interaction',
-        'streaming community', 'online community', 'digital community', 'virtual community',
-        'parasocial relationship', 'streamer-viewer', 'live chat', 'chat interaction',
-        'twitch', 'youtube live', 'facebook live', 'instagram live', 'tiktok live',
-        'periscope', 'mixer', 'douyin', 'kuaishou', 'taobao live', 'tmall live',
-        'amazon live', 'shopee live', 'live.ly', 'bigo live',
-        'live gaming', 'game streaming', 'esports streaming', 'streaming content',
-        'live entertainment', 'live performance', 'virtual concert', 'live music'
-    ]
-    
-    # EC1. 기술적 전송 방식에만 국한된 키워드 (명확한 배제)
-    technical_only_exclusions = [
-        # 네트워크 프로토콜 관련
-        'routing protocol', 'network topology', 'packet routing', 'mac protocol',
-        'ieee 802.11', 'wimax protocol', 'lte protocol', 'network security protocol',
-        'tcp/ip', 'udp protocol', 'http streaming', 'rtmp protocol', 'hls protocol',
-        'dash protocol', 'rtp protocol', 'rtcp protocol',
-        
-        # 미디어 압축/코덱 기술
-        'video codec', 'audio codec', 'h.264', 'h.265', 'hevc', 'avc',
-        'mpeg encoding', 'video compression algorithm', 'bitrate optimization',
-        'transcoding', 'video encoding optimization', 'codec performance',
-        
-        # 서버 인프라만 다루는 키워드
-        'cdn architecture', 'server load balancing', 'edge server', 'cache optimization',
-        'bandwidth allocation', 'quality of service', 'network optimization',
-        'latency reduction', 'buffer management', 'adaptive bitrate',
-        
-        # 하드웨어 구현
-        'vlsi design', 'circuit design', 'antenna design', 'rf circuit',
-        'hardware implementation', 'fpga implementation', 'asic design',
-        'signal processing algorithm', 'modulation scheme', 'channel estimation',
-        'beamforming algorithm', 'mimo antenna', 'ofdm modulation',
-        
-        # 비관련 기술 분야
-        'satellite communication', 'underwater communication', 'space communication',
-        'biomedical signal', 'medical imaging', 'radar system', 'sonar system',
-        'geological survey', 'seismic data', 'astronomical data', 'climate modeling'
-    ]
-    
-    # EC2. 피상적 언급 탐지를 위한 중요도 없는 키워드
-    superficial_mention_indicators = [
-        'for example', 'such as', 'including', 'among others', 'furthermore',
-        'future work', 'future research', 'future study', 'recommendation',
-        'suggestion', 'potential application', 'possible use'
-    ]
-    
-    # EC4. 실시간 양방향 상호작용 필수 키워드
-    interactive_realtime_keywords = [
-        'real-time interaction', 'real time interaction', 'interactive', 'bidirectional',
-        'two-way communication', 'audience participation', 'user engagement',
-        'live feedback', 'instant response', 'synchronous', 'chat', 'comment',
-        'like', 'share', 'donate', 'gift', 'emoji reaction', 'viewer response'
-    ]
-    
-    # EC6. 문서 유형 배제
-    excluded_document_types = [
-        'editorial', 'letter', 'proceedings paper', 'book chapter', 'review',
-        'correction', 'erratum', 'retracted publication', 'meeting abstract',
-        'conference paper', 'conference review', 'note', 'short survey'
-    ]
-    
-    # EC7. 중복 게재 탐지 키워드
-    duplicate_indicators = [
-        'extended version', 'preliminary version', 'conference version',
-        'short version', 'extended abstract', 'brief version'
-    ]
-    
-    # 확장된 비즈니스 및 커머스 관련 키워드
-    business_commerce_keywords = [
-        'e-commerce', 'online shopping', 'digital commerce', 'mobile commerce', 'm-commerce',
-        'social commerce', 'influencer marketing', 'content creator', 'digital marketing', 
-        'brand engagement', 'consumer behavior', 'purchase intention', 'buying behavior',
-        'social influence', 'word of mouth', 'viral marketing', 'user generated content',
-        'brand advocacy', 'customer engagement', 'social media marketing', 'digital influence',
-        'online influence', 'interactive marketing', 'personalized marketing', 'real-time marketing',
-        'digital transformation', 'omnichannel', 'customer experience', 'user experience',
-        'engagement marketing', 'social selling', 'digital retail', 'online retail'
-    ]
-    
-    # 교육 및 학습 관련 키워드
-    education_keywords = [
-        'online education', 'e-learning', 'distance learning', 'remote learning',
-        'virtual classroom', 'online teaching', 'digital learning', 'mooc',
-        'educational technology', 'learning management system', 'blended learning',
-        'medical education', 'nursing education', 'surgical training', 'clinical education',
-        'telemedicine', 'telehealth', 'digital health', 'health education',
-        'interactive learning', 'synchronous learning', 'real-time learning'
-    ]
-    
-    # 기술적 기반 키워드
-    technical_keywords = [
-        'real time video', 'real-time video', 'video streaming', 'audio streaming',
-        'multimedia streaming', 'video compression', 'video encoding', 'video delivery',
-        'content delivery', 'cdn', 'edge computing', 'multimedia communication',
-        'video communication', 'webrtc', 'peer to peer streaming', 'p2p streaming',
-        'distributed streaming', 'mobile streaming', 'mobile video', 'wireless streaming',
-        'mobile broadcast', 'smartphone streaming', 'live video transmission',
-        'streaming technology', 'adaptive streaming', 'video quality', 'streaming latency',
-        'interactive media', 'virtual reality', 'augmented reality', 'vr', 'ar',
-        '3d streaming', 'immersive media', 'metaverse'
-    ]
-    
-    # 사회문화적 영향 키워드
-    sociocultural_keywords = [
-        'digital culture', 'online culture', 'virtual community', 'digital society',
-        'social media', 'social network', 'digital communication', 'online interaction',
-        'digital identity', 'virtual identity', 'online presence', 'digital participation',
-        'cultural transmission', 'digital religion', 'online religion', 'virtual religion',
-        'digital migration', 'online migration', 'digital diaspora', 'virtual diaspora',
-        'social cohesion', 'community building', 'social capital', 'digital divide'
-    ]
-    
-    # COVID-19 및 팬데믹 관련 키워드
-    pandemic_keywords = [
-        'covid-19', 'pandemic', 'coronavirus', 'sars-cov-2', 'lockdown', 'quarantine',
-        'social distancing', 'remote work', 'work from home', 'digital adaptation',
-        'pandemic response', 'crisis communication', 'emergency response'
-    ]
-    
-    # 소셜 미디어 키워드
-    social_media_keywords = [
-        'social media', 'social network', 'online platform', 'digital platform',
-        'user experience', 'user behavior', 'online behavior', 'digital behavior',
-        'social interaction', 'online interaction', 'digital interaction',
-        'user engagement', 'digital engagement', 'platform economy', 'network effects',
-        'viral content', 'content sharing', 'social sharing', 'online community'
-    ]
+    """
+    새롭게 정의된 최종 배제 기준(EC)을 적용하여 논문을 분류하는 함수.
+    EC1: 사회-기술적 맥락 부재
+    EC2: 핵심 주제성 미충족
+    EC3: 문서 유형 제한 (메타분석 포함)
+    EC4: 시간적 관련성 (역사적 가치 고려)
+    """
 
-    # 텍스트 추출 함수
+    # 텍스트 추출 함수 (소문자 변환 및 공백 제거)
     def extract_text(value):
         if pd.isna(value) or value is None:
             return ""
         return str(value).lower().strip()
-    
-    # 텍스트 필드별 추출
+
+    # 분석에 필요한 텍스트 필드 추출
     title = extract_text(row.get('TI', ''))
-    source_title = extract_text(row.get('SO', ''))
     author_keywords = extract_text(row.get('DE', ''))
     keywords_plus = extract_text(row.get('ID', ''))
     abstract = extract_text(row.get('AB', ''))
     document_type = extract_text(row.get('DT', ''))
+    publication_year = pd.to_numeric(row.get('PY', '0'), errors='coerce')
+
+    # 모든 텍스트 필드를 하나로 결합하여 키워드 검색
+    full_text = ' '.join([title, author_keywords, keywords_plus, abstract])
+
+    # --- 배제 기준(EC) 정의 및 적용 ---
+
+    # EC3: 문서 유형 제한
+    # WoS 검색에서 Article/Review로 필터링했지만, 더 구체적인 유형을 여기서 최종 배제
+    excluded_types_in_text = ['editorial', 'letter', 'commentary', 'proceedings', 'conference paper', 'note']
+    if any(excluded_type in document_type for excluded_type in excluded_types_in_text):
+        return 'EC3 - 문서유형 부적합'
     
-    # 전체 텍스트 결합
-    full_text = ' '.join([title, source_title, author_keywords, keywords_plus, abstract])
+    # 메타분석 또는 리뷰 논문인지 확인 (본 연구와 중복 방지)
+    meta_review_keywords = ['meta-analysis', 'systematic review', 'literature review', 'bibliometric']
+    if any(keyword in full_text for keyword in meta_review_keywords):
+        # 본 연구와의 중복을 피하기 위해 다른 리뷰/메타분석 논문은 배제
+        return 'EC3 - 중복 연구 (리뷰/메타분석)'
+
+    # EC1: 사회-기술적 맥락 부재
+    # 1-1. 순수 기술 구현 연구 배제
+    pure_tech_keywords = [
+        'protocol', 'codec', 'network optimization', 'bandwidth allocation', 'latency reduction', 
+        'qoe', 'qos', 'video compression', 'algorithm', 'network coding', 'cdn architecture'
+    ]
+    socio_context_keywords = [
+        'user', 'viewer', 'audience', 'social', 'community', 'interaction', 'engagement', 
+        'commerce', 'marketing', 'psychology', 'behavior', 'platform', 'education'
+    ]
+    if any(tech_keyword in full_text for tech_keyword in pure_tech_keywords):
+        if not any(socio_keyword in full_text for socio_keyword in socio_context_keywords):
+            return 'EC1 - 사회-기술적 맥락 부재 (순수 기술)'
+
+    # 1-2. 실시간 양방향 상호작용 부재 연구 배제
+    core_streaming_keywords = ['live stream', 'livestream', 'live broadcast']
+    interactive_keywords = ['interactive', 'interaction', 'real-time', 'synchronous', 'chat', 'engagement']
+    non_interactive_keywords = ['video on demand', 'vod', 'recorded video', 'asynchronous', 'one-way broadcast']
+
+    if any(core_keyword in full_text for core_keyword in core_streaming_keywords):
+        if any(non_interactive in full_text for non_interactive in non_interactive_keywords):
+            return 'EC1 - 핵심 속성 부재 (비실시간/단방향)'
+        if not any(interactive_keyword in full_text for interactive_keyword in interactive_keywords):
+            # 상호작용 키워드가 전혀 없으면 추가 검토 대상으로 분류
+            return 'Review - 상호작용성 검토 필요'
+
+    # EC2: 핵심 주제성 미충족
+    # 2-1. 주변적 언급 배제
+    peripheral_indicators = ['for example', 'such as', 'as an example', 'in conclusion', 'future research']
+    mention_count = full_text.count('live stream') + full_text.count('livestream')
     
-    # === 엄격한 배제 기준 적용 (우선순위) ===
-    
-    # EC6. 문서 유형 배제 - 최우선 적용
-    if any(doc_type in document_type for doc_type in excluded_document_types):
-        return 'EC6 - 문서유형 배제 (비학술논문)'
-    
-    # EC1. 기술적 전송 방식에만 국한 - 명확한 배제
-    if any(keyword in full_text for keyword in technical_only_exclusions):
-        # 라이브 스트리밍 맥락 없이 순수 기술만 다루는 경우
-        has_streaming_context = any(keyword in full_text for keyword in core_streaming_keywords)
-        if not has_streaming_context:
-            return 'EC1 - 기술적 전송방식만 다룸'
-    
-    # EC7. 중복 게재 논문 배제
-    if any(indicator in full_text for indicator in duplicate_indicators):
-        return 'EC7 - 중복게재 의심'
-    
-    # EC4. 실시간 양방향 상호작용 필수 조건 확인
-    has_core_streaming = any(keyword in full_text for keyword in core_streaming_keywords)
-    if has_core_streaming:
-        # 핵심 스트리밍 키워드가 있을 때만 상호작용성 검증
-        has_interactive_element = any(keyword in full_text for keyword in interactive_realtime_keywords)
-        
-        if has_interactive_element:
-            return 'Include - 핵심연구 (라이브스트리밍+상호작용)'
-        else:
-            # EC5. 명확한 라이브 스트리밍 맥락 부재 - VOD/일반 비디오와 구분 불가
-            vod_indicators = ['video on demand', 'vod', 'recorded video', 'offline video', 
-                            'pre-recorded', 'asynchronous', 'non-live', 'stored video']
-            if any(indicator in full_text for indicator in vod_indicators):
-                return 'EC5 - 라이브스트리밍 맥락 부재 (VOD/일반비디오)'
-            else:
-                return 'Review - 상호작용성 검토필요'
-    
-    # EC2. 피상적 언급 탐지
-    streaming_mentions = sum(1 for keyword in core_streaming_keywords if keyword in full_text)
-    superficial_mentions = sum(1 for indicator in superficial_mention_indicators if indicator in full_text)
-    
-    if streaming_mentions > 0 and superficial_mentions >= streaming_mentions:
-        return 'EC2 - 피상적 언급 (형용사 수준)'
-    
-    # === 포용적 포함 기준 ===
-    
-    # 비즈니스/커머스 + 디지털 지표
-    if any(keyword in full_text for keyword in business_commerce_keywords):
-        digital_indicators = ['digital', 'online', 'internet', 'web', 'social media', 'platform', 'mobile', 'app', 'virtual', 'interactive']
-        if any(indicator in full_text for indicator in digital_indicators):
-            return 'Include - 비즈니스 관련'
-    
-    # 교육 + 온라인/디지털 지표
-    if any(keyword in full_text for keyword in education_keywords):
-        online_indicators = ['online', 'digital', 'virtual', 'remote', 'distance', 'interactive', 'real-time', 'synchronous']
-        if any(indicator in full_text for indicator in online_indicators):
-            return 'Include - 교육 관련'
-    
-    # 기술적 기반 + 라이브/실시간 지표
-    if any(keyword in full_text for keyword in technical_keywords):
-        live_indicators = ['live', 'real time', 'real-time', 'streaming', 'broadcast', 'interactive', 'synchronous', 'instant']
-        if any(indicator in full_text for indicator in live_indicators):
-            return 'Include - 기술적 기반'
-    
-    # 사회문화적 + 디지털 지표
-    if any(keyword in full_text for keyword in sociocultural_keywords):
-        digital_indicators = ['digital', 'online', 'virtual', 'internet', 'web', 'platform', 'social media']
-        if any(indicator in full_text for indicator in digital_indicators):
-            return 'Include - 사회문화 관련'
-    
-    # 팬데믹 관련 + 디지털 지표
-    if any(keyword in full_text for keyword in pandemic_keywords):
-        digital_indicators = ['digital', 'online', 'virtual', 'remote', 'streaming', 'platform', 'technology']
-        if any(indicator in full_text for indicator in digital_indicators):
-            return 'Include - 팬데믹 디지털화'
-    
-    # 소셜 미디어 일반 - 조건부 포함
-    if any(keyword in full_text for keyword in social_media_keywords):
-        interaction_indicators = ['interaction', 'engagement', 'community', 'sharing', 'content', 'creator', 'influencer']
-        if any(indicator in full_text for indicator in interaction_indicators):
-            return 'Include - 소셜미디어 관련'
-        else:
-            return 'Review - 소셜미디어 검토'
-    
-    # EC3. 미래 연구 제안에만 언급 - 기타로 분류하여 수동 검토
-    future_only_indicators = ['future work', 'future research', 'future study', 'recommendation', 'suggestion']
-    if any(indicator in full_text for indicator in future_only_indicators) and streaming_mentions > 0:
-        return 'EC3 - 미래연구 제안에만 언급'
-    
-    # 기타 - 분류 불확실
-    return 'Review - 분류 불확실'
+    if 0 < mention_count <= 2: # 1~2회 언급은 주변적일 가능성 높음
+        if any(indicator in abstract for indicator in peripheral_indicators):
+            return 'EC2 - 주제의 주변성'
+
+    # EC4: 시간적 관련성 (오래된 기술/플랫폼)
+    obsolete_platforms = ['periscope', 'mixer', 'justin.tv'] # 예시 플랫폼
+    if publication_year < 2015 and any(platform in full_text for platform in obsolete_platforms):
+        # 단, 역사적 가치가 있는 초기 연구는 제외하지 않도록 주의 (이 코드는 단순 예시)
+        # 실제로는 제목, 초록 내용을 보고 판단 필요 -> 수동 검토 대상으로 분류
+        return 'Review - 시간적 관련성 검토 필요 (오래된 플랫폼)'
+
+    # 모든 배제 기준을 통과한 경우 '포함'
+    return 'Include - 분석 대상'
+
 
 # --- 데이터 품질 진단 함수 ---
 def diagnose_merged_quality(df, file_count, duplicates_removed):
