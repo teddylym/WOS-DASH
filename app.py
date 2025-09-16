@@ -31,10 +31,6 @@ st.markdown("""
         border: 1px solid #e5e8eb;
         margin-bottom: 12px;
         transition: all 0.2s ease;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
     }
     
     .metric-card:hover {
@@ -511,57 +507,33 @@ def parse_wos_format(content):
         
     return pd.DataFrame(records)
 
-# --- 라이브 스트리밍 특화 분류 함수 (키워드 강화 및 로직 개선) ---
+# --- 라이브 스트리밍 특화 분류 함수 (사용자 정의 IC/EC 기준 적용) ---
 def classify_article(row):
-    """개선된 포함/배제 기준과 강화된 키워드를 적용한 분류 함수"""
+    """사용자 정의 포함/배제 기준(IC/EC)을 적용한 라이브 스트리밍 연구 분류 함수"""
     
     # --- 키워드 셋 정의 ---
+    # IC 1: 주제 중심성 (Topic Centrality)
     core_streaming_keywords = [
-        'live stream', 'livestream', 'live video', 'live broadcast', 
-        'real-time stream', 'streaming platform', 'streaming service',
-        'live commerce', 'live shopping', 'shoppertainment',
-        'streamer', 'viewer', 'streaming audience', 'viewer behavior',
-        'twitch', 'youtube live', 'facebook live', 'tiktok live', 'douyin', 'kuaishou', 'taobao live',
-        'game streaming', 'esports streaming'
+        'live stream', 'livestream', 'live-stream', 'live commerce', 
+        'livestream commerce', 'live shopping', 'game streaming', 'esports streaming'
     ]
     
-    realtime_interaction_keywords = [
-        'real-time', 'real time', 'interactive', 'interaction', 'two-way', 'bidirectional',
-        'synchronous', 'live chat', 'audience participation', 'user engagement', 'live feedback',
-        'parasocial', 'viewer engagement', 'community', 'communities',
-        'interactivity', 'social presence', 'immediacy', 'telepresence', 'responsiveness'
+    # IC 2: 핵심 현상 분석 (Core Phenomenon Analysis)
+    socio_technical_keywords = [
+        'user behavior', 'psychology', 'motivation', 'engagement', 'addiction', 
+        'parasocial', 'social presence', 'trust', 'interactive', 'interaction', 
+        'community', 'identity', 'online culture', 'social capital', 'digital labor',
+        'viewer', 'audience', 'user engagement'
+    ]
+    platform_ecosystem_keywords = [
+        'platform', 'ecosystem', 'business model', 'monetization', 'governance', 
+        'creator economy', 'commerce', 'marketing', 'influencer', 'brand', 
+        'purchase intention', 'advertising', 'e-commerce', 'social commerce'
     ]
     
-    # 강화된 분석 차원 키워드 목록
-    analytical_contribution_keywords = {
-        'Platform Ecosystem': ['platform', 'platforms', 'ecosystem', 'ecosystems', 'business model', 'business models', 'monetization', 'governance', 'govern', 'creator economy', 'creators', 'multi-sided', 'hiring'],
-        'User Behavior/Psychology': ['user behavior', 'psychology', 'psychological', 'motivation', 'motivate', 'engagement', 'engaging', 'addiction', 'addictive', 'parasocial', 'social presence', 'trust', 'satisfaction', 'intention', 'intentions', 'emotion'],
-        'Socio-Cultural Impact': ['social impact', 'cultural', 'culture', 'community', 'communities', 'identity', 'identities', 'online culture', 'social capital', 'digital labor'],
-        'Commercial Application': ['commerce', 'marketing', 'influencer', 'brand', 'brands', 'purchase', 'purchasing', 'advertising', 'advertise', 'e-commerce', 'social commerce', 'sales', 'sale'],
-        'Educational Use': ['education', 'educational', 'learning', 'learn', 'teaching', 'teach', 'pedagogy', 'pedagogical', 'student engagement', 'students', 'mooc', 'virtual classroom'],
-        'Technical Implementation': ['architecture', 'architectures', 'algorithm', 'algorithms', 'latency', 'quality of service', 'qos', 'video quality', 'webrtc', 'cdn']
-    }
-    
-    category_map_ko = {
-        'Platform Ecosystem': '플랫폼 생태계',
-        'User Behavior/Psychology': '사용자 행동/심리',
-        'Socio-Cultural Impact': '사회/문화적 영향',
-        'Commercial Application': '상업적 응용',
-        'Educational Use': '교육적 활용',
-        'Technical Implementation': '기술적 구현'
-    }
-    
-    peripheral_mention_indicators = [
-        'for example', 'such as', 'including', 'future work', 'future research', 'future study',
-        'potential application', 'recommendation for future'
-    ]
-
-    methodological_exclusion_types = [
-        'editorial material', 'letter', 'proceedings paper', 'book chapter', 'correction', 
-        'retracted publication', 'meeting abstract', 'note', 'short survey'
-    ]
-    duplicate_indicators = [
-        'extended version', 'preliminary version', 'conference version', 'short version'
+    # EC 1: 방법론적 부적합성 (Methodological Inappropriateness)
+    methodological_exclusion_indicators = [
+        'extended version'
     ]
 
     # --- 텍스트 필드 추출 및 결합 ---
@@ -569,42 +541,47 @@ def classify_article(row):
         return str(value).lower().strip() if pd.notna(value) else ""
     
     title = extract_text(row.get('TI', ''))
-    abstract = extract_text(row.get('AB', ''))
     author_keywords = extract_text(row.get('DE', ''))
     keywords_plus = extract_text(row.get('ID', ''))
+    abstract = extract_text(row.get('AB', ''))
     document_type = extract_text(row.get('DT', ''))
     
+    # IC 1, EC 2 검증용 텍스트
+    topic_centrality_text = ' '.join([title, author_keywords, keywords_plus])
+    # 전체 텍스트
     full_text = ' '.join([title, abstract, author_keywords, keywords_plus])
     
-    # --- 개선된 분류 로직 ---
+    # --- 분류 로직 (EC 우선 적용) ---
     
-    # Stage 1: 방법론적 부적합성 배제 (EC3)
-    if not any(doc in document_type for doc in ['article', 'review']):
-        return 'EC3 - 방법론적 부적합성'
-    if any(indicator in full_text for indicator in duplicate_indicators):
-        return 'EC3 - 방법론적 부적합성'
+    # EC 1: 방법론적 부적합성 (Methodological Inappropriateness)
+    if not any(doc_type in document_type for doc_type in ['article', 'review']):
+        return 'EC1 - 방법론적 부적합성'
+    if any(indicator in full_text for indicator in methodological_exclusion_indicators):
+        return 'EC1 - 방법론적 부적합성'
 
-    # Stage 2: 주제 적합성(IC1) 및 주변성(EC2) 검증
-    has_core_streaming = any(kw in full_text for kw in core_streaming_keywords)
-    if not has_core_streaming:
-        return 'EC2 - 높은 주제 주변성'
-    if any(indicator in full_text for indicator in peripheral_mention_indicators):
-        if sum(1 for kw in core_streaming_keywords if kw in full_text) <= 2:
-            return 'EC2 - 높은 주제 주변성'
+    # EC 2: 낮은 주제 중심성 (Low Topic Centrality) - IC 1의 역 منطق
+    # 핵심 키워드가 제목, 저자 키워드, Keywords Plus 중 하나에도 없으면 배제
+    if not any(kw in topic_centrality_text for kw in core_streaming_keywords):
+        return 'EC2 - 낮은 주제 중심성'
 
-    # Stage 3: 우선적 분석 차원(IC3) 검증
-    for category_en, keywords in analytical_contribution_keywords.items():
-        if any(kw in full_text for kw in keywords):
-            category_ko = category_map_ko.get(category_en, category_en)
-            return f'Include - {category_en} ({category_ko})'
+    # EC 3: 핵심 현상 분석 부재 (Lacks Core Phenomenon Analysis) - IC 2의 역 منطق
+    # 사회-기술적 또는 플랫폼 생태계 동학 관련 키워드가 하나도 없으면 배제
+    has_socio_technical = any(kw in full_text for kw in socio_technical_keywords)
+    has_platform_ecosystem = any(kw in full_text for kw in platform_ecosystem_keywords)
+    
+    if not (has_socio_technical or has_platform_ecosystem):
+        return 'EC3 - 핵심 현상 분석 부재'
+            
+    # 모든 배제 기준 통과 시 포함, 세부 분류
+    if has_socio_technical and has_platform_ecosystem:
+        return 'Include - Socio-Technical & Platform Ecosystem'
+    elif has_socio_technical:
+        return 'Include - Socio-Technical Dynamics'
+    elif has_platform_ecosystem:
+        return 'Include - Platform Ecosystem Dynamics'
 
-    # Stage 4: 보조적 상호작용(IC2) 검증
-    has_interaction = any(kw in full_text for kw in realtime_interaction_keywords)
-    if has_interaction:
-        return 'Include - General Interaction Study (일반 상호작용 연구)'
-
-    # Stage 5: 최종 배제
-    return 'EC1 - 사회-기술적 맥락 부재'
+    # 위의 조건에 모두 걸리지 않는 예외 케이스 (이론상 도달하기 어려움)
+    return 'Review - Contribution Unclear'
 
 # --- 데이터 품질 진단 함수 ---
 def diagnose_merged_quality(df, file_count, duplicates_removed):
@@ -906,8 +883,9 @@ if uploaded_files:
     df_final_output = df_for_analysis.drop(columns=['Classification'], errors='ignore')
     
     # 메트릭 카드들
-    columns = st.columns(4)
-    with columns[0]:
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-icon">📋</div>
@@ -918,7 +896,7 @@ if uploaded_files:
     
     include_papers = len(df_for_analysis[df_for_analysis['Classification'].str.contains('Include', na=False)])
     
-    with columns[1]:
+    with col2:
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-icon">✅</div>
@@ -927,7 +905,7 @@ if uploaded_files:
         </div>
         """, unsafe_allow_html=True)
     
-    with columns[2]:
+    with col3:
         processing_rate = (len(df_final_output) / total_papers_before_filter * 100) if total_papers_before_filter > 0 else 0
         st.markdown(f"""
         <div class="metric-card">
@@ -937,19 +915,27 @@ if uploaded_files:
         </div>
         """, unsafe_allow_html=True)
     
-    with columns[3]:
-        # 오류 수정을 위해 안정적인 UI 구조로 변경
-        st.markdown(f"""
-        <div class="metric-card" style="margin-bottom: 8px; text-align: center;">
-            <div class="metric-icon" style="margin-left: auto; margin-right: auto;">⛔</div>
-            <div class="metric-value">{total_excluded:,}</div>
-            <div class="metric-label">학술적 배제</div>
-        </div>
-        """, unsafe_allow_html=True,
-        )
-        if st.button("상세보기 및 다운로드", key="exclude_details_button", use_container_width=True):
-            st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
-
+    with col4:
+        # 배제된 논문들을 위한 토글 버튼이 있는 박스
+        col4_inner1, col4_inner2 = st.columns([3, 1])
+        
+        with col4_inner1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-icon">⛔</div>
+                <div class="metric-value">{total_excluded:,}</div>
+                <div class="metric-label">학술적 배제</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4_inner2:
+            st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+            if st.button(
+                "📋", 
+                key="exclude_details_button",
+                help="배제된 논문 상세 보기"
+            ):
+                st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
 
     # 배제된 논문 상세 정보 토글 표시
     if st.session_state.get('show_exclude_details', False) and total_excluded > 0:
@@ -958,43 +944,12 @@ if uploaded_files:
             <h4 style="color: #dc2626; margin-bottom: 16px; font-weight: 700;">⛔ 학술적 배제 기준에 따른 제외 논문</h4>
         </div>
         """, unsafe_allow_html=True)
-
-        # --- 제외 논문 엑셀 다운로드 버튼 ---
-        excluded_excel_data = []
-        for idx, (_, paper) in enumerate(df_excluded_strict.iterrows(), 1):
-            excluded_excel_data.append({
-                '번호': idx,
-                '논문 제목': str(paper.get('TI', 'N/A')),
-                '출판연도': str(paper.get('PY', 'N/A')),
-                '저널명': str(paper.get('SO', 'N/A')),
-                '저자': str(paper.get('AU', 'N/A')),
-                '배제 사유': str(paper.get('Classification', 'N/A')),
-                '문서유형': str(paper.get('DT', 'N/A')),
-                '초록': str(paper.get('AB', 'N/A'))
-            })
-        
-        excluded_excel_df = pd.DataFrame(excluded_excel_data)
-        
-        excel_buffer_excluded = io.BytesIO()
-        with pd.ExcelWriter(excel_buffer_excluded, engine='openpyxl') as writer:
-            excluded_excel_df.to_excel(writer, sheet_name='Excluded_Papers', index=False)
-        excel_data_excluded = excel_buffer_excluded.getvalue()
-        
-        st.download_button(
-            label=f"📊 제외된 논문 목록 엑셀 다운로드 ({len(df_excluded_strict)}편)",
-            data=excel_data_excluded,
-            file_name=f"excluded_papers_{len(df_excluded_strict)}papers.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            type="secondary",
-            use_container_width=True
-        )
-        st.markdown("<br>", unsafe_allow_html=True)
         
         # 배제 기준별 분류 및 표시
         exclusion_categories = {
-            'EC1': '사회-기술적 맥락 부재',
-            'EC2': '높은 주제 주변성',
-            'EC3': '방법론적 부적합성',
+            'EC1': '방법론적 부적합성',
+            'EC2': '낮은 주제 중심성',
+            'EC3': '핵심 현상 분석 부재',
         }
         
         # EC 기준별 배제 현황
@@ -1093,7 +1048,7 @@ if uploaded_files:
         elif classification.startswith('Review'):
             color = "#f59e0b"
             icon = "🔍"
-        else: 
+        else: # Should not happen, but as a fallback
             color = "#8b5cf6"
             icon = "❓"
         
