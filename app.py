@@ -916,64 +916,83 @@ if uploaded_files:
         """, unsafe_allow_html=True)
     
     with col4:
-        with st.expander(f"⛔ 학술적 배제 ({total_excluded:,}편 상세보기)", expanded=False):
-            # 1. Prepare data for Excel
-            if total_excluded > 0:
-                excluded_excel_data = []
-                for idx, (_, paper) in enumerate(df_excluded_strict.iterrows(), 1):
-                    excluded_excel_data.append({
-                        '번호': idx,
-                        '논문 제목': str(paper.get('TI', 'N/A')),
-                        '출판연도': str(paper.get('PY', 'N/A')),
-                        '저널명': str(paper.get('SO', 'N/A')),
-                        '배제 사유': str(paper.get('Classification', 'N/A'))
-                    })
-                excluded_excel_df = pd.DataFrame(excluded_excel_data)
-                excel_buffer = io.BytesIO()
-                with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                    excluded_excel_df.to_excel(writer, sheet_name='Excluded_Papers', index=False)
-                excel_data = excel_buffer.getvalue()
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">⛔</div>
+            <div class="metric-value">{total_excluded:,}</div>
+            <div class="metric-label">학술적 배제</div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("상세보기", key="exclude_details_button", use_container_width=True):
+            st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
 
-                # 2. Add Excel Download Button
-                st.download_button(
-                    label="📥 배제 논문 전체 목록 엑셀 다운로드",
-                    data=excel_data,
-                    file_name=f"excluded_papers_{total_excluded}편.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
-                st.markdown("---") 
+    # 배제된 논문 상세 정보 토글 표시
+    if st.session_state.get('show_exclude_details', False) and total_excluded > 0:
+        st.markdown("""
+        <div style="background: #fef2f2; padding: 20px; border-radius: 16px; margin: 20px 0; border: 1px solid #ef4444;">
+            <h4 style="color: #dc2626; margin-bottom: 16px; font-weight: 700;">⛔ 학술적 배제 논문 상세</h4>
+            
+            <p style="color: #dc2626; margin-bottom: 20px;">EC(배제 기준)에 따라 연구 범위에서 제외된 논문 목록입니다.</p>
+        """, unsafe_allow_html=True)
+        
+        # 엑셀 다운로드 버튼
+        excluded_excel_data = []
+        for idx, (_, paper) in enumerate(df_excluded_strict.iterrows(), 1):
+            excluded_excel_data.append({
+                '번호': idx,
+                '논문 제목': str(paper.get('TI', 'N/A')),
+                '출판연도': str(paper.get('PY', 'N/A')),
+                '저널명': str(paper.get('SO', 'N/A')),
+                '배제 사유': str(paper.get('Classification', 'N/A'))
+            })
+        excluded_excel_df = pd.DataFrame(excluded_excel_data)
+        excel_buffer = io.BytesIO()
+        with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+            excluded_excel_df.to_excel(writer, sheet_name='Excluded_Papers', index=False)
+        excel_data = excel_buffer.getvalue()
 
-            # 3. Display sample of excluded papers
-            st.markdown("""<h5 style="color: #dc2626; margin-bottom: 16px; font-weight: 600;">배제 논문 일부</h5>""", unsafe_allow_html=True)
-
-            exclusion_categories = {
-                'EC1': '방법론적 부적합성',
-                'EC2': '낮은 주제 중심성',
-                'EC3': '핵심 현상 분석 부재',
-            }
-
-            for ec_code, description in exclusion_categories.items():
-                ec_papers = merged_df[merged_df['Classification'].str.startswith(ec_code, na=False)]
-                if len(ec_papers) > 0:
+        st.download_button(
+            label="📥 배제 논문 전체 목록 엑셀 다운로드",
+            data=excel_data,
+            file_name=f"excluded_papers_{total_excluded}편.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+        st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
+        
+        # 배제 기준별 분류 및 표시
+        exclusion_categories = {
+            'EC1': '방법론적 부적합성',
+            'EC2': '낮은 주제 중심성',
+            'EC3': '핵심 현상 분석 부재',
+        }
+        
+        for ec_code, description in exclusion_categories.items():
+            ec_papers = merged_df[merged_df['Classification'].str.startswith(ec_code, na=False)]
+            if len(ec_papers) > 0:
+                st.markdown(f"""
+                <div style="margin: 12px 0; padding: 16px; background: white; border-left: 4px solid #ef4444; border-radius: 12px;">
+                    <strong style="color: #dc2626;">{ec_code}: {description}</strong> 
+                    <span style="color: #8b95a1;">({len(ec_papers)}편)</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # 상위 5편만 샘플로 표시
+                for idx, (_, paper) in enumerate(ec_papers.head(5).iterrows(), 1):
+                    title = str(paper.get('TI', 'N/A'))[:80] + "..." if len(str(paper.get('TI', 'N/A'))) > 80 else str(paper.get('TI', 'N/A'))
+                    year = str(paper.get('PY', 'N/A'))
+                    source = str(paper.get('SO', 'N/A'))[:40] + "..." if len(str(paper.get('SO', 'N/A'))) > 40 else str(paper.get('SO', 'N/A'))
+                    
                     st.markdown(f"""
-                    <div style="margin-top: 12px; padding-bottom: 8px;">
-                        <strong style="color: #dc2626;">{ec_code}: {description}</strong>
-                        <span style="color: #8b95a1;">({len(ec_papers)}편)</span>
+                    <div style="margin: 8px 0 8px 20px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 14px;">
+                        <div style="font-weight: 500; color: #374151; margin-bottom: 4px;">{title}</div>
+                        <div style="color: #6b7280; font-size: 12px;">{year} | {source}</div>
                     </div>
                     """, unsafe_allow_html=True)
-
-                    for idx, (_, paper) in enumerate(ec_papers.head(3).iterrows(), 1):
-                        title = str(paper.get('TI', 'N/A'))[:70] + "..." if len(str(paper.get('TI', 'N/A'))) > 70 else str(paper.get('TI', 'N/A'))
-                        year = str(paper.get('PY', 'N/A'))
-                        st.markdown(f"""
-                        <div style="margin: 4px 0 4px 10px; padding: 8px; background: #f9fafb; border-radius: 6px; font-size: 13px;">
-                            <div style="font-weight: 500; color: #374151;">{title}</div>
-                            <div style="color: #6b7280; font-size: 12px; margin-top: 4px;">{year}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    if len(ec_papers) > 3:
-                        st.markdown(f"<p style='color: #8b95a1; text-align: right; margin: 4px 10px 10px 0; font-size: 12px;'>... 외 {len(ec_papers) - 3}편 더</p>", unsafe_allow_html=True)
+                
+                if len(ec_papers) > 5:
+                    st.markdown(f"<p style='color: #8b95a1; text-align: right; margin: 8px 20px 16px 20px; font-size: 12px;'>... 외 {len(ec_papers) - 5}편 더</p>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True) # End of the red box
 
     # 배제 기준 적용 결과 요약
     st.markdown(f"""
@@ -992,8 +1011,19 @@ if uploaded_files:
         <div class="chart-title">학술적 정제 후 연구 분류 분포</div>
     """, unsafe_allow_html=True)
 
-    classification_counts_df = df_for_analysis['Classification'].value_counts().reset_index()
+    classification_translator = {
+        'Include - Socio-Technical & Platform Ecosystem': '사회-기술 및 플랫폼 생태계',
+        'Include - Platform Ecosystem Dynamics': '플랫폼 생태계 동학',
+        'Include - Socio-Technical Dynamics': '사회-기술적 동학',
+        'Review - Contribution Unclear': '기여도 불분명 (검토 필요)'
+    }
+    
+    df_for_analysis['Classification_Display'] = df_for_analysis['Classification'].apply(
+        lambda x: f"{x} ({classification_translator.get(x, '')})" if classification_translator.get(x) else x
+    )
+    classification_counts_df = df_for_analysis['Classification_Display'].value_counts().reset_index()
     classification_counts_df.columns = ['분류', '논문 수']
+
 
     col1, col2 = st.columns([0.4, 0.6])
     with col1:
@@ -1032,28 +1062,69 @@ if uploaded_files:
         <div class="chart-title">분류별 상세 분포 (배제 기준 적용 후)</div>
     """, unsafe_allow_html=True)
     
-    # 분류별 상세 통계 (EC 제외)
-    sorted_classifications = df_for_analysis['Classification'].value_counts().index.tolist()
-    for classification in sorted_classifications:
-        count = len(df_for_analysis[df_for_analysis['Classification'] == classification])
-        percentage = (count / len(df_final_output) * 100) if len(df_final_output) > 0 else 0
-        
-        if classification.startswith('Include'):
-            color = "#10b981"
-            icon = "✅"
-        elif classification.startswith('Review'):
-            color = "#f59e0b"
-            icon = "🔍"
-        else: # Should not happen, but as a fallback
-            color = "#8b5cf6"
-            icon = "❓"
-        
+    st.markdown("""
+    <div style="background: #f8fafe; border: 1px solid #e1f2ff; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+        <h5 style="margin-bottom: 12px;">참고: 포함/배제 기준 (Inclusion/Exclusion Criteria)</h5>
+        <p><strong>포함 기준 (Inclusion Criteria, IC):</strong> 아래 3가지 기준을 모두 충족</p>
+        <ul>
+            <li><strong>IC 1 (주제 중심성):</strong> '라이브 스트리밍' 핵심 키워드가 제목, 저자 키워드, KeyWords Plus 중 하나 이상에 포함</li>
+            <li><strong>IC 2 (핵심 현상 분석):</strong> 사회-기술적 동학 또는 플랫폼 생태계 동학 중 하나 이상을 분석</li>
+            <li><strong>IC 3 (방법론적 적합성):</strong> Article 또는 Review 유형의 논문</li>
+        </ul>
+        <p style="margin-top: 12px;"><strong>배제 기준 (Exclusion Criteria, EC):</strong> 아래 기준 중 하나라도 해당</p>
+        <ul>
+            <li><strong>EC 1 (방법론적 부적합성):</strong> Article/Review가 아니거나 중복 게재 의심</li>
+            <li><strong>EC 2 (낮은 주제 중심성):</strong> 핵심 키워드가 초록에서만 부수적으로 언급</li>
+            <li><strong>EC 3 (핵심 현상 분석 부재):</strong> 사회/경제적 맥락 없는 순수 기술 논문 등</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+    class_counts = df_for_analysis['Classification'].value_counts()
+    total_included_papers = len(df_for_analysis[df_for_analysis['Classification'].str.startswith('Include')])
+
+    # Category 1
+    cat1_name = 'Include - Socio-Technical & Platform Ecosystem'
+    cat1_count = class_counts.get(cat1_name, 0)
+    if total_included_papers > 0 and cat1_count > 0:
+        cat1_perc = (cat1_count / total_included_papers * 100)
         st.markdown(f"""
-        <div style="margin: 16px 0; padding: 20px; background: white; border-left: 4px solid {color}; border-radius: 12px; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-            <strong>{icon} {classification}:</strong> {count:,}편 ({percentage:.1f}%)
+        <div style="margin: 16px 0; padding: 20px; background: white; border-left: 4px solid #10b981; border-radius: 12px; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <strong>✅ Include - Socio-Technical & Platform Ecosystem (사회-기술 및 플랫폼 생태계):</strong> {cat1_count:,}편 ({cat1_perc:.1f}%)
+            <p style="font-size: 14px; color: #8b95a1; margin-top: 8px;">
+                <em>분류 기준: IC 1, 2, 3 모두 충족</em>
+            </p>
         </div>
         """, unsafe_allow_html=True)
-    
+
+    # Category 2
+    cat2_name = 'Include - Platform Ecosystem Dynamics'
+    cat2_count = class_counts.get(cat2_name, 0)
+    if total_included_papers > 0 and cat2_count > 0:
+        cat2_perc = (cat2_count / total_included_papers * 100)
+        st.markdown(f"""
+        <div style="margin: 16px 0; padding: 20px; background: white; border-left: 4px solid #10b981; border-radius: 12px; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <strong>✅ Include - Platform Ecosystem Dynamics (플랫폼 생태계 동학):</strong> {cat2_count:,}편 ({cat2_perc:.1f}%)
+            <p style="font-size: 14px; color: #8b95a1; margin-top: 8px;">
+                <em>분류 기준: IC 1, 2, 3 모두 충족</em>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Category 3
+    cat3_name = 'Include - Socio-Technical Dynamics'
+    cat3_count = class_counts.get(cat3_name, 0)
+    if total_included_papers > 0 and cat3_count > 0:
+        cat3_perc = (cat3_count / total_included_papers * 100)
+        st.markdown(f"""
+        <div style="margin: 16px 0; padding: 20px; background: white; border-left: 4px solid #10b981; border-radius: 12px; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <strong>✅ Include - Socio-Technical Dynamics (사회-기술적 동학):</strong> {cat3_count:,}편 ({cat3_perc:.1f}%)
+            <p style="font-size: 14px; color: #8b95a1; margin-top: 8px;">
+                <em>분류 기준: IC 1, 2, 3 모두 충족</em>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
     st.markdown("</div>", unsafe_allow_html=True)
 
     # --- 연도별 연구 동향 ---
