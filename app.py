@@ -559,12 +559,12 @@ def classify_article(row):
     if any(indicator in full_text for indicator in methodological_exclusion_indicators):
         return 'EC1 - 방법론적 부적합성'
 
-    # EC 2: 낮은 주제 중심성 (Low Topic Centrality) - IC 1의 역 منطق
+    # EC 2: 낮은 주제 중심성 (Low Topic Centrality) - IC 1의 역 논리
     # 핵심 키워드가 제목, 저자 키워드, Keywords Plus 중 하나에도 없으면 배제
     if not any(kw in topic_centrality_text for kw in core_streaming_keywords):
         return 'EC2 - 낮은 주제 중심성'
 
-    # EC 3: 핵심 현상 분석 부재 (Lacks Core Phenomenon Analysis) - IC 2의 역 منطق
+    # EC 3: 핵심 현상 분석 부재 (Lacks Core Phenomenon Analysis) - IC 2의 역 논리
     # 사회-기술적 또는 플랫폼 생태계 동학 관련 키워드가 하나도 없으면 배제
     has_socio_technical = any(kw in full_text for kw in socio_technical_keywords)
     has_platform_ecosystem = any(kw in full_text for kw in platform_ecosystem_keywords)
@@ -916,68 +916,64 @@ if uploaded_files:
         """, unsafe_allow_html=True)
     
     with col4:
-        # 배제된 논문들을 위한 토글 버튼이 있는 박스
-        col4_inner1, col4_inner2 = st.columns([3, 1])
-        
-        with col4_inner1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-icon">⛔</div>
-                <div class="metric-value">{total_excluded:,}</div>
-                <div class="metric-label">학술적 배제</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col4_inner2:
-            st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-            if st.button(
-                "📋", 
-                key="exclude_details_button",
-                help="배제된 논문 상세 보기"
-            ):
-                st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
+        with st.expander(f"⛔ 학술적 배제 ({total_excluded:,}편 상세보기)", expanded=False):
+            # 1. Prepare data for Excel
+            if total_excluded > 0:
+                excluded_excel_data = []
+                for idx, (_, paper) in enumerate(df_excluded_strict.iterrows(), 1):
+                    excluded_excel_data.append({
+                        '번호': idx,
+                        '논문 제목': str(paper.get('TI', 'N/A')),
+                        '출판연도': str(paper.get('PY', 'N/A')),
+                        '저널명': str(paper.get('SO', 'N/A')),
+                        '배제 사유': str(paper.get('Classification', 'N/A'))
+                    })
+                excluded_excel_df = pd.DataFrame(excluded_excel_data)
+                excel_buffer = io.BytesIO()
+                with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                    excluded_excel_df.to_excel(writer, sheet_name='Excluded_Papers', index=False)
+                excel_data = excel_buffer.getvalue()
 
-    # 배제된 논문 상세 정보 토글 표시
-    if st.session_state.get('show_exclude_details', False) and total_excluded > 0:
-        st.markdown("""
-        <div style="background: #fef2f2; padding: 20px; border-radius: 16px; margin: 20px 0; border: 1px solid #ef4444;">
-            <h4 style="color: #dc2626; margin-bottom: 16px; font-weight: 700;">⛔ 학술적 배제 기준에 따른 제외 논문</h4>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 배제 기준별 분류 및 표시
-        exclusion_categories = {
-            'EC1': '방법론적 부적합성',
-            'EC2': '낮은 주제 중심성',
-            'EC3': '핵심 현상 분석 부재',
-        }
-        
-        # EC 기준별 배제 현황
-        for ec_code, description in exclusion_categories.items():
-            ec_papers = merged_df[merged_df['Classification'].str.startswith(ec_code, na=False)]
-            if len(ec_papers) > 0:
-                st.markdown(f"""
-                <div style="margin: 12px 0; padding: 16px; background: white; border-left: 4px solid #ef4444; border-radius: 12px;">
-                    <strong style="color: #dc2626;">{ec_code}: {description}</strong> 
-                    <span style="color: #8b95a1;">({len(ec_papers)}편)</span>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # 상위 5편만 샘플로 표시
-                for idx, (_, paper) in enumerate(ec_papers.head(5).iterrows(), 1):
-                    title = str(paper.get('TI', 'N/A'))[:80] + "..." if len(str(paper.get('TI', 'N/A'))) > 80 else str(paper.get('TI', 'N/A'))
-                    year = str(paper.get('PY', 'N/A'))
-                    source = str(paper.get('SO', 'N/A'))[:40] + "..." if len(str(paper.get('SO', 'N/A'))) > 40 else str(paper.get('SO', 'N/A'))
-                    
+                # 2. Add Excel Download Button
+                st.download_button(
+                    label="📥 배제 논문 전체 목록 엑셀 다운로드",
+                    data=excel_data,
+                    file_name=f"excluded_papers_{total_excluded}편.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+                st.markdown("---") 
+
+            # 3. Display sample of excluded papers
+            st.markdown("""<h5 style="color: #dc2626; margin-bottom: 16px; font-weight: 600;">배제 논문 일부</h5>""", unsafe_allow_html=True)
+
+            exclusion_categories = {
+                'EC1': '방법론적 부적합성',
+                'EC2': '낮은 주제 중심성',
+                'EC3': '핵심 현상 분석 부재',
+            }
+
+            for ec_code, description in exclusion_categories.items():
+                ec_papers = merged_df[merged_df['Classification'].str.startswith(ec_code, na=False)]
+                if len(ec_papers) > 0:
                     st.markdown(f"""
-                    <div style="margin: 8px 0 8px 20px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 14px;">
-                        <div style="font-weight: 500; color: #374151; margin-bottom: 4px;">{title}</div>
-                        <div style="color: #6b7280; font-size: 12px;">{year} | {source}</div>
+                    <div style="margin-top: 12px; padding-bottom: 8px;">
+                        <strong style="color: #dc2626;">{ec_code}: {description}</strong>
+                        <span style="color: #8b95a1;">({len(ec_papers)}편)</span>
                     </div>
                     """, unsafe_allow_html=True)
-                
-                if len(ec_papers) > 5:
-                    st.markdown(f"<p style='color: #8b95a1; text-align: right; margin: 8px 20px 16px 20px; font-size: 12px;'>... 외 {len(ec_papers) - 5}편 더</p>", unsafe_allow_html=True)
+
+                    for idx, (_, paper) in enumerate(ec_papers.head(3).iterrows(), 1):
+                        title = str(paper.get('TI', 'N/A'))[:70] + "..." if len(str(paper.get('TI', 'N/A'))) > 70 else str(paper.get('TI', 'N/A'))
+                        year = str(paper.get('PY', 'N/A'))
+                        st.markdown(f"""
+                        <div style="margin: 4px 0 4px 10px; padding: 8px; background: #f9fafb; border-radius: 6px; font-size: 13px;">
+                            <div style="font-weight: 500; color: #374151;">{title}</div>
+                            <div style="color: #6b7280; font-size: 12px; margin-top: 4px;">{year}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    if len(ec_papers) > 3:
+                        st.markdown(f"<p style='color: #8b95a1; text-align: right; margin: 4px 10px 10px 0; font-size: 12px;'>... 외 {len(ec_papers) - 3}편 더</p>", unsafe_allow_html=True)
 
     # 배제 기준 적용 결과 요약
     st.markdown(f"""
