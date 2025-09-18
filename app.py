@@ -253,10 +253,10 @@ st.markdown("""
         background: white !important;
         border-radius: 8px !important;
         border: 1px solid #e5e8eb !important;
-        font-weight: 500 !important;
+        font-weight: 600 !important;
         color: #191f28 !important;
         font-family: 'Pretendard', sans-serif !important;
-        font-size: 14px !important;
+        font-size: 15px !important;
     }
     
     .stDataFrame {
@@ -374,12 +374,17 @@ def load_and_merge_wos_files(uploaded_files):
         # UT (Unique Article Identifier) 기준 중복 제거
         if 'UT' in merged_df.columns and merged_df['UT'].notna().any():
             before_dedup = len(merged_df)
+            # UT가 비어있지 않은 행만 남기고, 중복 제거
             merged_df.dropna(subset=['UT'], inplace=True)
             merged_df.drop_duplicates(subset=['UT'], keep='first', inplace=True)
             duplicates_removed = before_dedup - len(merged_df)
-        else: # UT가 없는 경우 제목+저자 기준으로 중복 제거
+        else: # UT가 없는 경우 제목+저자 기준으로 중복 제거 (더 엄격하게)
             before_dedup = len(merged_df)
-            merged_df.drop_duplicates(subset=['TI', 'AU'], keep='first', inplace=True)
+            subset_cols = ['TI', 'AU']
+            if 'AU' not in merged_df.columns:
+                subset_cols = ['TI']
+            merged_df.dropna(subset=subset_cols, inplace=True)
+            merged_df.drop_duplicates(subset=subset_cols, keep='first', inplace=True)
             duplicates_removed = before_dedup - len(merged_df)
             
         return merged_df, file_status, duplicates_removed
@@ -403,7 +408,7 @@ def parse_wos_format(content):
         if not line.startswith('   ') and len(line) > 2 and line[2] == ' ':
             current_field = line[:2]
             current_record[current_field] = line[3:].strip()
-        elif line.startswith('   ') and current_field:
+        elif line.startswith('   ') and current_field in current_record:
             current_record[current_field] += ' ' + line[3:].strip()
     
     if current_record: records.append(current_record)
@@ -573,14 +578,12 @@ if uploaded_files:
         
         if merged_df is None:
             st.error("⚠️ 처리 가능한 WOS Plain Text 파일이 없습니다. 파일 형식을 확인해주세요.")
-            # 파일별 상태 표시
             for status in file_status:
                 st.markdown(f"<div class='file-status'><strong>{status['filename']}</strong><br>{status['message']}</div>", unsafe_allow_html=True)
             st.stop()
         
         merged_df['Classification'] = merged_df.apply(classify_article, axis=1)
 
-    successful_files = len([s for s in file_status if s['status'] == 'SUCCESS'])
     total_papers_before_filter = len(merged_df)
     
     df_excluded = merged_df[merged_df['Classification'].str.startswith('EC', na=False)]
