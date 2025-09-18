@@ -32,6 +32,7 @@ st.markdown("""
         margin-bottom: 12px;
         transition: all 0.2s ease;
         position: relative; /* For button positioning */
+        height: 100%; /* 동일한 높이를 위한 수정 */
     }
     
     .metric-card:hover {
@@ -450,9 +451,9 @@ def parse_wos_format(content):
     if current_record: records.append(current_record)
     return pd.DataFrame(records) if records else None
 
-# --- 라이브 스트리밍 플랫폼 생태계 연구 분류 함수 (최종 수정본 기준 적용) ---
+# --- 라이브 스트리밍 플랫폼 생태계 연구 분류 함수 (사용자 요청 기준 적용) ---
 def classify_article(row):
-    """최종 논문 초안의 포함/배제 기준(IC/EC)을 적용한 논문 분류 함수"""
+    """사용자 요청 포함/배제 기준(IC/EC)을 적용한 논문 분류 함수"""
     
     # --- 텍스트 필드 추출 및 결합 (소문자 변환) ---
     def extract_text(value):
@@ -460,74 +461,77 @@ def classify_article(row):
     
     title = extract_text(row.get('TI', ''))
     abstract = extract_text(row.get('AB', ''))
-    full_text = ' '.join([title, abstract]) # 제목과 초록만으로 판단
+    author_keywords = extract_text(row.get('DE', ''))
+    wos_keywords = extract_text(row.get('ID', ''))
+    
+    # IC1-A는 제목, 초록, 키워드를 모두 검색 범위로 함
+    full_text_for_keywords = ' '.join([title, abstract, author_keywords, wos_keywords])
     
     document_type = extract_text(row.get('DT', ''))
-    language = extract_text(row.get('LA', ''))
 
     # --- 키워드 셋 정의 ---
-    # EC3 (상호작용성) 관련 키워드
-    interaction_keywords = [
-        'interactive', 'interaction', 'real-time', 'real time', 
-        'synchronous', 'live chat', 'user engagement', 'audience participation'
+    # IC1-A (핵심 키워드)
+    core_keywords = [
+        'live stream', 'livestream', 'twitch', 'live commerce', 'streamer', 
+        'real-time interaction', 'youtube live', 'facebook live', 'tiktok live', 
+        'periscope', 'bilibili live', 'afreecatv', 'chzzk', 'kick live'
     ]
-    # EC2 (사회-기술적 맥락) 관련 키워드 - 순수 기술 키워드
-    pure_tech_keywords = ['codec', 'network latency', 'qoe', 'qos', 'routing protocol', 'bandwidth']
-    # EC2 (사회-기술적 맥락) 관련 키워드 - 맥락 존재 키워드
-    context_keywords = [
-        'user', 'viewer', 'audience', 'behavior', 'motivation', 'psychology', 
-        'social', 'cultural', 'community', 'parasocial',
-        'commerce', 'marketing', 'influencer', 'purchase',
-        'education', 'learning', 'teaching',
-        'platform', 'ecosystem', 'business model', 'governance'
-    ]
-    # EC4 (학술적 엄밀성) 관련 키워드
-    non_academic_types = ['editorial', 'book review', 'letter', 'note', 'correction', 'news item']
     
-    # --- 분류 로직 (계층적 필터링) ---
-    
-    # 1. 학술적 형태 및 언어 필터링 (EC4, IC3)
-    if not any(doc_type in document_type for doc_type in ['article', 'review']):
-        return 'Exclude - EC4 (학술적 형태 부적합)'
-    if any(exclude_type in document_type for exclude_type in non_academic_types):
-        return 'Exclude - EC4 (학술적 형태 부적합)'
-    if language and language != 'english':
-        return 'Exclude - IC3 위배 (Non-English)'
-
-    # 2. 주제 관련성 필터링 (EC1) - 제목에 핵심 키워드가 없으므로 이미 검색 단계에서 필터링됨
-
-    # 3. 핵심 특징 필터링 (EC2, EC3)
-    # EC3: 실시간 상호작용성 부재
-    if not any(kw in full_text for kw in interaction_keywords):
-        return 'Exclude - EC3 (상호작용성 부재)'
-        
-    # EC2: 사회-기술적 맥락 부재
-    if any(kw in title for kw in pure_tech_keywords) and not any(kw in full_text for kw in context_keywords):
-        return 'Exclude - EC2 (사회-기술적 맥락 부재)'
-
-    # 모든 기준 통과 시 'Include' 또는 'Review'로 분류
-    # 6개 연구 차원에 따라 세부 분류
-    research_dimensions = {
-        'Include - Technical': ['streaming technology', 'protocol', 'qos', 'infrastructure'],
-        'Include - Platform': ['platform', 'ecosystem', 'business model', 'governance'],
-        'Include - User': ['user behavior', 'motivation', 'engagement', 'psychology'],
-        'Include - Commercial': ['commerce', 'marketing', 'monetization', 'live commerce'],
-        'Include - Social': ['social impact', 'community', 'identity', 'cultural'],
-        'Include - Educational': ['education', 'learning', 'virtual classroom']
+    # IC1-B (연구 차원)
+    dimension_keywords = {
+        'Technical': ['latency', 'qos', 'quality of service', 'qoe', 'quality of experience', 'protocol', 'bandwidth', 'codec', 'network', 'infrastructure'],
+        'Platform': ['ecosystem', 'governance', 'algorithm', 'monetization', 'business model', 'platform'],
+        'User': ['behavior', 'motivation', 'engagement', 'community', 'psychology', 'user', 'viewer', 'audience', 'parasocial', 'participation'],
+        'Commercial': ['commerce', 'marketing', 'sales', 'roi', 'purchase', 'influencer', 'advertising', 'monetization'],
+        'Social': ['culture', 'identity', 'social impact', 'fandom', 'community', 'cultural'],
+        'Educational': ['learning', 'teaching', 'virtual classroom', 'education']
     }
 
+    # EC1 (도메인 관련성 부재)
+    irrelevant_domain_keywords = [
+        'remote surgery', 'medical signal', 'military', 'satellite image', 'astronomy',
+        'seismic', 'geological', 'telemedicine', 'vehicular network', 'drone video'
+    ]
+    
+    # EC3 (학술적 형태 부적합)
+    non_academic_types = ['editorial', 'news', 'correction', 'short commentary', 'conference abstract', 'letter', 'book review']
+
+    # --- 분류 로직 (계층적 필터링) ---
+    
+    # 1. EC3 (학술적 형태 부적합)
+    if any(doc_type in document_type for doc_type in non_academic_types):
+        return 'Exclude - EC3 (학술적 형태 부적합)'
+
+    # 2. IC2 (학술적 기여 - 형태)
+    if not any(doc_type in document_type for doc_type in ['article', 'review']):
+        return 'Exclude - IC2 위배 (학술적 기여 부족)'
+
+    # 3. EC1 (도메인 관련성 부재)
+    if any(kw in full_text_for_keywords for kw in irrelevant_domain_keywords):
+        return 'Exclude - EC1 (도메인 관련성 부재)'
+        
+    # 4. IC1-A (핵심 키워드 포함 여부)
+    if not any(kw in full_text_for_keywords for kw in core_keywords):
+        return 'Exclude - IC1 위배 (핵심 키워드 부재)'
+
+    # 5. EC2 (부차적 언급) - 제목에 핵심 키워드가 없는 경우
+    if not any(kw in title for kw in core_keywords):
+        return 'Exclude - EC2 (부차적 언급)'
+
+    # 6. IC1-B (연구 차원 부합)
     matched_dimensions = []
-    for dim, kws in research_dimensions.items():
-        if any(kw in full_text for kw in kws):
+    for dim, kws in dimension_keywords.items():
+        if any(kw in full_text_for_keywords for kw in kws):
             matched_dimensions.append(dim)
     
     if len(matched_dimensions) == 1:
-        return matched_dimensions[0]
+        return f'Include - {matched_dimensions[0]}'
     elif len(matched_dimensions) > 1:
-        return 'Include - Multidisciplinary' # 다학제 연구
+        return 'Include - Multidisciplinary'
     else:
-        # 6개 차원에 명확히 속하지 않지만, 기본 기준은 통과한 경우
+        # 핵심 기준은 통과했으나, 6개 차원에 명확히 속하지 않는 경우
         return 'Review - Contribution Unclear'
+
 
 # --- WOS Plain Text 형식 변환 함수 ---
 def convert_to_scimat_wos_format(df_to_convert):
@@ -638,9 +642,9 @@ if uploaded_files:
         st.markdown(f"""<div class="metric-card"><div class="metric-icon">📊</div><div class="metric-value">{processing_rate:.1f}%</div><div class="metric-label">최종 포함 비율<br><small>(Inclusion Rate)</small></div></div>""", unsafe_allow_html=True)
     with col4:
         st.markdown(f"""<div class="metric-card" style="padding-bottom: 50px;"><div class="metric-icon" style="background-color: #ef4444;">⛔</div><div class="metric-value">{total_excluded:,}</div><div class="metric-label">학술적 배제<br><small>(Excluded Papers)</small></div><div style="position: absolute; bottom: 10px; right: 15px;">""", unsafe_allow_html=True)
-        if st.button("(상세보기)", key="exclude_details_button"):
+        if st.button("상세보기", key="exclude_details_button"): # 버튼 수정
             st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div></div>", unsafe_allow_html=True) # div 닫기 수정
 
     # --- 선정 기준 설명 UI (수정됨) ---
     st.markdown("""
@@ -651,21 +655,23 @@ if uploaded_files:
     with ic_col:
         st.markdown('<h5 style="color: #10b981;">✅ 포함 기준 (Inclusion Criteria)</h5>', unsafe_allow_html=True)
         st.markdown("""
-        - **IC:** 연구의 핵심 주제가 아래 6개 연구 차원 중 하나 이상에 명확히 부합하는 연구:
-            1.  **Technical:** 스트리밍 기술, 프로토콜, QoS, 인프라
-            2.  **Platform:** 플랫폼 생태계, 비즈니스 모델, 거버넌스
-            3.  **User:** 사용자 행동, 동기, 참여, 심리
-            4.  **Commercial:** 상업화, 마케팅, 수익화, 라이브 커머스
-            5.  **Social:** 사회문화적 영향, 커뮤니티, 정체성
-            6.  **Educational:** 교육적 활용, 온라인 학습, 가상 교실
+        - **IC1 (주제 관련성):** 논문은 다음 A와 B 조건을 모두 충족해야 합니다.
+            - **A. 핵심 키워드 포함:** 제목, 초록, 또는 저자 키워드에 `live stream*`, `Twitch`, `live commerce`, `streamer`, `real-time interaction` 등 핵심 플랫폼 키워드 중 하나 이상을 포함해야 합니다.
+            - **B. 연구 차원 부합:** 내용이 아래 6개 연구 차원 중 하나 이상에 명확히 부합해야 합니다.
+                - **Technical:** latency, QoS, protocol 등
+                - **Platform:** ecosystem, governance, algorithm 등
+                - **User:** behavior, motivation, engagement 등
+                - **Commercial:** commerce, marketing, sales 등
+                - **Social:** culture, identity, social impact 등
+                - **Educational:** learning, teaching, virtual classroom 등
+        - **IC2 (학술적 기여):** 동료 심사를 거친 학술지 논문(Article) 또는 리뷰(Review)여야 합니다.
         """)
     with ec_col:
         st.markdown('<h5 style="color: #ef4444;">⛔️ 제외 기준 (Exclusion Criteria)</h5>', unsafe_allow_html=True)
         st.markdown("""
-        - **EC1 (주제 관련성 부족):** 라이브 스트리밍을 부차적 맥락으로만 언급한 연구.
-        - **EC2 (사회-기술적 맥락 부재):** 사회/경제/사용자 행태 분석 없이, 순수 기술 프로토콜(예: 코덱 성능)만 다룬 연구.
-        - **EC3 (상호작용성 부재):** 실시간 상호작용 개념이 없는 단방향 VOD 연구.
-        - **EC4 (학술적 엄밀성 부족):** 사설, 서평 등 동료 심사를 거치지 않은 연구.
+        - **EC1 (도메인 관련성 부재):** 라이브 스트리밍 기술을 사용하지만, 연구의 핵심 도메인이 생태계와 무관한 경우 (예: 원격 수술, 군사 작전).
+        - **EC2 (부차적 언급):** 제목에 스트리밍 관련 핵심 키워드가 없고, 연구의 핵심 목적이 스트리밍과 무관한 경우.
+        - **EC3 (학술적 형태 부적합):** 동료 심사를 거치지 않은 사설(editorial), 뉴스(news), 정오표(correction), 단신(short commentary) 등.
         """)
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -751,8 +757,8 @@ if uploaded_files:
         percentage = (count / len(df_included) * 100) if len(df_included) > 0 else 0
         icon = "🔍" if "Review" in classification else "✅"
         color = "#f59e0b" if "Review" in classification else "#10b981"
-        korean_name = classification_mapping.get(classification, "")
-        display_name = f"{korean_name}" if korean_name else classification
+        korean_name = classification_mapping.get(classification, classification.replace('Include - ', ''))
+        display_name = f"{korean_name}"
         st.markdown(f"""
         <div style="margin: 16px 0; padding: 20px; background: white; border-left: 4px solid {color}; border-radius: 12px; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
             <strong>{icon} {display_name}:</strong> {count:,}편 ({percentage:.1f}%)
@@ -820,7 +826,7 @@ if uploaded_files:
         <p style="color: #191f28; margin: 6px 0;"><strong>SCIMAT 호환:</strong> 완벽한 WOS Plain Text 형식으로 100% 호환성 보장</p>
         <div style="margin-top: 16px; padding: 12px; background: rgba(0,100,255,0.1); border-radius: 8px;">
             <p style='color: #0064ff; margin: 0; font-weight: 600; font-size: 14px;'>
-            💡 <strong>배제 기준 적용률:</strong> {(total_excluded/total_papers_before_filter*100):.1f}% 
+            💡 <strong>배제 기준 적용률:</strong> {(total_excluded/total_papers_before_filter*100) if total_papers_before_filter > 0 else 0:.1f}% 
             - 연구 질문에 직접적으로 기여하는 논문만을 선별하여 분석의 깊이와 신뢰성을 확보했습니다.
             </p>
         </div>
@@ -977,4 +983,3 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     """)
 
 st.markdown("<br><br>", unsafe_allow_html=True)
-
