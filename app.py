@@ -31,6 +31,11 @@ st.markdown("""
         border: 1px solid #e5e8eb;
         margin-bottom: 12px;
         transition: all 0.2s ease;
+        position: relative; /* For button positioning */
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100%;
     }
     
     .metric-card:hover {
@@ -306,24 +311,6 @@ st.markdown("""
         background: #fef2f2 !important;
         color: #dc2626 !important;
     }
-    
-    .main-text {
-        font-size: 14px;
-        color: #191f28;
-        line-height: 1.5;
-    }
-    
-    .sub-text {
-        font-size: 13px;
-        color: #8b95a1;
-        line-height: 1.4;
-    }
-    
-    .small-text {
-        font-size: 12px;
-        color: #8b95a1;
-        line-height: 1.3;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -394,52 +381,31 @@ def load_and_merge_wos_files(uploaded_files):
         duplicates_removed = 0
         
         if 'UT' in merged_df.columns:
-            # UT 필드의 실제 값들 확인
             ut_series = merged_df['UT'].copy()
             
-            # 유효한 UT 값만 필터링 (더 엄격한 조건)
             def is_meaningful_ut(value):
                 if pd.isna(value):
                     return False
                 str_value = str(value).strip()
-                # 빈 문자열, 'nan', 'None', 매우 짧은 값들 제외
-                if len(str_value) == 0 or str_value.lower() in ['nan', 'none', 'null', '']:
+                if len(str_value) < 10 or str_value.lower() in ['nan', 'none', 'null', '']:
                     return False
-                # WOS UT는 일반적으로 'WOS:' 또는 문자+숫자 조합
-                # 최소 10자 이상의 의미있는 값만 유효한 것으로 간주
-                if len(str_value) < 10:
-                    return False
-                # 'WOS:' 로 시작하거나 충분히 긴 영숫자 조합인 경우만 유효
-                if str_value.startswith('WOS:') or (len(str_value) >= 15 and any(c.isalnum() for c in str_value)):
+                if str_value.startswith('WOS:') or any(c.isalnum() for c in str_value):
                     return True
                 return False
             
-            # 유효한 UT를 가진 행들만 선별
             meaningful_ut_mask = ut_series.apply(is_meaningful_ut)
             rows_with_meaningful_ut = merged_df[meaningful_ut_mask]
             rows_without_meaningful_ut = merged_df[~meaningful_ut_mask]
             
-            # 실제로 의미있는 UT가 있는 경우에만 중복 검사
-            if len(rows_with_meaningful_ut) > 1:  # 최소 2개 이상 있어야 중복 검사 의미
-                # 중복 제거 전후 비교
+            if len(rows_with_meaningful_ut) > 1:
                 before_dedup = len(rows_with_meaningful_ut)
                 deduplicated_meaningful = rows_with_meaningful_ut.drop_duplicates(subset=['UT'], keep='first')
                 after_dedup = len(deduplicated_meaningful)
                 
-                actual_duplicates = before_dedup - after_dedup
-                
-                if actual_duplicates > 0:
-                    duplicates_removed = actual_duplicates
-                    
-                    # 중복 제거된 결과와 UT 없는 행들 재결합
-                    merged_df = pd.concat([deduplicated_meaningful, rows_without_meaningful_ut], ignore_index=True)
+                duplicates_removed = before_dedup - after_dedup
+                merged_df = pd.concat([deduplicated_meaningful, rows_without_meaningful_ut], ignore_index=True)
         
-        # 대안: UT가 없거나 신뢰할 수 없는 경우 제목+저자 기준 중복 제거
         if duplicates_removed == 0 and 'TI' in merged_df.columns:
-            # 제목과 첫 번째 저자 기준으로 중복 확인 (매우 보수적)
-            title_author_before = len(merged_df)
-            
-            # 제목이 있고 저자가 있는 행들만 대상
             has_title = merged_df['TI'].notna() & (merged_df['TI'].str.strip() != '')
             has_author = merged_df.get('AU', pd.Series()).notna() if 'AU' in merged_df.columns else pd.Series([False] * len(merged_df))
             
@@ -469,22 +435,16 @@ def parse_wos_format(content):
     for line in lines:
         line = line.rstrip()
         
-        if not line:
-            continue
-            
-        # 레코드 종료
-        if line == 'ER':
+        if not line or line == 'ER':
             if current_record:
                 records.append(current_record.copy())
                 current_record = {}
                 current_field = None
             continue
             
-        # 헤더 라인 건너뛰기
         if line.startswith(('FN ', 'VR ')):
             continue
             
-        # 새 필드 시작
         if not line.startswith('   ') and ' ' in line:
             parts = line.split(' ', 1)
             if len(parts) == 2:
@@ -492,20 +452,15 @@ def parse_wos_format(content):
                 current_field = field_tag
                 current_record[field_tag] = field_value.strip()
         
-        # 기존 필드 연속
-        elif line.startswith('   ') and current_field and current_field in current_record:
+        elif line.startswith('   ') and current_field in current_record:
             continuation_value = line[3:].strip()
             if continuation_value:
                 current_record[current_field] += '; ' + continuation_value
     
-    # 마지막 레코드 처리
     if current_record:
         records.append(current_record)
     
-    if not records:
-        return None
-        
-    return pd.DataFrame(records)
+    return pd.DataFrame(records) if records else None
 
 # --- 라이브 스트리밍 특화 분류 함수 (사용자 요청 기준 적용) ---
 def classify_article(row):
@@ -584,72 +539,20 @@ def classify_article(row):
         return 'EC2 - 사회-기술적 맥락 부재'
 
     # --- 2단계: 포함 논문 상세 분류 (C1-C6) ---
-    # 우선순위: C5/C6 (특정 도메인) -> C2/C3/C4 (핵심 연구 분야) -> C1 (기반 기술)
     if any(kw in full_text for kw in keywords_c5):
-        return 'C5: 상업 및 수익화 (Commerce & Monetization)'
+        return 'C5: 상업 및 수익화'
     if any(kw in full_text for kw in keywords_c6):
-        return 'C6: 교육 및 학습 (Education & Learning)'
+        return 'C6: 교육 및 학습'
     if any(kw in full_text for kw in keywords_c2):
-        return 'C2: 플랫폼 및 생태계 (Platforms & Ecosystems)'
+        return 'C2: 플랫폼 및 생태계'
     if any(kw in full_text for kw in keywords_c3):
-        return 'C3: 사용자 경험 및 심리 (User Experience & Psychology)'
+        return 'C3: 사용자 경험 및 심리'
     if any(kw in full_text for kw in keywords_c4):
-        return 'C4: 사회 및 문화적 영향 (Social & Cultural Impacts)'
+        return 'C4: 사회 및 문화적 영향'
     if any(kw in full_text for kw in keywords_c1):
-        return 'C1: 기술 및 인프라 (Technical & Infrastructure)'
+        return 'C1: 기술 및 인프라'
 
-    # 모든 상세 분류에 해당하지 않는 경우 (예: 리뷰 논문 등)
     return 'General/Review'
-
-
-# --- 데이터 품질 진단 함수 ---
-def diagnose_merged_quality(df, file_count, duplicates_removed):
-    """병합된 WOS 데이터의 품질 진단 - 수정된 버전"""
-    issues = []
-    recommendations = []
-    
-    # 필수 필드 확인
-    required_fields = ['TI', 'AU', 'SO', 'PY']
-    keyword_fields = ['DE', 'ID']
-    
-    for field in required_fields:
-        if field not in df.columns:
-            issues.append(f"❌ 필수 필드 누락: {field}")
-        else:
-            valid_count = df[field].notna().sum()
-            total_count = len(df)
-            missing_rate = (total_count - valid_count) / total_count * 100
-            
-            if missing_rate > 10:
-                issues.append(f"⚠️ {field} 필드의 {missing_rate:.1f}%가 누락됨")
-    
-    # 키워드 필드 품질 확인
-    has_keywords = False
-    for field in keyword_fields:
-        if field in df.columns:
-            has_keywords = True
-            valid_keywords = df[field].notna() & (df[field] != '') & (df[field] != 'nan')
-            valid_count = valid_keywords.sum()
-            total_count = len(df)
-            
-            if valid_count < total_count * 0.7:
-                issues.append(f"⚠️ {field} 필드의 {((total_count-valid_count)/total_count*100):.1f}%가 비어있음")
-    
-    if not has_keywords:
-        issues.append("❌ 키워드 필드 없음: DE 또는 ID 필드 필요")
-    
-    # 병합 관련 정보 - 실제 결과만 반영 (완전 수정)
-    recommendations.append(f"✅ {file_count}개 파일 성공적으로 병합됨")
-    
-    # 중복 제거 결과만 실제 데이터에 따라 표시
-    if duplicates_removed > 0:
-        recommendations.append(f"🔄 중복 논문 {duplicates_removed}편 자동 제거됨")
-    else:
-        recommendations.append("✅ 중복 논문 없음 - 모든 논문이 고유 데이터")
-    
-    recommendations.append("✅ WOS Plain Text 형식 - SCIMAT 최적 호환성 확보")
-    
-    return issues, recommendations
 
 # --- WOS Plain Text 형식 변환 함수 ---
 def convert_to_scimat_wos_format(df_to_convert):
@@ -745,36 +648,20 @@ uploaded_files = st.file_uploader(
 
 if uploaded_files:
     st.markdown(f"📋 **선택된 파일 개수:** {len(uploaded_files)}개")
-    
-    # 프로그레스 인디케이터
     st.markdown('<div class="progress-indicator"></div>', unsafe_allow_html=True)
     
     with st.spinner(f"🔄 {len(uploaded_files)}개 WOS 파일 병합 및 학술적 정제 적용 중..."):
-        # 파일 병합
         merged_df, file_status, duplicates_removed = load_and_merge_wos_files(uploaded_files)
         
         if merged_df is None:
             st.error("⚠️ 처리 가능한 WOS Plain Text 파일이 없습니다. 파일들이 Web of Science에서 다운로드한 정품 Plain Text 파일인지 확인해주세요.")
-            
-            # 파일별 상태 표시
-            st.markdown("### 📄 파일별 처리 상태")
-            for status in file_status:
-                st.markdown(f"""
-                <div class="file-status">
-                    <strong>{status['filename']}</strong><br>
-                    {status['message']}
-                </div>
-                """, unsafe_allow_html=True)
             st.stop()
         
-        # 논문 분류 수행 - 강화된 기준 적용
         merged_df['Classification'] = merged_df.apply(classify_article, axis=1)
 
-    # 성공적인 파일 개수 계산
     successful_files = len([s for s in file_status if s['status'] == 'SUCCESS'])
     total_papers_before_filter = len(merged_df)
     
-    # 최종 데이터셋 준비
     df_excluded_strict = merged_df[merged_df['Classification'].str.startswith('EC', na=False)]
     df_for_analysis = merged_df[~merged_df['Classification'].str.startswith('EC', na=False)].copy()
     
@@ -782,100 +669,10 @@ if uploaded_files:
     
     st.success(f"✅ 병합 및 학술적 정제 완료! {successful_files}개 파일에서 최종 {total_papers:,}편의 논문을 성공적으로 처리했습니다.")
     
-    # 중복 제거 결과 표시 - 실제 결과만
     if duplicates_removed > 0:
-        st.info(f"🔄 중복 논문 {duplicates_removed}편이 자동으로 제거되었습니다. (원본 총 {total_papers_before_filter + duplicates_removed:,}편 → 정제 후 {total_papers_before_filter:,}편)")
+        st.info(f"🔄 중복 논문 {duplicates_removed}편이 자동으로 제거되었습니다.")
     else:
         st.info("✅ 중복 논문 없음 - 모든 논문이 고유한 데이터입니다.")
-
-    # --- 파일별 처리 상태 ---
-    st.markdown("""
-    <div class="section-header">
-        <div class="section-title">📄 파일별 처리 상태</div>
-        <div class="section-subtitle">업로드된 각 파일의 처리 결과</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class="chart-container">
-        <div class="chart-title">📋 파일별 상세 상태</div>
-    """, unsafe_allow_html=True)
-    
-    col1, col2 = st.columns([0.6, 0.4])
-    
-    with col1:        
-        for status in file_status:
-            color = "#10b981" if status['status'] == 'SUCCESS' else "#ef4444"
-            icon = "✅" if status['status'] == 'SUCCESS' else "❌"
-            
-            st.markdown(f"""
-            <div style="margin: 12px 0; padding: 16px; background: white; border-left: 4px solid {color}; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-                <strong>{icon} {status['filename']}</strong><br>
-                <small style="color: #8b95a1;">{status['message']}</small>
-                {f" | 인코딩: {status['encoding']}" if status['encoding'] != 'N/A' else ""}
-            </div>
-            """, unsafe_allow_html=True)
-    
-    with col2:
-        # 파일 처리 통계
-        success_count = len([s for s in file_status if s['status'] == 'SUCCESS'])
-        error_count = len([s for s in file_status if s['status'] == 'ERROR'])
-        
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-icon">✅</div>
-            <div class="metric-value">{success_count}</div>
-            <div class="metric-label">성공한 파일</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-icon">❌</div>
-            <div class="metric-value">{error_count}</div>
-            <div class="metric-label">실패한 파일</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # --- 데이터 품질 진단 결과 ---
-    st.markdown("""
-    <div class="section-header">
-        <div class="section-title">🔍 병합 데이터 품질 진단</div>
-        <div class="section-subtitle">병합된 WOS 데이터의 품질과 SCIMAT 호환성 검증</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    with st.spinner("🔍 병합 데이터 품질 분석 중..."):
-        issues, recommendations = diagnose_merged_quality(df_for_analysis, successful_files, duplicates_removed)
-
-    st.markdown("""
-    <div class="chart-container">
-        <div class="chart-title">🔍 병합 데이터 품질 진단 결과</div>
-    """, unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown('<h5 style="color: #ef4444; margin-bottom: 16px;">🚨 발견된 문제점 (Identified Issues)</h5>', unsafe_allow_html=True)
-        
-        if issues:
-            for issue in issues:
-                st.markdown(f"- {issue}")
-        else:
-            st.markdown("✅ **문제점 없음** - 병합 데이터 품질 우수")
-    
-    with col2:
-        st.markdown('<h5 style="color: #10b981; margin-bottom: 16px;">💡 병합 결과 (Merge Results)</h5>', unsafe_allow_html=True)
-        
-        if recommendations:
-            for rec in recommendations:
-                st.markdown(f"- {rec}")
-        else:
-            st.markdown("🎯 **최적 상태** - SCIMAT 완벽 호환")
-    
-    st.markdown("</div>", unsafe_allow_html=True)
 
     # --- 분석 결과 요약 ---
     st.markdown("""
@@ -885,135 +682,85 @@ if uploaded_files:
     </div>
     """, unsafe_allow_html=True)
 
-    # 총 배제된 논문 수 계산
     total_excluded = len(df_excluded_strict)
-    
-    # Classification 컬럼만 제거 (원본 WOS 형식 유지)
     df_final_output = df_for_analysis.drop(columns=['Classification'], errors='ignore')
     
-    # 메트릭 카드들
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
+    cols = st.columns(4)
+    with cols[0]:
+        st.markdown(f"""<div class="metric-card">
+                        <div class="metric-icon">📋</div>
+                        <div class="metric-value">{len(df_final_output):,}</div>
+                        <div class="metric-label">최종 분석 대상 (Final)<br><small>정제 기준 적용후</small></div>
+                      </div>""", unsafe_allow_html=True)
+    with cols[1]:
+        st.markdown(f"""<div class="metric-card">
+                        <div class="metric-icon">✅</div>
+                        <div class="metric-value">{total_papers:,}</div>
+                        <div class="metric-label">핵심 포함 연구 (Included)</div>
+                      </div>""", unsafe_allow_html=True)
+    with cols[2]:
+        processing_rate = (total_papers / total_papers_before_filter * 100) if total_papers_before_filter > 0 else 0
+        st.markdown(f"""<div class="metric-card">
+                        <div class="metric-icon">📊</div>
+                        <div class="metric-value">{processing_rate:.1f}%</div>
+                        <div class="metric-label">최종 포함 비율 (Inclusion Rate)</div>
+                      </div>""", unsafe_allow_html=True)
+    with cols[3]:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-icon">📋</div>
-            <div class="metric-value">{len(df_final_output):,}</div>
-            <div class="metric-label">최종 분석 대상 (Final)<br><small style="color: #8b95a1;">(정제 기준 적용후)</small></div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    include_papers = len(df_for_analysis)
-    
-    with col2:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-icon">✅</div>
-            <div class="metric-value">{include_papers:,}</div>
-            <div class="metric-label">핵심 포함 연구 (Included)</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        processing_rate = (len(df_final_output) / total_papers_before_filter * 100) if total_papers_before_filter > 0 else 0
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-icon">📊</div>
-            <div class="metric-value">{processing_rate:.1f}%</div>
-            <div class="metric-label">최종 포함 비율 (Inclusion Rate)</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        # 배제된 논문들을 위한 토글 버튼이 있는 박스
-        col4_inner1, col4_inner2 = st.columns([3, 1])
-        
-        with col4_inner1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-icon">⛔</div>
+            <div>
+                <div class="metric-icon" style="background:#ef4444;">⛔</div>
                 <div class="metric-value">{total_excluded:,}</div>
                 <div class="metric-label">학술적 배제 (Excluded)</div>
             </div>
-            """, unsafe_allow_html=True)
-        
-        with col4_inner2:
-            st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-            if st.button(
-                "📋", 
-                key="exclude_details_button",
-                help="배제된 논문 상세 보기 (View Excluded Papers)"
-            ):
-                st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
-    
-    # --- 학술적 정제 기준 및 결과 요약 ---
-    st.markdown("""
-    <div class="chart-container">
-        <div class="chart-title">📜 학술적 정제 기준 및 결과 요약 (Filtering Criteria & Results Summary)</div>
-    """, unsafe_allow_html=True)
-
-    ic_col, ec_col = st.columns(2)
-
-    with ic_col:
-        st.markdown('<h5 style="color: #10b981; margin-bottom: 16px;">✅ 포함 기준 (Inclusion Criteria)</h5>', unsafe_allow_html=True)
-        st.markdown("""
-        - **IC1 (주제 중심성):** 라이브 스트리밍을 핵심 주제로 다룸
-        - **IC2 (학술적 형태):** Peer-review를 거친 Article 또는 Review
-        - **IC3 (언어):** 영어로 작성된 논문
-        """)
-        st.info(f"위 3가지 기준을 **모두 충족**하는 **{include_papers:,}**편의 논문이 최종 포함되었습니다.")
-
-    with ec_col:
-        st.markdown('<h5 style="color: #ef4444; margin-bottom: 16px;">⛔️ 제외 기준 (Exclusion Criteria)</h5>', unsafe_allow_html=True)
-        if total_excluded > 0:
-            exclusion_counts = df_excluded_strict['Classification'].value_counts().reset_index()
-            exclusion_counts.columns = ['Exclusion Reason (제외 사유)', 'Count (논문 수)']
-            st.dataframe(exclusion_counts, use_container_width=True, hide_index=True)
-        else:
-            st.success("제외된 논문이 없습니다.")
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-    # 배제된 논문 상세 정보 토글 표시
-    if st.session_state.get('show_exclude_details', False) and total_excluded > 0:
-        st.markdown("""
-        <div style="background: #fef2f2; padding: 20px; border-radius: 16px; margin: 20px 0; border: 1px solid #ef4444;">
-            <h4 style="color: #dc2626; margin-bottom: 16px; font-weight: 700;">⛔ 학술적 배제 기준에 따른 제외 논문 (Excluded Papers by Criteria)</h4>
+            <div style="margin-top: 10px;"></div>
         </div>
         """, unsafe_allow_html=True)
+        if st.button("(상세보기)", key="exclude_details_button"):
+            st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
+
+    if st.session_state.get('show_exclude_details', False) and total_excluded > 0:
+        st.markdown("""
+        <div style="background: #fff; padding: 20px; border-radius: 16px; margin: 10px 0 20px 0; border: 1px solid #e5e8eb;">
+            <h4 style="color: #dc2626; margin-bottom: 16px; font-weight: 700;">⛔ 학술적 배제 기준별 논문 (샘플)</h4>
+        """, unsafe_allow_html=True)
         
-        excluded_excel_data = []
-        for idx, (_, paper) in enumerate(df_excluded_strict.iterrows(), 1):
-            excluded_excel_data.append({
-                'No (번호)': idx,
-                'Title (논문 제목)': str(paper.get('TI', 'N/A')),
-                'Year (출판연도)': str(paper.get('PY', 'N/A')),
-                'Journal (저널명)': str(paper.get('SO', 'N/A')),
-                'Authors (저자)': str(paper.get('AU', 'N/A')),
-                'Exclusion Reason (제외 사유)': str(paper.get('Classification', 'N/A')),
-                'Author Keywords (저자 키워드)': str(paper.get('DE', 'N/A')),
-                'WOS Keywords (WOS 키워드)': str(paper.get('ID', 'N/A')),
-                'Abstract (초록)': str(paper.get('AB', 'N/A')),
-                'Document Type (문서유형)': str(paper.get('DT', 'N/A'))
-            })
+        exclusion_categories = {
+            'EC1': '주제 관련성 부족', 'EC2': '사회-기술적 맥락 부재', 'EC3': '상호작용성 부재',
+            'EC4': '학술적 엄밀성 부족', 'EC5': '중복 게재',
+        }
         
-        excluded_excel_df = pd.DataFrame(excluded_excel_data)
+        for ec_code, description in exclusion_categories.items():
+            ec_papers = df_excluded_strict[df_excluded_strict['Classification'].str.startswith(ec_code, na=False)]
+            if not ec_papers.empty:
+                st.markdown(f"""
+                <div style="margin: 12px 0; padding: 12px; background: #f9fafb; border-left: 3px solid #ef4444; border-radius: 8px;">
+                    <strong style="color: #dc2626;">{ec_code}: {description}</strong> 
+                    <span style="color: #8b95a1;">({len(ec_papers)}편)</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                for _, paper in ec_papers.head(2).iterrows():
+                    title = paper.get('TI', 'N/A')
+                    year = paper.get('PY', 'N/A')
+                    st.markdown(f"""
+                    <div style="font-size: 13px; margin: 5px 0 5px 15px;">
+                        - ({year}) {title[:90]}...
+                    </div>
+                    """, unsafe_allow_html=True)
+        
         excel_buffer = io.BytesIO()
         with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-            excluded_excel_df.to_excel(writer, sheet_name='Excluded_Papers', index=False)
-        excel_data = excel_buffer.getvalue()
+            df_excluded_strict.to_excel(writer, sheet_name='Excluded_Papers', index=False)
         
         st.download_button(
-            label="📊 제외된 논문 전체 목록 엑셀 다운로드 (Download Excluded Papers as Excel)",
-            data=excel_data,
-            file_name=f"excluded_papers_list_{len(df_excluded_strict)}papers.xlsx",
+            label="(엑셀다운로드)",
+            data=excel_buffer.getvalue(),
+            file_name=f"excluded_papers_{len(df_excluded_strict)}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # (이하 상세 리스트 표시는 생략)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # --- 논문 분류 현황 ---
     st.markdown("""
@@ -1024,117 +771,190 @@ if uploaded_files:
     classification_counts_df = df_for_analysis['Classification'].value_counts().reset_index()
     classification_counts_df.columns = ['Classification (연구 분야)', 'Count (논문 수)']
 
-    col1, col2 = st.columns([0.4, 0.6])
+    col1, col2 = st.columns([0.45, 0.55])
     with col1:
         st.dataframe(classification_counts_df, use_container_width=True, hide_index=True)
 
     with col2:
-        # 도넛 차트
         selection = alt.selection_point(fields=['Classification (연구 분야)'], on='mouseover', nearest=True)
-
         base = alt.Chart(classification_counts_df).encode(
             theta=alt.Theta(field="Count (논문 수)", type="quantitative", stack=True),
-            color=alt.Color(field="Classification (연구 분야)", type="nominal", title="Research Topic",
+            color=alt.Color(field="Classification (연구 분야)", type="nominal", title="Research Topics",
                            scale=alt.Scale(scheme='tableau20'),
                            legend=alt.Legend(orient="right", titleColor="#191f28", labelColor="#8b95a1")),
             opacity=alt.condition(selection, alt.value(1), alt.value(0.8))
         ).add_params(selection)
-
         pie = base.mark_arc(outerRadius=150, innerRadius=90)
-        text_total = alt.Chart(pd.DataFrame([{'value': f'{len(df_final_output)}'}])).mark_text(
+        text_total = alt.Chart(pd.DataFrame([{'value': f'{total_papers}'}])).mark_text(
             align='center', baseline='middle', fontSize=45, fontWeight='bold', color='#0064ff'
         ).encode(text='value:N')
-        text_label = alt.Chart(pd.DataFrame([{'value': 'Included Papers'}])).mark_text(
+        text_label = alt.Chart(pd.DataFrame([{'value': 'Research Topics'}])).mark_text(
             align='center', baseline='middle', fontSize=16, dy=30, color='#8b95a1'
         ).encode(text='value:N')
-
-        chart = (pie + text_total + text_label).properties(
-            width=350, height=350
-        ).configure_view(strokeWidth=0)
+        chart = (pie + text_total + text_label).properties(height=350).configure_view(strokeWidth=0)
         st.altair_chart(chart, use_container_width=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
-
-    # --- 연도별 연구 동향 ---
-    if 'PY' in df_final_output.columns:
-        st.markdown("""
-        <div class="chart-container">
-            <div class="chart-title">정제된 라이브 스트리밍 연구 동향 (Publication Trend of Refined Papers)</div>
-        """, unsafe_allow_html=True)
-        
-        df_trend = df_final_output.copy()
-        df_trend['PY'] = pd.to_numeric(df_trend['PY'], errors='coerce')
-        df_trend.dropna(subset=['PY'], inplace=True)
-        df_trend['PY'] = df_trend['PY'].astype(int)
-        
-        yearly_counts = df_trend['PY'].value_counts().reset_index()
-        yearly_counts.columns = ['Year (발행 연도)', 'Count (논문 수)']
-        yearly_counts = yearly_counts[yearly_counts['Year (발행 연도)'] <= 2025].sort_values('Year (발행 연도)')
-
-        if len(yearly_counts) > 0:
-            line_chart = alt.Chart(yearly_counts).mark_line(
-                point={'size': 80, 'filled': True}, strokeWidth=3, color='#0064ff'
-            ).encode(
-                x=alt.X('Year (발행 연도):O', title='Publication Year (발행 연도)'),
-                y=alt.Y('Count (논문 수):Q', title='Number of Papers (논문 수)'),
-                tooltip=['Year (발행 연도)', 'Count (논문 수)']
-            ).properties(height=300)
-            
-            st.altair_chart(line_chart, use_container_width=True)
-        
-        st.markdown("</div>", unsafe_allow_html=True)
 
     # --- 최종 파일 다운로드 섹션 ---
     st.markdown("""
     <div class="section-header">
         <div class="section-title">📥 학술적 정제 완료 - SCIMAT 분석용 파일 다운로드</div>
-        <div class.section-subtitle">강화된 포함/배제 기준 적용 후 정제된 고품질 WOS Plain Text 파일</div>
+        <div class="section-subtitle">강화된 포함/배제 기준 적용 후 정제된 고품질 WOS Plain Text 파일</div>
     </div>
     """, unsafe_allow_html=True)
     
-    # SCIMAT 호환 파일 다운로드
     text_data = convert_to_scimat_wos_format(df_final_output)
-    
-    download_clicked = st.download_button(
+    st.download_button(
         label="📥 다운로드 (Download)",
         data=text_data,
         file_name=f"live_streaming_academic_filtered_scimat_{len(df_final_output)}papers.txt",
         mime="text/plain",
         type="primary",
         use_container_width=True,
-        key="download_final_file",
-        help="학술적 정제 기준 적용 후 SCIMAT에서 바로 사용 가능한 WOS Plain Text 파일"
     )
 
-# --- 하단 여백 및 추가 정보 ---
-st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # --- FAQ 및 가이드 (원본 복원) ---
+    with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
+        st.markdown("""
+        **Q: 여러 WOS 파일을 어떻게 한 번에 처리하나요?**
+        A: WOS에서 여러 번 Plain Text 다운로드한 후, 모든 .txt 파일을 한 번에 업로드하면 자동으로 병합됩니다.
+        
+        **Q: 중복된 논문이 있을까봐 걱정됩니다.**
+        A: UT(Unique Article Identifier) 기준으로 자동 중복 제거되며, UT가 없으면 제목+저자 조합으로 중복을 감지합니다.
+        
+        **Q: WOS에서 어떤 설정으로 다운로드해야 하나요?**
+        A: Export → Record Content: "Full Record and Cited References", File Format: "Plain Text"로 설정하세요. 인용 관계 분석을 위해 참고문헌 정보가 필수입니다.
+        
+        **Q: 어떤 기준으로 논문이 배제되나요?**
+        A: 사회-기술적 맥락이 부재하거나(EC1), 주제의 주변성이 높거나(EC2), 방법론적으로 부적합한(EC3) 연구를 체계적으로 배제하여 분석의 깊이와 신뢰성을 확보합니다.
+        
+        **Q: SCIMAT에서 키워드 정리를 어떻게 하나요?**
+        A: Group set → Word → Find similar words by distances (Maximum distance: 1)로 유사 키워드를 자동 통합하고, Word Group manual set에서 수동으로 관련 키워드들을 그룹화하세요.
+        
+        **Q: SCIMAT 분석 설정은 어떻게 하나요?**
+        A: Unit of Analysis: "Author's words + Source's words", Network Type: "Co-occurrence", Normalization: "Equivalence Index", Clustering: "Simple Centers Algorithm" (Maximum network size: 50)를 권장합니다.
+        
+        **Q: 병합된 파일이 SCIMAT에서 제대로 로딩되지 않습니다.**
+        A: 원본 WOS 파일들이 'FN Clarivate Analytics Web of Science'로 시작하는 정품 Plain Text 파일인지 확인하세요.
+        
+        **Q: SCIMAT에서 Period는 어떻게 설정하나요?**
+        A: 연구 분야의 진화 단계를 반영하여 의미 있게 구분하되, 각 Period당 최소 50편 이상의 논문을 포함하도록 설정하세요.
+        
+        **Q: 몇 개의 파일까지 동시에 업로드할 수 있나요?**
+        A: 기술적으로는 제한이 없지만, 안정성을 위해 10개 이하의 파일을 권장합니다. 매우 큰 데이터셋의 경우 나누어서 처리하세요.
+        """)
 
-with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
-    st.markdown("""
-    **Q: WOS에서 어떤 설정으로 다운로드해야 하나요?**
-    A: Export → Record Content: "Full Record and Cited References", File Format: "Plain Text"로 설정하세요. 인용 관계 분석을 위해 참고문헌 정보가 필수입니다.
-    
-    **Q: 어떤 기준으로 논문이 배제되나요?**
-    A: 아래의 체계적인 기준에 따라 연구의 깊이와 신뢰성을 확보합니다.
-    - **EC1 (주제 관련성 부족):** 라이브 스트리밍을 부차적 맥락으로만 언급한 연구
-    - **EC2 (사회-기술적 맥락 부재):** 사용자나 사회적 함의 없이 순수 기술만 다룬 연구
-    - **EC3 (상호작용성 부재):** 실시간 상호작용 개념이 없는 단방향 VOD 연구
-    - **EC4 (학술적 엄밀성 부족):** 동료 심사를 거치지 않은 사설, 서평 등
-    - **EC5 (중복):** 명백히 중복 게재된 연구
-    
-    **Q: SCIMAT 분석 설정은 어떻게 하나요?**
-    A: Unit of Analysis: "Author's words + Source's words", Network Type: "Co-occurrence", Normalization: "Equivalence Index", Clustering: "Simple Centers Algorithm" (Maximum network size: 50)를 권장합니다.
-    """)
-
-with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
-    st.markdown("""
-    ### 필요한 것
-    - SciMAT 소프트웨어 (무료 다운로드)
-    - 다운로드된 WOS Plain Text 파일
-    - Java 1.8 이상
-    
-    ### 1단계: SciMAT 시작하기
-    ... (이하 내용은 이전과 동일)
-    """)
+    with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
+        st.markdown("""
+        ### 필요한 것
+        - SciMAT 소프트웨어 (무료 다운로드)
+        - 다운로드된 WOS Plain Text 파일
+        - Java 1.8 이상
+        
+        ### 1단계: SciMAT 시작하기
+        
+        **새 프로젝트 생성**
+        ```
+        1. SciMAT 실행 (SciMAT.jar 더블클릭)
+        2. File → New Project
+        3. Path: 저장할 폴더 선택
+        4. File name: 프로젝트 이름 입력
+        5. Accept
+        ```
+        
+        **데이터 불러오기**
+        ```
+        1. File → Add Files
+        2. "ISI WoS" 선택
+        3. 다운로드한 txt 파일 선택
+        4. 로딩 완료까지 대기
+        ```
+        
+        ### 2단계: 키워드 정리하기
+        
+        **유사 키워드 자동 통합**
+        ```
+        1. Group set → Word → Find similar words by distances
+        2. Maximum distance: 1 (한 글자 차이)
+        3. 같은 의미 단어들 확인하고 Move로 통합
+        ```
+        의미: 철자가 1글자만 다른 단어들을 찾아서 제안 (예: "platform" ↔ "platforms")
+        
+        **수동으로 키워드 정리**
+        ```
+        1. Group set → Word → Word Group manual set
+        2. Words without group 목록 확인
+        3. 관련 키워드들 선택 후 New group으로 묶기
+        4. 불필요한 키워드 제거
+        ```
+        목적: 데이터 품질 향상, 의미 있는 클러스터 형성
+        
+        ### 3단계: 시간 구간 설정
+        
+        **Period 만들기**
+        ```
+        1. Knowledge base → Periods → Periods manager
+        2. Add 버튼으로 시간 구간 생성:
+           - Period 1: 1996-2006 (태동기)
+           - Period 2: 2007-2016 (형성기)
+           - Period 3: 2017-2021 (확산기)
+           - Period 4: 2022-2024 (성숙기)
+        ```
+        원리: 연구 분야의 진화 단계를 반영한 의미 있는 구분
+        
+        **각 Period에 논문 할당**
+        ```
+        1. Period 1 클릭 → Add
+        2. 해당 연도 논문들 선택
+        3. 오른쪽 화살표로 이동
+        4. 다른 Period들도 동일하게 반복
+        ```
+        
+        ### 4단계: 분석 실행
+        
+        **분석 마법사 시작**
+        ```
+        1. Analysis → Make Analysis
+        2. 모든 Period 선택 → Next
+        ```
+        
+        **Step 1-8: 분석 설정**
+        - Unit of Analysis: "Author's words + Source's words"
+        - Data Reduction: Minimum frequency 2
+        - Network Type: "Co-occurrence"
+        - Normalization: "Equivalence Index"
+        - Clustering: "Simple Centers Algorithm" (Max network size: 50)
+        - Document Mapper: "Core Mapper"
+        - Performance Measures: G-index, Sum Citations
+        - Evolution Map: "Jaccard Index"
+        
+        **분석 실행**
+        ```
+        - Finish 클릭
+        - 완료까지 대기 (10-30분)
+        ```
+        
+        ### 5단계: 결과 해석
+        
+        **전략적 다이어그램 4사분면**
+        - 우상단: Motor Themes (핵심 주제)
+        - 좌상단: Specialized Themes (전문화된 주제)
+        - 좌하단: Emerging/Declining Themes (신흥/쇠퇴 주제)
+        - 우하단: Basic Themes (기초 주제)
+        
+        **진화 맵 분석**
+        - 노드 크기 = 논문 수
+        - 연결선 두께 = Jaccard 유사도
+        - 시간에 따른 주제 변화 추적
+        
+        ### 문제 해결
+        - 키워드 정리를 꼼꼼히 (분석품질의 핵심)
+        - Period별 최소 50편 이상 권장
+        - Java 메모리 부족시 재시작
+        - 인코딩 문제시 UTF-8로 변경
+        """)
 
 st.markdown("<br><br>", unsafe_allow_html=True)
