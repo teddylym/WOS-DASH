@@ -501,7 +501,7 @@ def classify_article(row):
         
     # IC3 (언어)
     if language and language != 'english':
-        return 'EC - Non-English' # Not in formal EC list, but functionally an exclusion
+        return 'EC - Non-English'
 
     # EC5 (중복)
     if any(indicator in full_text for indicator in duplicate_indicators):
@@ -523,7 +523,7 @@ def classify_article(row):
         return 'EC2 - 사회-기술적 맥락 부재'
 
     # 모든 기준 통과 -> 포함
-    # 세부 분류 로직은 기존 유지
+    # 세부 분류 로직
     analytical_contribution_keywords = {
         'Included - Commercial Application': ['commerce', 'marketing', 'influencer', 'brand', 'purchase intention', 'advertising', 'e-commerce', 'social commerce'],
         'Included - Educational Use': ['education', 'learning', 'teaching', 'pedagogy', 'student engagement', 'mooc', 'virtual classroom'],
@@ -679,17 +679,33 @@ if uploaded_files:
         with st.container():
             st.markdown("""<div style="background: #fff1f2; padding: 20px; border-radius: 12px; margin: 20px 0; border: 1px solid #ffdde0;"><h4 style="color: #be123c;">⛔ 제외 논문 상세 (Excluded Papers Details)</h4>""", unsafe_allow_html=True)
             
+            # 다운로드할 컬럼 정의
+            cols_to_download = []
+            for col in ['TI', 'AF', 'AU', 'AB', 'PY']:
+                if col in df_excluded.columns:
+                    cols_to_download.append(col)
+            
+            # AF가 없으면 AU를 사용
+            if 'AF' not in cols_to_download and 'AU' in cols_to_download:
+                cols_to_download[cols_to_download.index('AU')] = 'AU' # AU를 AF 대신 사용
+            
+            df_excluded_download = df_excluded[cols_to_download]
+
+
+            excel_buffer = io.BytesIO()
+            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                df_excluded_download.to_excel(writer, sheet_name='Excluded_Papers', index=False)
+            
+            st.download_button(label="(다운로드)", data=excel_buffer.getvalue(), file_name="excluded_papers.xlsx", mime="application/vnd.ms-excel", use_container_width=True)
+
+            # 화면에는 2개 샘플만 표시
             exclusion_reasons = df_excluded['Classification'].unique()
             for reason in sorted(exclusion_reasons):
                 ec_papers = df_excluded[df_excluded['Classification'] == reason]
                 st.markdown(f"""<div style="margin: 12px 0; padding: 16px; background: white; border-left: 4px solid #f43f5e; border-radius: 12px;"><strong style="color: #be123c;">{reason}</strong> <span style="color: #8b95a1;">(총 {len(ec_papers)}편 중 2편 샘플)</span></div>""", unsafe_allow_html=True)
                 for _, paper in ec_papers.head(2).iterrows():
                     st.markdown(f"""<div style="margin: 8px 0 8px 20px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 14px;"><div style="font-weight: 500;">{paper.get('TI', 'N/A')}</div><div style="color: #6b7280; font-size: 12px;">{paper.get('PY', 'N/A')} | {paper.get('SO', 'N/A')}</div></div>""", unsafe_allow_html=True)
-
-            excel_buffer = io.BytesIO()
-            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                df_excluded.to_excel(writer, sheet_name='Excluded_Papers', index=False)
-            st.download_button(label=" (엑셀다운로드) - 배제된 논문 전체 목록", data=excel_buffer.getvalue(), file_name="excluded_papers.xlsx", mime="application/vnd.ms-excel", use_container_width=True)
+            
             st.markdown("</div>", unsafe_allow_html=True)
 
     # --- 학술적 엄밀성 확보 요약 패널 ---
@@ -723,15 +739,26 @@ if uploaded_files:
     st.markdown("</div>", unsafe_allow_html=True)
 
     # --- 분류별 상세 분포 ---
-    st.markdown("""<div class="chart-container"><div class="chart-title">분류별 상세 분포 (배제 기준 적용 후)</div>""", unsafe_allow_html=True)
+    classification_mapping = {
+        'Included - Platform Ecosystem': '플랫폼 생태계',
+        'Included - User Behavior/Psychology': '사용자 행태/심리',
+        'Included - Commercial Application': '상업적 활용',
+        'Review - Contribution Unclear': '리뷰/기여도 불분명',
+        'Included - Educational Use': '교육적 활용',
+        'Included - Socio-Cultural Impact': '사회/문화적 영향',
+        'Included - Technical Implementation': '기술 구현'
+    }
+    st.markdown("""<div class="chart-container"><div class="chart-title">분류별 상세 분포 (Detailed Distribution by Classification)</div>""", unsafe_allow_html=True)
     sorted_classifications = df_included['Classification'].value_counts()
     for classification, count in sorted_classifications.items():
         percentage = (count / len(df_included) * 100) if len(df_included) > 0 else 0
         icon = "🔍" if "Review" in classification else "✅"
         color = "#f59e0b" if "Review" in classification else "#10b981"
+        korean_name = classification_mapping.get(classification, "")
+        display_name = f"{classification} ({korean_name})" if korean_name else classification
         st.markdown(f"""
         <div style="margin: 16px 0; padding: 20px; background: white; border-left: 4px solid {color}; border-radius: 12px; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-            <strong>{icon} {classification}:</strong> {count:,}편 ({percentage:.1f}%)
+            <strong>{icon} {display_name}:</strong> {count:,}편 ({percentage:.1f}%)
         </div>
         """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
@@ -775,6 +802,14 @@ if uploaded_files:
     if not review_papers.empty:
         with st.expander(f"🔍 Review (검토 필요) - 논문 목록 ({len(review_papers)}편)"):
             st.markdown("아래 논문들은 연구의 핵심 속성은 만족하나, 명확한 분석적 기여 차원을 특정하기 어려워 수동 검토가 필요합니다.")
+            
+            # 다운로드 버튼
+            review_excel_buffer = io.BytesIO()
+            with pd.ExcelWriter(review_excel_buffer, engine='openpyxl') as writer:
+                review_papers.to_excel(writer, sheet_name='Review_Papers', index=False)
+            st.download_button(label="(다운로드)", data=review_excel_buffer.getvalue(), file_name="review_papers.xlsx", mime="application/vnd.ms-excel", use_container_width=True)
+
+            # 데이터프레임 표시
             st.dataframe(review_papers[['TI', 'PY', 'SO', 'AU', 'DE', 'ID']], use_container_width=True, hide_index=True)
 
     # --- 최종 요약 패널 ---
