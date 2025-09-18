@@ -795,18 +795,18 @@ if uploaded_files:
     st.markdown("</div>", unsafe_allow_html=True)
 
     # --- Review 논문 목록 ---
-    if not review_papers.empty:
-        with st.expander(f"🔍 Review (검토 필요) - 논문 목록 ({len(review_papers)}편)"):
+    if not df_review.empty:
+        with st.expander(f"🔍 Review (검토 필요) - 논문 목록 ({len(df_review)}편)"):
             st.markdown("아래 논문들은 연구의 핵심 속성은 만족하나, 명확한 분석적 기여 차원을 특정하기 어려워 수동 검토가 필요합니다.")
             
             # 다운로드 버튼
             review_excel_buffer = io.BytesIO()
             with pd.ExcelWriter(review_excel_buffer, engine='openpyxl') as writer:
-                review_papers[['TI', 'PY', 'SO', 'AU', 'DE', 'ID']].to_excel(writer, sheet_name='Review_Papers', index=False)
+                df_review[['TI', 'PY', 'SO', 'AU', 'DE', 'ID']].to_excel(writer, sheet_name='Review_Papers', index=False)
             st.download_button(label="(다운로드)", data=review_excel_buffer.getvalue(), file_name="review_papers.xlsx", mime="application/vnd.ms-excel", use_container_width=True)
 
             # 데이터프레임 표시
-            st.dataframe(review_papers[['TI', 'PY', 'SO', 'AU', 'DE', 'ID']], use_container_width=True, hide_index=True)
+            st.dataframe(df_review[['TI', 'PY', 'SO', 'AU', 'DE', 'ID']], use_container_width=True, hide_index=True)
 
     # --- 최종 요약 패널 ---
     st.markdown(f"""
@@ -977,3 +977,4 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     """)
 
 st.markdown("<br><br>", unsafe_allow_html=True)
+
