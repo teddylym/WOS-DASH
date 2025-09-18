@@ -17,7 +17,7 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap');
     
-    .main-container {
+    .main {
         background: #f2f4f6;
         min-height: 100vh;
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
@@ -232,7 +232,7 @@ def load_and_merge_wos_files(uploaded_files):
                     
                     # 중복 제거된 결과와 UT 없는 행들 재결합
                     merged_df = pd.concat([deduplicated_meaningful, rows_without_meaningful_ut], ignore_index=True)
-        
+    
         # 대안: UT가 없거나 신뢰할 수 없는 경우 제목+저자 기준 중복 제거
         if duplicates_removed == 0 and 'TI' in merged_df.columns:
             # 제목과 첫 번째 저자 기준으로 중복 확인 (매우 보수적)
@@ -290,7 +290,7 @@ def parse_wos_format(content):
                 field_tag, field_value = parts
                 current_field = field_tag
                 current_record[field_tag] = field_value.strip()
-        
+    
         # 기존 필드 연속
         elif line.startswith('   ') and current_field and current_field in current_record:
             continuation_value = line[3:].strip()
@@ -531,6 +531,14 @@ def convert_to_scimat_wos_format(df_to_convert):
     
     return "\n".join(file_content).encode('utf-8-sig')
 
+# --- 엑셀 변환 함수 ---
+def to_excel(df):
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Sheet1')
+    processed_data = output.getvalue()
+    return processed_data
+
 # --- 메인 헤더 ---
 st.markdown("""
 <div style="text-align: center; padding: 2rem 0; background: linear-gradient(135deg, #3182f6, #1c64f2); color: white; border-radius: 8px; margin-bottom: 1.5rem;">
@@ -576,7 +584,127 @@ uploaded_files = st.file_uploader(
     help="WOS Plain Text 파일들을 드래그하여 놓거나 클릭하여 선택하세요"
 )
 
+if 'processed_data' not in st.session_state:
+    st.session_state['processed_data'] = None
+
 if uploaded_files:
-    st.markdown(f"📋 **선택된 파일 개수:** {len(uploaded_files)}개")
+    # --- SYNTAX ERROR FIX: The f-string was incomplete and the with statement was missing a colon.
+    with st.spinner(f"🔄 {len(uploaded_files)}개 파일 처리 중... 잠시만 기다려주세요."):
+        # 1. 파일 병합 및 중복 제거
+        merged_df, file_status, duplicates_removed = load_and_merge_wos_files(uploaded_files)
+
+        if merged_df is not None:
+            # 2. 논문 분류
+            merged_df['Classification'] = merged_df.apply(classify_article, axis=1)
+            
+            # 3. 결과 저장
+            st.session_state['processed_data'] = {
+                "df": merged_df,
+                "file_status": file_status,
+                "duplicates_removed": duplicates_removed
+            }
+        else:
+            st.session_state['processed_data'] = {
+                "df": None,
+                "file_status": file_status,
+                "duplicates_removed": 0
+            }
+            st.error("파일 처리 중 오류가 발생했거나 유효한 WOS 파일이 없습니다.")
+
+if st.session_state['processed_data']:
+    data = st.session_state['processed_data']
+    merged_df = data['df']
+    file_status = data['file_status']
+    duplicates_removed = data['duplicates_removed']
     
-    with st.spinner(f"🔄 {len
+    if merged_df is not None:
+        st.success(f"✅ 파일 처리 완료! 총 {len(merged_df)}편의 고유 논문을 찾았습니다.")
+
+        # --- 결과 요약 ---
+        st.markdown("""
+        <div class="section-header" style="margin-top: 2rem;">
+            <div class="section-title">📊 처리 결과 요약</div>
+            <div class="section-subtitle">병합, 중복 제거, 품질 진단 및 학술 필터링 결과입니다.</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 메트릭 카드
+        total_initial_papers = sum(f['papers'] for f in file_status if f['status'] == 'SUCCESS')
+        included_papers = merged_df[merged_df['Classification'].str.startswith('Include')].shape[0]
+
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.markdown(f'<div class="metric-card"><p class="metric-label">총 로딩 논문</p><p class="metric-value">{total_initial_papers}</p></div>', unsafe_allow_html=True)
+        with col2:
+            st.markdown(f'<div class="metric-card"><p class="metric-label">제거된 중복</p><p class="metric-value">{duplicates_removed}</p></div>', unsafe_allow_html=True)
+        with col3:
+            st.markdown(f'<div class="metric-card"><p class="metric-label">고유 논문</p><p class="metric-value">{len(merged_df)}</p></div>', unsafe_allow_html=True)
+        with col4:
+            st.markdown(f'<div class="metric-card" style="border-color: #1c64f2;"><p class="metric-label">최종 포함</p><p class="metric-value" style="color: #1c64f2;">{included_papers}</p></div>', unsafe_allow_html=True)
+
+        # 품질 진단 및 분류 결과
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.markdown('<div class="chart-container" style="height: 100%;">', unsafe_allow_html=True)
+            st.markdown('<p class="chart-title">데이터 품질 진단</p>', unsafe_allow_html=True)
+            issues, recommendations = diagnose_merged_quality(merged_df, len(uploaded_files), duplicates_removed)
+            for rec in recommendations:
+                st.info(rec)
+            if issues:
+                for issue in issues:
+                    st.warning(issue)
+            else:
+                st.success("🎉 모든 필수 필드가 양호합니다.")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with col2:
+            st.markdown('<div class="chart-container" style="height: 100%;">', unsafe_allow_html=True)
+            st.markdown('<p class="chart-title">학술 필터링 분류 결과</p>', unsafe_allow_html=True)
+            
+            classification_counts = merged_df['Classification'].value_counts().reset_index()
+            classification_counts.columns = ['Classification', 'count']
+            
+            chart = alt.Chart(classification_counts).mark_bar().encode(
+                x=alt.X('count:Q', title='논문 수'),
+                y=alt.Y('Classification:N', title='분류', sort='-x'),
+                tooltip=['Classification', 'count']
+            ).properties(
+                height=300
+            )
+            st.altair_chart(chart, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # --- 다운로드 섹션 ---
+        st.markdown("""
+        <div class="section-header">
+            <div class="section-title">💾 결과 다운로드</div>
+            <div class="section-subtitle">필터링을 통과한 최종 논문 목록과 SCIMAT 호환 파일을 다운로드합니다.</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        final_df = merged_df[merged_df['Classification'].str.startswith('Include')].copy()
+        final_df.drop(columns=['Classification'], inplace=True, errors='ignore')
+
+        col1, col2 = st.columns(2)
+        with col1:
+            excel_data = to_excel(final_df)
+            st.download_button(
+                label="📁 최종 논문 목록 다운로드 (Excel)",
+                data=excel_data,
+                file_name=f"WOS_PREP_final_{included_papers}_papers.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+        with col2:
+            scimat_data = convert_to_scimat_wos_format(final_df)
+            st.download_button(
+                label="📄 SCIMAT 호환 파일 다운로드 (.txt)",
+                data=scimat_data,
+                file_name=f"SCIMAT_input_{included_papers}_papers.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+
+        # --- 데이터 미리보기 ---
+        with st.expander("처리된 전체 데이터 미리보기 (필터링 전)"):
+            st.dataframe(merged_df)
