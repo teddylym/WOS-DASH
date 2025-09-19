@@ -507,9 +507,9 @@ def parse_wos_format(content):
         
     return pd.DataFrame(records)
 
-# --- 논문 분류 함수 (EC2 로직 수정) ---
+# --- 논문 분류 함수 (정밀 필터링 적용) ---
 def classify_article(row):
-    """EC2 기준을 수정한 논문 분류 함수"""
+    """'플랫폼 생태계' 연구에 초점을 맞춘 정밀 필터링 함수"""
     
     # --- 텍스트 필드 추출 및 결합 (소문자 변환) ---
     def extract_text(value):
@@ -520,17 +520,55 @@ def classify_article(row):
     author_keywords = extract_text(row.get('DE', ''))
     wos_keywords = extract_text(row.get('ID', ''))
     
-    full_text_for_keywords = ' '.join([title, abstract, author_keywords, wos_keywords])
+    full_text = ' '.join([title, abstract, author_keywords, wos_keywords])
     document_type = extract_text(row.get('DT', ''))
 
     # --- 키워드 셋 정의 ---
-    core_keywords = [
-        'live stream', 'livestream', 'live-stream', 'live commerce', 'game streaming', 
-        'virtual influencer', 'twitch', 'youtube live', 'facebook live', 'tiktok live'
+    # 1단계: '라이브 스트리밍' 관련 기본 키워드
+    general_live_keywords = [
+        'live stream', 'livestream', 'live-stream', 'live broadcast', 'real-time stream'
     ]
-    irrelevant_domain_keywords = ['remote surgery', 'military', 'medical signal']
+    
+    # 2단계: '플랫폼 생태계'의 핵심 구성요소를 나타내는 키워드
+    ecosystem_keywords = [
+        'platform', 'ecosystem', 'governance', 'creator economy', 'streamer', 
+        'business model', 'monetization', 'community', 'fandom', 'parasocial',
+        'live commerce', 'social commerce', 'virtual influencer'
+    ]
+
+    # 배제 기준 키워드
+    irrelevant_domain_keywords = ['remote surgery', 'military', 'medical signal', 'telemedicine', 'seismic', 'geological']
     non_academic_types = ['editorial', 'news', 'correction', 'letter', 'book review']
     non_interactive_keywords = ['vod', 'asynchronous', 'pre-recorded']
+    methodology_keywords = ['survey', 'experiment', 'interview', 'case study', 'model', 'ethnography', 'empirical', 'framework', 'analysis', 'mechanism', 'sem']
+    
+    # --- 필터링 로직 ---
+
+    # 필수 조건: '라이브 스트리밍' 기본 키워드 중 하나는 반드시 포함해야 함
+    if not any(kw in full_text for kw in general_live_keywords):
+        return 'Exclude - Core keyword missing'
+
+    # EC3, EC4 (기초 배제)
+    if any(doc_type in document_type for doc_type in non_academic_types):
+        return 'Exclude - EC3 (Non-academic)'
+    if any(kw in full_text for kw in non_interactive_keywords):
+        return 'Exclude - EC4 (Non-interactive)'
+        
+    # EC1 (도메인 관련성)
+    if any(kw in full_text for kw in irrelevant_domain_keywords):
+        return 'Exclude - EC1 (Irrelevant domain)'
+        
+    # EC6 (방법론 부재)
+    if not any(kw in full_text for kw in methodology_keywords):
+        return 'Exclude - EC6 (No methodology)'
+
+    # '플랫폼 생태계' 관련성 검증 (핵심 필터)
+    # 생태계 키워드가 2개 이상 나타나야 생태계에 대한 논의로 간주
+    ecosystem_keyword_count = sum(1 for kw in ecosystem_keywords if kw in full_text)
+    if ecosystem_keyword_count < 2:
+        return 'Exclude - Not ecosystem-focused'
+
+    # 최종 분류: 통과한 논문들을 성격에 따라 분류
     dimension_keywords = {
         'Technical': ['latency', 'qos', 'qoe', 'protocol', 'bandwidth', 'codec', 'network', 'infrastructure'],
         'Platform': ['ecosystem', 'governance', 'algorithm', 'business model', 'platform'],
@@ -539,30 +577,11 @@ def classify_article(row):
         'Social': ['culture', 'identity', 'social impact', 'fandom', 'community'],
         'Educational': ['learning', 'teaching', 'virtual classroom', 'education']
     }
-    methodology_keywords = ['survey', 'experiment', 'interview', 'case study', 'model', 'ethnography', 'empirical', 'framework', 'analysis', 'mechanism', 'sem']
-
-    # --- 1단계 필터링: 기초 선별 ---
-    if any(kw in full_text_for_keywords for kw in irrelevant_domain_keywords):
-        return 'Exclude - EC1 (도메인 관련성 부재)'
     
-    # 수정된 EC2 로직
-    title_has_core_keyword = any(kw in title for kw in core_keywords)
-    full_text_core_keyword_count = sum(full_text_for_keywords.count(kw) for kw in core_keywords)
-    if not title_has_core_keyword and full_text_core_keyword_count < 2:
-        return 'Exclude - EC2 (부차적 언급)'
-
-    if any(doc_type in document_type for doc_type in non_academic_types):
-        return 'Exclude - EC3 (학술적 형태 부적합)'
-    if any(kw in full_text_for_keywords for kw in non_interactive_keywords):
-        return 'Exclude - EC4 (실시간 상호작용성 부재)'
-    if not any(kw in full_text_for_keywords for kw in methodology_keywords):
-        return 'Exclude - EC6 (연구 방법론 부재)'
-
-    # --- 2단계 필터링 & 최종 분류: 연구 차원 기반 ---
-    matched_dimensions = [dim for dim, kws in dimension_keywords.items() if any(kw in full_text_for_keywords for kw in kws)]
+    matched_dimensions = [dim for dim, kws in dimension_keywords.items() if any(kw in full_text for kw in kws)]
     
     if len(matched_dimensions) == 0:
-        return 'Exclude - EC5 (연구 차원 부재)'
+         return 'etc' # 드문 경우지만, 생태계 키워드는 있으나 차원 키워드가 없는 경우
     elif len(matched_dimensions) == 1:
         return matched_dimensions[0]
     else: # len(matched_dimensions) > 1
@@ -688,8 +707,8 @@ st.markdown("""
     </div>
     <div class="feature-card">
         <div class="feature-icon">🎯</div>
-        <div class="feature-title">연구 기준 기반 정제</div>
-        <div class="feature-desc">논문 계획서의 IC/EC 기준을 적용하여 데이터 정제</div>
+        <div class="feature-title">연구 주제 기반 정밀 정제</div>
+        <div class="feature-desc">'플랫폼 생태계' 연구에 초점을 맞춰 데이터 정제</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -719,7 +738,7 @@ if uploaded_files:
     # 프로그레스 인디케이터
     st.markdown('<div class="progress-indicator"></div>', unsafe_allow_html=True)
     
-    with st.spinner(f"🔄 {len(uploaded_files)}개 WOS 파일 병합 및 학술적 정제 적용 중..."):
+    with st.spinner(f"🔄 {len(uploaded_files)}개 WOS 파일 병합 및 정밀 정제 적용 중..."):
         # 파일 병합
         merged_df, file_status, duplicates_removed = load_and_merge_wos_files(uploaded_files)
         
@@ -750,7 +769,7 @@ if uploaded_files:
     
     total_papers = len(df_for_analysis)
     
-    st.success(f"✅ 병합 및 학술적 정제 완료! {successful_files}개 파일에서 최종 {total_papers:,}편의 논문을 성공적으로 처리했습니다.")
+    st.success(f"✅ 병합 및 정밀 정제 완료! {successful_files}개 파일에서 최종 {total_papers:,}편의 논문을 성공적으로 처리했습니다.")
     
     # 중복 제거 결과 표시
     if duplicates_removed > 0:
@@ -850,9 +869,9 @@ if uploaded_files:
     # 병합 성공 알림
     st.markdown("""
     <div class="success-panel">
-        <h4 style="color: #065f46; margin-bottom: 20px; font-weight: 700;">🎯 다중 파일 병합 및 학술적 정제 성공!</h4>
+        <h4 style="color: #065f46; margin-bottom: 20px; font-weight: 700;">🎯 다중 파일 병합 및 정밀 정제 성공!</h4>
         <p style="color: #065f46; margin: 6px 0; font-weight: 500;">여러 WOS Plain Text 파일이 성공적으로 하나로 병합되었습니다.</p>
-        <p style="color: #065f46; margin: 6px 0; font-weight: 500;"><strong>학술적 엄밀성:</strong> 논문 계획서의 선정/배제 기준을 체계적으로 적용하여 연구의 신뢰성을 확보했습니다.</p>
+        <p style="color: #065f46; margin: 6px 0; font-weight: 500;"><strong>정밀 정제:</strong> '플랫폼 생태계'라는 연구 주제에 맞춰 관련성이 높은 논문만을 정밀하게 선별했습니다.</p>
         <p style="color: #065f46; margin: 6px 0; font-weight: 500;"><strong>SCIMAT 호환성:</strong> 정제된 파일은 SCIMAT에서 100% 정상 작동합니다.</p>
     </div>
     """, unsafe_allow_html=True)
@@ -860,28 +879,24 @@ if uploaded_files:
     # --- 분석 결과 요약 ---
     st.markdown("""
     <div class="section-header">
-        <div class="section-title">📈 학술적 정제 결과</div>
-        <div class="section-subtitle">논문 계획서의 선정/배제 기준 적용 후 최종 데이터셋 요약</div>
+        <div class="section-title">📈 정밀 정제 결과</div>
+        <div class="section-subtitle">'플랫폼 생태계' 연구 기준 적용 후 최종 데이터셋 요약</div>
     </div>
     """, unsafe_allow_html=True)
 
-    with st.expander("🔬 적용된 선정/배제 기준 (Inclusion/Exclusion Criteria) 보기"):
+    with st.expander("🔬 적용된 정밀 필터링 기준 보기"):
         st.markdown("""
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;">
         <h5 style="color: #3182f6;">✅ 포함 기준 (Inclusion Criteria)</h5>
-        <p>아래 모든 배제 기준을 통과한 깊이 있는 연구만을 최종 분석 대상으로 포함합니다.</p>
+        <p><b>필수 조건 1:</b> 'live stream', 'livestream' 등 라이브 스트리밍 관련 기본 키워드 1개 이상 포함</p>
+        <p><b>필수 조건 2:</b> 'platform', 'ecosystem', 'creator economy' 등 플랫폼 생태계 관련 핵심 키워드 2개 이상 포함</p>
+        <p>&#8627; 위의 두 조건을 모두 만족하고 아래 배제 기준에 해당하지 않는 논문만을 최종 분석 대상으로 포함합니다.</p>
         <hr>
         <h5 style="color: #e53e3e;">⛔️ 배제 기준 (Exclusion Criteria)</h5>
-        <p><b>1단계: 기초 선별 (기본 자격 검증)</b></p>
         <ul>
-            <li><b>EC1 (도메인 관련성 부재)</b>: 원격 수술, 군사 작전 등 라이브 스트리밍 생태계와 무관한 경우</li>
-            <li><b>EC2 (부차적 언급)</b>: <strong>제목</strong>에 핵심 키워드가 없으면서, <strong>전체 텍스트(제목+초록+키워드)</strong>에서도 키워드 빈도가 2회 미만인 경우</li>
+            <li><b>EC1 (도메인 관련성 부재)</b>: 원격 수술, 군사 작전 등 무관한 분야</li>
             <li><b>EC3 (학술적 형태 부적합)</b>: 사설(editorial), 뉴스(news) 등 비학술 자료</li>
             <li><b>EC4 (실시간 상호작용성 부재)</b>: VOD, 비동기(asynchronous) 영상 등 실시간 상호작용이 없는 경우</li>
-        </ul>
-        <p><b>2단계: 핵심 속성 검증 (연구의 깊이 및 엄밀성 검증)</b></p>
-        <ul>
-            <li><b>EC5 (연구 차원 부재)</b>: 기술, 플랫폼, 사용자 등 6개 연구 차원 중 어느 것에도 해당하지 않을 경우</li>
             <li><b>EC6 (연구 방법론 부재)</b>: survey, model 등 실증적 연구 방법론이 명시되지 않은 경우</li>
         </ul>
         </div>
@@ -902,11 +917,11 @@ if uploaded_files:
         <div class="metric-card">
             <div class="metric-icon">📋</div>
             <div class="metric-value">{len(df_final_output):,}</div>
-            <div class="metric-label">최종 분석 대상<br><small style="color: #8b95a1;">(정제 기준 적용후)</small></div>
+            <div class="metric-label">최종 분석 대상<br><small style="color: #8b95a1;">(정밀 정제 후)</small></div>
         </div>
         """, unsafe_allow_html=True)
     
-    include_papers = len(df_for_analysis[df_for_analysis['Classification'].str.contains('C', na=False)])
+    include_papers = len(df_for_analysis)
     
     with col2:
         st.markdown(f"""
@@ -934,7 +949,7 @@ if uploaded_files:
             <div class="metric-card">
                 <div class="metric-icon">⛔</div>
                 <div class="metric-value">{total_excluded:,}</div>
-                <div class="metric-label">학술적 배제</div>
+                <div class="metric-label">정밀 정제 후 배제</div>
             </div>
             """, unsafe_allow_html=True)
         with col4_inner2:
@@ -946,7 +961,7 @@ if uploaded_files:
     if st.session_state.get('show_exclude_details', False) and total_excluded > 0:
         st.markdown("""
         <div style="background: #fef2f2; padding: 20px; border-radius: 16px; margin: 20px 0; border: 1px solid #ef4444;">
-            <h4 style="color: #dc2626; margin-bottom: 16px; font-weight: 700;">⛔ 학술적 배제 기준에 따른 제외 논문</h4>
+            <h4 style="color: #dc2626; margin-bottom: 16px; font-weight: 700;">⛔ 정밀 정제 기준에 따라 제외된 논문</h4>
         </div>
         """, unsafe_allow_html=True)
         
@@ -1034,7 +1049,7 @@ if uploaded_files:
     if 'PY' in df_final_output.columns:
         st.markdown("""
         <div class="chart-container">
-            <div class="chart-title">정제된 라이브 스트리밍 연구 동향 (학술적 정제 기준 적용 후)</div>
+            <div class="chart-title">정제된 라이브 스트리밍 연구 동향 (정밀 정제 기준 적용 후)</div>
         """, unsafe_allow_html=True)
         
         df_trend = df_final_output.copy()
@@ -1062,8 +1077,8 @@ if uploaded_files:
     # --- 최종 파일 다운로드 섹션 ---
     st.markdown("""
     <div class="section-header">
-        <div class="section-title">📥 학술적 정제 완료 - SCIMAT 분석용 파일 다운로드</div>
-        <div class="section-subtitle">논문 계획서의 기준을 통과한 최종 데이터셋</div>
+        <div class="section-title">📥 정밀 정제 완료 - SCIMAT 분석용 파일 다운로드</div>
+        <div class="section-subtitle">'플랫폼 생태계' 기준을 통과한 최종 데이터셋</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -1073,12 +1088,12 @@ if uploaded_files:
     download_clicked = st.download_button(
         label="📥 다운로드",
         data=text_data,
-        file_name=f"live_streaming_academic_filtered_scimat_{len(df_final_output)}papers.txt",
+        file_name=f"live_streaming_ecosystem_filtered_scimat_{len(df_final_output)}papers.txt",
         mime="text/plain",
         type="primary",
         use_container_width=True,
         key="download_final_file",
-        help="학술적 정제 기준 적용 후 SCIMAT에서 바로 사용 가능한 WOS Plain Text 파일"
+        help="정밀 정제 기준 적용 후 SCIMAT에서 바로 사용 가능한 WOS Plain Text 파일"
     )
 
 # --- 하단 여백 및 추가 정보 ---
@@ -1097,7 +1112,7 @@ with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
     A: Export → Record Content: "Full Record and Cited References", File Format: "Plain Text"로 설정하세요. 인용 관계 분석을 위해 참고문헌 정보가 필수입니다.
     
     **Q: 어떤 기준으로 논문이 배제되나요?**
-    A: 논문 계획서에 명시된 2단계 필터링(기초 선별 → 핵심 속성 검증)을 통해 부적합한 논문을 체계적으로 배제합니다. 상세 기준은 '학술적 정제 결과' 섹션에서 확인할 수 있습니다.
+    A: '플랫폼 생태계'라는 연구 주제에 맞춰 2단계 정밀 필터링을 통해 부적합한 논문을 체계적으로 배제합니다. 상세 기준은 '정밀 정제 결과' 섹션에서 확인할 수 있습니다.
     
     **Q: SCIMAT에서 키워드 정리를 어떻게 하나요?**
     A: Group set → Word → Find similar words by distances (Maximum distance: 1)로 유사 키워드를 자동 통합하고, Word Group manual set에서 수동으로 관련 키워드들을 그룹화하세요.
@@ -1216,7 +1231,4 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     - Java 메모리 부족시 재시작
     - 인코딩 문제시 UTF-8로 변경
     """)
-
-st.markdown("<br><br>", unsafe_allow_html=True)
-
 
