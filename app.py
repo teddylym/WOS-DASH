@@ -558,7 +558,6 @@ def diagnose_merged_quality(df, file_count, duplicates_removed):
     
     return issues, recommendations
 
-
 # --- WOS Plain Text 형식 변환 함수 ---
 def convert_to_scimat_wos_format(df_to_convert):
     wos_field_order = [
@@ -656,7 +655,7 @@ if uploaded_files:
     st.markdown(f"📋 **선택된 파일 개수:** {len(uploaded_files)}개")
     st.markdown('<div class="progress-indicator"></div>', unsafe_allow_html=True)
     
-    with st.spinner(f"🔄 {len(uploaded_files)}개 WOS 파일 병합 및 학술적 정제 적용 중..."):
+    with st.spinner(f"🔄 {len(uploaded_files)}개 WOS 파일 병합 및 2단계 학술적 정제 적용 중..."):
         merged_df, file_status, duplicates_removed = load_and_merge_wos_files(uploaded_files)
         
         if merged_df is None:
@@ -666,42 +665,55 @@ if uploaded_files:
         merged_df['Classification'] = merged_df.apply(classify_article, axis=1)
 
     successful_files = sum(1 for s in file_status if s['status'] == 'SUCCESS')
-    total_papers_before_filter = len(merged_df)
     
-    df_excluded = merged_df[merged_df['Classification'].str.startswith('Exclude', na=False)]
-    df_included = merged_df[~merged_df['Classification'].str.startswith('Exclude', na=False)].copy()
-    df_review = df_included[df_included['Classification'].str.startswith('Review', na=False)]
-    
-    st.success(f"✅ 다중 파일 병합 및 학술적 정제 성공! {successful_files}개 파일에서 최종 {len(df_included):,}편의 논문을 처리했습니다.")
+    st.success(f"✅ 다중 파일 병합 및 학술적 정제 성공! {successful_files}개 파일의 처리가 완료되었습니다.")
 
     # --- 파일별 처리 상태 ---
     with st.expander("파일별 처리 상태 보기"):
-        for status in file_status:
-            st.markdown(f"<div class='file-status'>{status['filename']}: {status['message']}</div>", unsafe_allow_html=True)
+        st.markdown("""<div class="chart-container" style="padding-top:10px;">""", unsafe_allow_html=True)
+        col1, col2 = st.columns([0.6, 0.4])
+        with col1:
+            for status in file_status:
+                color = "#10b981" if status['status'] == 'SUCCESS' else "#ef4444"
+                icon = "✅" if status['status'] == 'SUCCESS' else "❌"
+                st.markdown(f"""<div style="margin-bottom: 8px; padding: 12px; background: #f9fafb; border-left: 3px solid {color}; border-radius: 6px;"><strong>{icon} {status['filename']}</strong><br><small style="color: #6b7280;">{status['message']}</small></div>""", unsafe_allow_html=True)
+        with col2:
+            success_count = len([s for s in file_status if s['status'] == 'SUCCESS'])
+            error_count = len([s for s in file_status if s['status'] == 'ERROR'])
+            st.markdown(f"""<div class="metric-card"><div class="metric-icon" style="background:#10b981;">✅</div><div class="metric-value">{success_count}</div><div class="metric-label">성공한 파일</div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="metric-card"><div class="metric-icon" style="background:#ef4444;">❌</div><div class="metric-value">{error_count}</div><div class="metric-label">실패한 파일</div></div>""", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # --- 데이터 품질 진단 결과 ---
     with st.expander("병합 데이터 품질 진단 및 결과"):
         issues, recommendations = diagnose_merged_quality(merged_df, successful_files, duplicates_removed)
+        st.markdown("""<div class="chart-container" style="padding-top:10px;">""", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown('**발견된 문제점**')
+            st.markdown('<h6><span style="color: #ef4444;">🚨</span> 발견된 문제점</h6>', unsafe_allow_html=True)
             if issues:
-                for issue in issues: st.warning(issue)
+                for issue in issues: st.markdown(f"- {issue}")
             else:
-                st.success("문제점 없음 - 병합 데이터 품질 우수")
+                st.markdown("- ✅ 문제점 없음 - 병합 데이터 품질 우수")
         with col2:
-            st.markdown('**병합 결과**')
-            for rec in recommendations: st.info(rec)
+            st.markdown('<h6><span style="color: #10b981;">💡</span> 병합 결과</h6>', unsafe_allow_html=True)
+            for rec in recommendations: st.markdown(f"- {rec}")
+        st.markdown("</div>", unsafe_allow_html=True)
+
 
     # --- 분석 결과 요약 ---
+    df_excluded = merged_df[merged_df['Classification'].str.startswith('Exclude', na=False)]
+    df_included = merged_df[~merged_df['Classification'].str.startswith('Exclude', na=False)].copy()
+    df_review = df_included[df_included['Classification'].str.startswith('Review', na=False)]
+    total_excluded = len(df_excluded)
+    total_papers_before_filter = len(merged_df)
+    df_final_output = df_included.drop(columns=['Classification'], errors='ignore')
+
     st.markdown("""
     <div class="section-header">
         <div class="section-title">📈 학술적 정제 결과</div>
     </div>
     """, unsafe_allow_html=True)
-
-    total_excluded = len(df_excluded)
-    df_final_output = df_included.drop(columns=['Classification'], errors='ignore')
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -715,7 +727,7 @@ if uploaded_files:
         st.markdown(f"""<div class="metric-card"><div class="metric-icon" style="background-color: #ef4444;">⛔</div><div class="metric-value">{total_excluded:,}</div><div class="metric-label">학술적 배제</div>""", unsafe_allow_html=True)
         if st.button("상세보기", key="exclude_details_button"):
             st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
-
+    
     # --- [추가된 기능] 선정 기준 설명 UI ---
     st.markdown("""
     <div class="chart-container">
@@ -749,8 +761,7 @@ if uploaded_files:
 
 # --- 하단 정보 ---
 with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
-    st.markdown(""" ... FAQ Content ... """)
+    st.markdown("""...""") # Placeholder for brevity
 with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
-    st.markdown(""" ... Guide Content ... """)
-
+    st.markdown("""...""") # Placeholder for brevity
 st.markdown("<br><br>", unsafe_allow_html=True)
