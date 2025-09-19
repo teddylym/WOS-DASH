@@ -574,12 +574,24 @@ def classify_article(row):
     
     matched_dimensions = [dim for dim, kws in dimension_keywords.items() if any(kw in full_text for kw in kws)]
     
+    # 한/영 병기 레이블 맵
+    classification_map = {
+        'Technical': 'Technical (기술)',
+        'Platform': 'Platform (플랫폼)',
+        'User': 'User (사용자)',
+        'Commercial': 'Commercial (커머스)',
+        'Social': 'Social (사회)',
+        'Educational': 'Educational (교육)',
+        'Multidisciplinary': 'Multidisciplinary (다학제)',
+        'etc': 'etc (기타)'
+    }
+
     if len(matched_dimensions) == 0:
-         return 'etc'
+         return classification_map['etc']
     elif len(matched_dimensions) == 1:
-        return matched_dimensions[0]
+        return classification_map[matched_dimensions[0]]
     else:
-        return 'Multidisciplinary'
+        return classification_map['Multidisciplinary']
 
 
 # --- 데이터 품질 진단 함수 ---
@@ -950,6 +962,18 @@ if uploaded_files:
             if st.button("상세", key="exclude_details_button", help="배제된 논문 상세 보기"):
                 st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
 
+    # 학술적 엄밀성 확보 패널 추가
+    st.markdown(f"""
+    <div class="info-panel">
+        <h4 style="color: #1d4ed8; margin-bottom: 16px; font-weight: 700;">📊 학술적 엄밀성 확보</h4>
+        <p style="color: #1e40af; margin: 6px 0; font-weight: 500;"><strong>총 입력:</strong> {total_papers_before_filter:,}편의 논문</p>
+        <p style="color: #1e40af; margin: 6px 0; font-weight: 500;"><strong>배제 적용:</strong> {total_excluded:,}편 제외 ({(total_excluded/total_papers_before_filter*100):.1f}%)</p>
+        <p style="color: #1e40af; margin: 6px 0; font-weight: 500;"><strong>최종 분석:</strong> {len(df_final_output):,}편으로 정제된 고품질 데이터셋</p>
+        <p style="color: #1e40af; margin: 6px 0; font-weight: 500;"><strong>핵심 연구:</strong> {include_papers:,}편의 직접 관련 라이브스트리밍 연구 확보</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+
     # 배제된 논문 상세 정보 토글 표시
     if st.session_state.get('show_exclude_details', False) and total_excluded > 0:
         st.markdown("""
@@ -969,6 +993,7 @@ if uploaded_files:
             data=excel_data_excluded,
             file_name=f"excluded_papers_{len(df_excluded)}편.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
         )
 
         # 배제 이유별로 그룹화하여 표시
@@ -998,14 +1023,14 @@ if uploaded_files:
     with col2:
         # 도넛 차트 (신규 분류 및 색상 적용)
         color_map = {
-            'Technical': '#1f77b4',
-            'Platform': '#ff7f0e',
-            'User': '#2ca02c',
-            'Commercial': '#d62728',
-            'Social': '#9467bd',
-            'Educational': '#8c564b',
-            'Multidisciplinary': '#7f7f7f',
-            'etc': '#c7c7c7'
+            'Technical (기술)': '#1f77b4',
+            'Platform (플랫폼)': '#ff7f0e',
+            'User (사용자)': '#2ca02c',
+            'Commercial (커머스)': '#d62728',
+            'Social (사회)': '#9467bd',
+            'Educational (교육)': '#8c564b',
+            'Multidisciplinary (다학제)': '#7f7f7f',
+            'etc (기타)': '#c7c7c7'
         }
         
         # 데이터프레임 순서에 맞게 도메인/범위 정렬
@@ -1225,4 +1250,5 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     - Java 메모리 부족시 재시작
     - 인코딩 문제시 UTF-8로 변경
     """)
+
 
