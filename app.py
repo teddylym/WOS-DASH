@@ -521,13 +521,15 @@ def classify_article(row):
         return 'Exclude - EC6 (연구 방법론 부재)'
 
     # --- 최종 분류 ---
+    # 2단계 필터링을 통과하면, 기존의 상세 분류 체계를 따름
     if len(matched_dimensions) == 1:
         return f'Include - {matched_dimensions[0]}'
     elif len(matched_dimensions) > 1:
         return 'Include - Multidisciplinary'
     else:
+        # 이 경우는 2단계 필터링에서 걸러지지만, 안전장치로 남겨둠
         return 'Review - Contribution Unclear'
-
+        
 # --- 데이터 품질 진단 함수 ---
 def diagnose_merged_quality(df, file_count, duplicates_removed):
     issues = []
@@ -645,7 +647,8 @@ uploaded_files = st.file_uploader(
     "WOS Plain Text 파일 선택 (다중 선택 가능)",
     type=['txt'],
     accept_multiple_files=True,
-    label_visibility="collapsed"
+    label_visibility="collapsed",
+    help="WOS Plain Text 파일들을 드래그하여 놓거나 클릭하여 선택하세요"
 )
 
 if 'show_exclude_details' not in st.session_state:
@@ -659,14 +662,18 @@ if uploaded_files:
         merged_df, file_status, duplicates_removed = load_and_merge_wos_files(uploaded_files)
         
         if merged_df is None:
-            st.error("⚠️ 처리 가능한 WOS Plain Text 파일이 없습니다.")
+            st.error("⚠️ 처리 가능한 WOS Plain Text 파일이 없습니다. 파일들이 Web of Science에서 다운로드한 정품 Plain Text 파일인지 확인해주세요.")
             st.stop()
         
         merged_df['Classification'] = merged_df.apply(classify_article, axis=1)
 
-    successful_files = sum(1 for s in file_status if s['status'] == 'SUCCESS')
+    successful_files = len([s for s in file_status if s['status'] == 'SUCCESS'])
+    total_papers_before_filter = len(merged_df)
     
-    st.success(f"✅ 다중 파일 병합 및 학술적 정제 성공! {successful_files}개 파일의 처리가 완료되었습니다.")
+    df_excluded = merged_df[merged_df['Classification'].str.startswith('Exclude', na=False)]
+    df_included = merged_df[~merged_df['Classification'].str.startswith('Exclude', na=False)].copy()
+    
+    st.success(f"✅ 병합 및 학술적 정제 완료! {successful_files}개 파일에서 최종 {len(df_included):,}편의 논문을 성공적으로 처리했습니다.")
 
     # --- 파일별 처리 상태 ---
     with st.expander("파일별 처리 상태 보기"):
@@ -686,7 +693,7 @@ if uploaded_files:
 
     # --- 데이터 품질 진단 결과 ---
     with st.expander("병합 데이터 품질 진단 및 결과"):
-        issues, recommendations = diagnose_merged_quality(merged_df, successful_files, duplicates_removed)
+        issues, recommendations = diagnose_merged_quality(df_included, successful_files, duplicates_removed)
         st.markdown("""<div class="chart-container" style="padding-top:10px;">""", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         with col1:
@@ -699,25 +706,21 @@ if uploaded_files:
             st.markdown('<h6><span style="color: #10b981;">💡</span> 병합 결과</h6>', unsafe_allow_html=True)
             for rec in recommendations: st.markdown(f"- {rec}")
         st.markdown("</div>", unsafe_allow_html=True)
-
-
+    
     # --- 분석 결과 요약 ---
-    df_excluded = merged_df[merged_df['Classification'].str.startswith('Exclude', na=False)]
-    df_included = merged_df[~merged_df['Classification'].str.startswith('Exclude', na=False)].copy()
-    df_review = df_included[df_included['Classification'].str.startswith('Review', na=False)]
-    total_excluded = len(df_excluded)
-    total_papers_before_filter = len(merged_df)
-    df_final_output = df_included.drop(columns=['Classification'], errors='ignore')
-
     st.markdown("""
     <div class="section-header">
         <div class="section-title">📈 학술적 정제 결과</div>
     </div>
     """, unsafe_allow_html=True)
+
+    total_excluded = len(df_excluded)
+    df_final_output = df_included.drop(columns=['Classification'], errors='ignore')
+    df_review = df_included[df_included['Classification'].str.startswith('Review', na=False)]
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.markdown(f"""<div class="metric-card"><div class="metric-icon">📋</div><div class="metric-value">{len(df_final_output):,}</div><div class="metric-label">최종 분석 대상</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="metric-card"><div class="metric-icon">📋</div><div class="metric-value">{len(df_final_output):,}</div><div class="metric-label">최종 분석 대상<br><small style="color: #8b95a1;">(정제 기준 적용후)</small></div></div>""", unsafe_allow_html=True)
     with col2:
         st.markdown(f"""<div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value">{len(df_included) - len(df_review):,}</div><div class="metric-label">핵심 포함 연구</div></div>""", unsafe_allow_html=True)
     with col3:
@@ -727,7 +730,7 @@ if uploaded_files:
         st.markdown(f"""<div class="metric-card"><div class="metric-icon" style="background-color: #ef4444;">⛔</div><div class="metric-value">{total_excluded:,}</div><div class="metric-label">학술적 배제</div>""", unsafe_allow_html=True)
         if st.button("상세보기", key="exclude_details_button"):
             st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
-    
+
     # --- [추가된 기능] 선정 기준 설명 UI ---
     st.markdown("""
     <div class="chart-container">
@@ -753,15 +756,16 @@ if uploaded_files:
         - **EC6 (연구 방법론 부재):** 실증적 연구 방법론이 없는 연구.
         """)
     st.markdown("</div>", unsafe_allow_html=True)
-
+    
     # --- 최종 다운로드 ---
     st.markdown("""<div class="section-header"><div class="section-title">📥 최종 파일 다운로드</div></div>""", unsafe_allow_html=True)
     text_data = convert_to_scimat_wos_format(df_final_output)
     st.download_button(label="📥 다운로드", data=text_data, file_name=f"scimat_filtered_{len(df_final_output)}papers.txt", mime="text/plain", use_container_width=True)
 
 # --- 하단 정보 ---
+st.markdown("<br><br>", unsafe_allow_html=True)
 with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
-    st.markdown("""...""") # Placeholder for brevity
+    st.markdown("""...""") 
 with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
-    st.markdown("""...""") # Placeholder for brevity
+    st.markdown("""...""")
 st.markdown("<br><br>", unsafe_allow_html=True)
