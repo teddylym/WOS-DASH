@@ -524,11 +524,12 @@ def classify_article(row):
     # --- 최종 분류 ---
     # 2단계 필터링 통과 시, 기존 분류 체계 유지
     if len(matched_dimensions) == 1:
+        # 이 코드는 EC5 때문에 도달하지 않지만, 구조적 안정성을 위해 유지
         return f'Include - {matched_dimensions[0]}'
     elif len(matched_dimensions) > 1:
         return 'Include - Multidisciplinary'
     else:
-        # 이 경우는 2단계 필터링에서 걸러지지만, 안전장치로 남겨둠
+        # 이 경우도 도달하지 않지만, 안전장치로 남겨둠
         return 'Review - Contribution Unclear'
 
 
@@ -685,7 +686,7 @@ if uploaded_files:
                     st.markdown(f"""<div style="margin: 8px 0 8px 20px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 14px;"><div style="font-weight: 500;">{paper.get('TI', 'N/A')}</div><div style="color: #6b7280; font-size: 12px;">{paper.get('PY', 'N/A')} | {paper.get('SO', 'N/A')}</div></div>""", unsafe_allow_html=True)
             
             st.markdown("</div>", unsafe_allow_html=True)
-
+    
     # --- 논문 분류 현황 ---
     if not df_included.empty:
         st.markdown("""<div class="chart-container"><div class="chart-title">포함된 연구의 분류 분포 (Distribution of Included Research)</div>""", unsafe_allow_html=True)
@@ -803,8 +804,6 @@ if uploaded_files:
     st.download_button(label="📥 다운로드 (Download)", data=text_data, file_name=f"scimat_filtered_{len(df_final_output)}papers.txt", mime="text/plain", use_container_width=True)
 
 # --- 하단 고정 정보 ---
-st.markdown("<br><br>", unsafe_allow_html=True)
-
 with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
     st.markdown("""
     **Q: 여러 WOS 파일을 어떻게 한 번에 처리하나요?**
