@@ -625,7 +625,8 @@ def diagnose_merged_quality(df, file_count, duplicates_removed):
             total_count = len(df)
             
             if valid_count < total_count * 0.7:
-                issues.append(f"⚠️ {field} 필드의 {((total_count-valid_count)/total_count*100):.1f}%가 비어있음")
+                missing_rate = ((total_count - valid_count) / total_count * 100)
+                issues.append(f"⚠️ {field} 필드의 {missing_rate:.1f}%가 비어있음")
     
     if not has_keywords:
         issues.append("❌ 키워드 필드 없음: DE 또는 ID 필드 필요")
