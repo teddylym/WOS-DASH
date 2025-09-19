@@ -576,21 +576,25 @@ def classify_article(row):
         if any(kw in full_text_for_keywords for kw in kws):
             matched_dimensions.append(dim)
     
-    if len(matched_dimensions) < 2:
-        return 'Exclude - EC5 (연구 차원 단일)'
     if not any(kw in full_text_for_keywords for kw in methodology_keywords):
         return 'Exclude - EC6 (연구 방법론 부재)'
 
-    # --- 최종 분류 ---
-    # 2단계 필터링 통과 시, 기존의 상세 분류 체계를 따름
-    if len(matched_dimensions) == 1:
-        # 이 코드는 EC5 때문에 도달하지 않지만, 구조적 안정성을 위해 유지
-        return f'Include - {matched_dimensions[0]}'
-    elif len(matched_dimensions) > 1:
-        return 'Include - Multidisciplinary'
+    # --- 최종 분류 (신규 분류 체계 적용) ---
+    classification_map = {
+        'Technical': 'C1: 기술 및 인프라 (Technical & Infrastructure)',
+        'Platform': 'C2: 플랫폼 및 생태계 (Platforms & Ecosystems)',
+        'User': 'C3: 사용자 경험 및 심리 (User Experience & Psychology)',
+        'Commercial': 'C4: 라이브 커머스 및 수익화 (Live Commerce & Monetization)',
+        'Social': 'C5: 사회 및 문화적 영향 (Social & Cultural Impacts)',
+        'Educational': 'C6: 교육 및 학습 (Education & Learning)',
+    }
+
+    if not matched_dimensions:
+        return 'Review: 검토 필요 (Review Needed)'
+    elif len(matched_dimensions) == 1:
+        return classification_map.get(matched_dimensions[0], 'Review: 검토 필요 (Review Needed)')
     else:
-        # 이 경우도 도달하지 않지만, 안전장치로 남겨둠
-        return 'Review - Contribution Unclear'
+        return 'C7: 다학제 연구 (Multidisciplinary)'
 
 # --- 데이터 품질 진단 함수 ---
 def diagnose_merged_quality(df, file_count, duplicates_removed):
@@ -888,6 +892,28 @@ if uploaded_files:
     </div>
     """, unsafe_allow_html=True)
 
+    with st.expander("🔬 포함/배제 기준 (Inclusion/Exclusion Criteria) 보기"):
+        st.markdown("""
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;">
+        <h5 style="color: #3182f6;">포함 기준 (Inclusion Criteria)</h5>
+        <ul>
+            <li><b>IC1 (핵심 키워드)</b>: 제목, 초록, 키워드에 'live stream', 'twitch' 등 핵심 용어가 포함된 논문</li>
+            <li><b>IC2 (학술적 기여)</b>: 문서 유형이 'Article' 또는 'Review'인 학술 논문</li>
+        </ul>
+        <hr>
+        <h5 style="color: #e53e3e;">배제 기준 (Exclusion Criteria)</h5>
+        <ul>
+            <li><b>EC1 (도메인 관련성)</b>: 'medical signal', 'military' 등 라이브 스트리밍과 직접 관련 없는 도메인</li>
+            <li><b>EC2 (부차적 언급)</b>: 초록 내 핵심 키워드 언급 횟수가 2회 미만으로, 주제를 부차적으로 다룬 경우</li>
+            <li><b>EC3 (학술적 형태)</b>: 'editorial', 'news' 등 학술적 기여도가 낮은 문서 유형</li>
+            <li><b>EC4 (실시간 상호작용성)</b>: 'VOD', 'asynchronous' 등 실시간 상호작용이 없는 기술/서비스</li>
+            <li><b>EC5 (연구 차원 단일)</b>: 기술, 플랫폼, 사용자 등 연구 차원이 2개 미만으로 논의의 폭이 좁은 경우 (수정된 로직에서는 미사용)</li>
+            <li><b>EC6 (연구 방법론)</b>: 'survey', 'experiment' 등 명확한 연구 방법론이 부재한 경우</li>
+        </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
+
     # 총 배제된 논문 수 계산
     total_excluded = len(df_excluded)
     
@@ -991,28 +1017,62 @@ if uploaded_files:
         <div class="chart-title">학술적 정제 후 연구 분류 분포</div>
     """, unsafe_allow_html=True)
 
+    st.markdown("""
+    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; margin-bottom: 20px;">
+    <h5 style="margin-bottom: 10px;">분류 기준 (Classification Scheme)</h5>
+    <ul style="list-style-type: none; padding-left: 0;">
+        <li style="margin-bottom: 5px;"><span style="color: #1f77b4; font-weight: bold;">C1:</span> 기술 및 인프라 (Technical & Infrastructure)</li>
+        <li style="margin-bottom: 5px;"><span style="color: #d62728; font-weight: bold;">C2:</span> 플랫폼 및 생태계 (Platforms & Ecosystems)</li>
+        <li style="margin-bottom: 5px;"><span style="color: #2ca02c; font-weight: bold;">C3:</span> 사용자 경험 및 심리 (User Experience & Psychology)</li>
+        <li style="margin-bottom: 5px;"><span style="color: #ff7f0e; font-weight: bold;">C4:</span> 라이브 커머스 및 수익화 (Live Commerce & Monetization)</li>
+        <li style="margin-bottom: 5px;"><span style="color: #9467bd; font-weight: bold;">C5:</span> 사회 및 문화적 영향 (Social & Cultural Impacts)</li>
+        <li style="margin-bottom: 5px;"><span style="color: #8c564b; font-weight: bold;">C6:</span> 교육 및 학습 (Education & Learning)</li>
+        <li style="margin-bottom: 5px;"><span style="color: #7f7f7f; font-weight: bold;">C7:</span> 다학제 연구 (Multidisciplinary)</li>
+        <li style="margin-bottom: 5px;"><span style="color: #c7c7c7; font-weight: bold;">Review:</span> 검토 필요 (Review Needed)</li>
+    </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+
     classification_counts_df = df_for_analysis['Classification'].value_counts().reset_index()
-    classification_counts_df.columns = ['분류', '논문 수']
+    classification_counts_df.columns = ['분류 (Classification)', '논문 수 (Count)']
 
     col1, col2 = st.columns([0.4, 0.6])
     with col1:
         st.dataframe(classification_counts_df, use_container_width=True, hide_index=True)
 
     with col2:
-        # 도넛 차트
-        selection = alt.selection_point(fields=['분류'], on='mouseover', nearest=True)
+        # 도넛 차트 (신규 분류 및 색상 적용)
+        color_map = {
+            'C1: 기술 및 인프라 (Technical & Infrastructure)': '#1f77b4',
+            'C2: 플랫폼 및 생태계 (Platforms & Ecosystems)': '#d62728',
+            'C3: 사용자 경험 및 심리 (User Experience & Psychology)': '#2ca02c',
+            'C4: 라이브 커머스 및 수익화 (Live Commerce & Monetization)': '#ff7f0e',
+            'C5: 사회 및 문화적 영향 (Social & Cultural Impacts)': '#9467bd',
+            'C6: 교육 및 학습 (Education & Learning)': '#8c564b',
+            'C7: 다학제 연구 (Multidisciplinary)': '#7f7f7f',
+            'Review: 검토 필요 (Review Needed)': '#c7c7c7'
+        }
+        
+        # 데이터프레임 순서에 맞게 도메인/범위 정렬
+        ordered_df = classification_counts_df.set_index('분류 (Classification)')
+        domain = ordered_df.index.tolist()
+        range_ = [color_map.get(cat, '#333') for cat in domain]
+
+        selection = alt.selection_point(fields=['분류 (Classification)'], on='mouseover', nearest=True)
 
         base = alt.Chart(classification_counts_df).encode(
-            theta=alt.Theta(field="논문 수", type="quantitative", stack=True),
-            color=alt.Color(field="분류", type="nominal", title="Classification",
-                           scale=alt.Scale(scheme='tableau20'),
+            theta=alt.Theta(field="논문 수 (Count)", type="quantitative", stack=True),
+            color=alt.Color(field="분류 (Classification)", type="nominal", title="분류 (Classification)",
+                           scale=alt.Scale(domain=domain, range=range_),
                            legend=alt.Legend(orient="right", titleColor="#191f28", labelColor="#8b95a1")),
-            opacity=alt.condition(selection, alt.value(1), alt.value(0.8))
+            opacity=alt.condition(selection, alt.value(1), alt.value(0.8)),
+            tooltip=['분류 (Classification)', '논문 수 (Count)']
         ).add_params(selection)
 
         pie = base.mark_arc(outerRadius=150, innerRadius=90)
         text_total = alt.Chart(pd.DataFrame([{'value': f'{len(df_final_output)}'}])).mark_text(
-            align='center', baseline='middle', fontSize=45, fontWeight='bold', color='#0064ff'
+            align='center', baseline='middle', fontSize=45, fontWeight='bold', color='#3182f6'
         ).encode(text='value:N')
         text_label = alt.Chart(pd.DataFrame([{'value': 'Refined Papers'}])).mark_text(
             align='center', baseline='middle', fontSize=16, dy=30, color='#8b95a1'
@@ -1037,16 +1097,19 @@ if uploaded_files:
         count = len(df_for_analysis[df_for_analysis['Classification'] == classification])
         percentage = (count / len(df_final_output) * 100) if len(df_final_output) > 0 else 0
         
-        if classification.startswith('Include'):
-            color = "#10b981"
-            icon = "✅"
-        elif classification.startswith('Review'):
-            color = "#f59e0b"
-            icon = "🔍"
-        else:
-            color = "#8b5cf6"
-            icon = "❓"
+        color_map = {
+            'C1': "#1f77b4", 'C2': "#d62728", 'C3': "#2ca02c", 'C4': "#ff7f0e",
+            'C5': "#9467bd", 'C6': "#8c564b", 'C7': "#7f7f7f", 'Review': "#c7c7c7"
+        }
         
+        cat_code = classification.split(':')[0]
+        color = color_map.get(cat_code, "#8b5cf6")
+
+        if "Review" in classification:
+             icon = "🔍"
+        else:
+            icon = "✅"
+
         st.markdown(f"""
         <div style="margin: 16px 0; padding: 20px; background: white; border-left: 4px solid {color}; border-radius: 12px; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
             <strong>{icon} {classification}:</strong> {count:,}편 ({percentage:.1f}%)
@@ -1353,4 +1416,5 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     """)
 
 st.markdown("<br><br>", unsafe_allow_html=True)
+
 
