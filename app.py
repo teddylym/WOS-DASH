@@ -507,7 +507,7 @@ def parse_wos_format(content):
         
     return pd.DataFrame(records)
 
-# --- 2단계 필터링 기반 논문 분류 함수 ---
+# --- 논문 분류 함수 (사용자 요청으로 교체됨) ---
 def classify_article(row):
     """2단계 필터링(Two-Step Filtering)을 적용한 논문 분류 함수"""
     
@@ -566,8 +566,6 @@ def classify_article(row):
         return 'Exclude - EC4 (실시간 상호작용성 부재)'
     if not any(kw in full_text_for_keywords for kw in core_keywords):
         return 'Exclude - IC1 위배 (핵심 키워드 부재)'
-    
-    # 초록에서 핵심 키워드 언급 빈도 확인
     abstract_keyword_count = sum(abstract.count(kw) for kw in core_keywords)
     if abstract_keyword_count < 2:
         return 'Exclude - EC2 (부차적 언급)'
@@ -584,11 +582,14 @@ def classify_article(row):
         return 'Exclude - EC6 (연구 방법론 부재)'
 
     # --- 최종 분류 ---
-    # 2단계 필터링 통과 시, 세부 차원별 분류
-    if len(matched_dimensions) >= 2:
+    # 2단계 필터링 통과 시, 기존의 상세 분류 체계를 따름
+    if len(matched_dimensions) == 1:
+        # 이 코드는 EC5 때문에 도달하지 않지만, 구조적 안정성을 위해 유지
+        return f'Include - {matched_dimensions[0]}'
+    elif len(matched_dimensions) > 1:
         return 'Include - Multidisciplinary'
     else:
-        # 안전장치: 이론적으로는 도달하지 않는 경우
+        # 이 경우도 도달하지 않지만, 안전장치로 남겨둠
         return 'Review - Contribution Unclear'
 
 # --- 데이터 품질 진단 함수 ---
@@ -678,6 +679,8 @@ def convert_to_scimat_wos_format(df_to_convert):
 st.markdown("""
 <div style="position: relative; text-align: center; padding: 2.5rem 0 3rem 0; background: linear-gradient(135deg, #3182f6, #1c64f2); color: white; border-radius: 8px; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(49,130,246,0.15); overflow: hidden;">
     <div style="position: absolute; top: 1rem; left: 1.5rem; color: white;">
+        <div style="font-size: 12px; font-weight: 600; margin-bottom: 3px; letter-spacing: 0.3px;">HANYANG UNIVERSITY</div>
+        <div style="font-size: 11px; opacity: 0.9; font-weight: 500;">Technology Management Research</div>
         <div style="font-size: 10px; opacity: 0.8; margin-top: 4px; font-weight: 400;">mot.hanyang.ac.kr</div>
     </div>
     <div style="position: absolute; top: 1rem; right: 1.5rem; text-align: right; color: rgba(255,255,255,0.9); font-size: 11px;">
@@ -708,8 +711,8 @@ st.markdown("""
     </div>
     <div class="feature-card">
         <div class="feature-icon">🎯</div>
-        <div class="feature-title">2단계 필터링</div>
-        <div class="feature-desc">체계적 포함/배제 기준으로 연구 엄밀성 확보</div>
+        <div class="feature-title">학술적 엄밀성</div>
+        <div class="feature-desc">개념 기반 학술적 정제 적용</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -718,7 +721,7 @@ st.markdown("""
 st.markdown("""
 <div class="section-header">
     <div class="section-title">📂 다중 WOS Plain Text 파일 업로드</div>
-    <div class="section-subtitle">500개 단위로 나눈 여러 WOS 파일을 모두 선택하여 업로드하세요</div>
+    <div class="section-subtitle">500개 단위로 나뉜 여러 WOS 파일을 모두 선택하여 업로드하세요</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -736,7 +739,7 @@ if uploaded_files:
     # 프로그레스 인디케이터
     st.markdown('<div class="progress-indicator"></div>', unsafe_allow_html=True)
     
-    with st.spinner(f"🔄 {len(uploaded_files)}개 WOS 파일 병합 및 2단계 필터링 적용 중..."):
+    with st.spinner(f"🔄 {len(uploaded_files)}개 WOS 파일 병합 및 학술적 정제 적용 중..."):
         # 파일 병합
         merged_df, file_status, duplicates_removed = load_and_merge_wos_files(uploaded_files)
         
@@ -754,22 +757,22 @@ if uploaded_files:
                 """, unsafe_allow_html=True)
             st.stop()
         
-        # 논문 분류 수행 - 2단계 필터링 적용
+        # 논문 분류 수행
         merged_df['Classification'] = merged_df.apply(classify_article, axis=1)
 
     # 성공적인 파일 개수 계산
     successful_files = len([s for s in file_status if s['status'] == 'SUCCESS'])
     total_papers_before_filter = len(merged_df)
     
-    # 최종 데이터셋 준비 - 엄격한 배제 기준 반영
-    df_excluded_strict = merged_df[merged_df['Classification'].str.startswith('Exclude', na=False)]
+    # 최종 데이터셋 준비
+    df_excluded = merged_df[merged_df['Classification'].str.startswith('Exclude', na=False)]
     df_for_analysis = merged_df[~merged_df['Classification'].str.startswith('Exclude', na=False)].copy()
     
     total_papers = len(df_for_analysis)
     
-    st.success(f"✅ 병합 및 2단계 필터링 완료! {successful_files}개 파일에서 최종 {total_papers:,}편의 논문을 성공적으로 처리했습니다.")
+    st.success(f"✅ 병합 및 학술적 정제 완료! {successful_files}개 파일에서 최종 {total_papers:,}편의 논문을 성공적으로 처리했습니다.")
     
-    # 중복 제거 결과 표시 - 실제 결과만
+    # 중복 제거 결과 표시
     if duplicates_removed > 0:
         st.info(f"🔄 중복 논문 {duplicates_removed}편이 자동으로 제거되었습니다. (원본 총 {total_papers_before_filter + duplicates_removed:,}편 → 정제 후 {total_papers_before_filter:,}편)")
     else:
@@ -867,9 +870,9 @@ if uploaded_files:
     # 병합 성공 알림
     st.markdown("""
     <div class="success-panel">
-        <h4 style="color: #065f46; margin-bottom: 20px; font-weight: 700;">🎯 다중 파일 병합 및 2단계 필터링 성공!</h4>
+        <h4 style="color: #065f46; margin-bottom: 20px; font-weight: 700;">🎯 다중 파일 병합 및 학술적 정제 성공!</h4>
         <p style="color: #065f46; margin: 6px 0; font-weight: 500;">여러 WOS Plain Text 파일이 성공적으로 하나로 병합되었습니다.</p>
-        <p style="color: #065f46; margin: 6px 0; font-weight: 500;"><strong>학술적 엄밀성:</strong> 2단계 필터링 기준을 체계적으로 적용하여 연구의 신뢰성을 확보했습니다.</p>
+        <p style="color: #065f46; margin: 6px 0; font-weight: 500;"><strong>학술적 엄밀성:</strong> 강화된 포함/배제 기준을 체계적으로 적용하여 연구의 신뢰성을 확보했습니다.</p>
         <p style="color: #065f46; margin: 6px 0; font-weight: 500;"><strong>SCIMAT 호환성:</strong> 병합된 파일은 SCIMAT에서 100% 정상 작동합니다.</p>
     </div>
     """, unsafe_allow_html=True)
@@ -877,13 +880,13 @@ if uploaded_files:
     # --- 분석 결과 요약 ---
     st.markdown("""
     <div class="section-header">
-        <div class="section-title">📈 2단계 필터링 결과</div>
-        <div class="section-subtitle">2단계 필터링 기준 적용 후 라이브 스트리밍 연구 분류 결과</div>
+        <div class="section-title">📈 학술적 정제 결과</div>
+        <div class="section-subtitle">학술적 정제 기준 적용 후 라이브 스트리밍 연구 분류 결과</div>
     </div>
     """, unsafe_allow_html=True)
 
     # 총 배제된 논문 수 계산
-    total_excluded = len(df_excluded_strict)
+    total_excluded = len(df_excluded)
     
     # Classification 컬럼만 제거 (원본 WOS 형식 유지)
     df_final_output = df_for_analysis.drop(columns=['Classification'], errors='ignore')
@@ -922,89 +925,18 @@ if uploaded_files:
         """, unsafe_allow_html=True)
     
     with col4:
-        # 배제된 논문들을 위한 토글 버튼이 있는 박스
-        col4_inner1, col4_inner2 = st.columns([3, 1])
-        
-        with col4_inner1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-icon">⛔</div>
-                <div class="metric-value">{total_excluded:,}</div>
-                <div class="metric-label">학술적 배제</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col4_inner2:
-            st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-            if st.button(
-                "📋", 
-                key="exclude_details_button",
-                help="배제된 논문 상세 보기"
-            ):
-                st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
-
-    # 배제된 논문 상세 정보 토글 표시
-    if st.session_state.get('show_exclude_details', False) and total_excluded > 0:
-        st.markdown("""
-        <div style="background: #fef2f2; padding: 20px; border-radius: 16px; margin: 20px 0; border: 1px solid #ef4444;">
-            <h4 style="color: #dc2626; margin-bottom: 16px; font-weight: 700;">⛔ 2단계 필터링 기준에 따른 제외 논문</h4>
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">⛔</div>
+            <div class="metric-value">{total_excluded:,}</div>
+            <div class="metric-label">학술적 배제</div>
         </div>
         """, unsafe_allow_html=True)
-        
-        # 배제 기준별 분류 및 표시
-        exclusion_categories = {
-            'Exclude - EC1': '도메인 관련성 부재',
-            'Exclude - EC2': '부차적 언급',
-            'Exclude - EC3': '학술적 형태 부적합',
-            'Exclude - EC4': '실시간 상호작용성 부재',
-            'Exclude - EC5': '연구 차원 단일',
-            'Exclude - EC6': '연구 방법론 부재',
-            'Exclude - IC1': '핵심 키워드 부재',
-            'Exclude - IC2': '학술적 기여 부족',
-        }
-        
-        # 배제 기준별 배제 현황
-        for exclude_code, description in exclusion_categories.items():
-            exclude_papers = merged_df[merged_df['Classification'] == exclude_code]
-            if len(exclude_papers) > 0:
-                st.markdown(f"""
-                <div style="margin: 12px 0; padding: 16px; background: white; border-left: 4px solid #ef4444; border-radius: 12px;">
-                    <strong style="color: #dc2626;">{exclude_code}: {description}</strong> 
-                    <span style="color: #8b95a1;">({len(exclude_papers)}편)</span>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # 상위 5편만 샘플로 표시
-                for idx, (_, paper) in enumerate(exclude_papers.head(5).iterrows(), 1):
-                    title = str(paper.get('TI', 'N/A'))[:80] + "..." if len(str(paper.get('TI', 'N/A'))) > 80 else str(paper.get('TI', 'N/A'))
-                    year = str(paper.get('PY', 'N/A'))
-                    source = str(paper.get('SO', 'N/A'))[:40] + "..." if len(str(paper.get('SO', 'N/A'))) > 40 else str(paper.get('SO', 'N/A'))
-                    
-                    st.markdown(f"""
-                    <div style="margin: 8px 0 8px 20px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 14px;">
-                        <div style="font-weight: 500; color: #374151; margin-bottom: 4px;">{title}</div>
-                        <div style="color: #6b7280; font-size: 12px;">{year} | {source}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                if len(exclude_papers) > 5:
-                    st.markdown(f"<p style='color: #8b95a1; text-align: right; margin: 8px 20px 16px 20px; font-size: 12px;'>... 외 {len(exclude_papers) - 5}편 더</p>", unsafe_allow_html=True)
-
-    # 배제 기준 적용 결과 요약
-    st.markdown(f"""
-    <div class="info-panel">
-        <h4 style="color: #0064ff; margin-bottom: 16px; font-weight: 700;">📊 2단계 필터링 적용 결과</h4>
-        <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>총 입력:</strong> {total_papers_before_filter:,}편의 논문</p>
-        <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>배제 적용:</strong> {total_excluded:,}편 제외 ({(total_excluded/total_papers_before_filter*100):.1f}%)</p>
-        <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>최종 분석:</strong> {len(df_final_output):,}편으로 정제된 고품질 데이터셋</p>
-        <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>핵심 연구:</strong> {include_papers:,}편의 직접 관련 라이브스트리밍 연구 확보</p>
-    </div>
-    """, unsafe_allow_html=True)
-
+    
     # --- 논문 분류 현황 ---
     st.markdown("""
     <div class="chart-container">
-        <div class="chart-title">2단계 필터링 후 연구 분류 분포</div>
+        <div class="chart-title">학술적 정제 후 연구 분류 분포</div>
     """, unsafe_allow_html=True)
 
     classification_counts_df = df_for_analysis['Classification'].value_counts().reset_index()
@@ -1040,42 +972,12 @@ if uploaded_files:
         st.altair_chart(chart, use_container_width=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
-
-    # --- 분류 상세 결과 ---
-    st.markdown("""
-    <div class="chart-container">
-        <div class="chart-title">분류별 상세 분포 (배제 기준 적용 후)</div>
-    """, unsafe_allow_html=True)
     
-    # 분류별 상세 통계 (배제 제외)
-    sorted_classifications = df_for_analysis['Classification'].value_counts().index.tolist()
-    for classification in sorted_classifications:
-        count = len(df_for_analysis[df_for_analysis['Classification'] == classification])
-        percentage = (count / len(df_final_output) * 100) if len(df_final_output) > 0 else 0
-        
-        if classification.startswith('Include'):
-            color = "#10b981"
-            icon = "✅"
-        elif classification.startswith('Review'):
-            color = "#f59e0b"
-            icon = "🔍"
-        else: # Should not happen, but as a fallback
-            color = "#8b5cf6"
-            icon = "❓"
-        
-        st.markdown(f"""
-        <div style="margin: 16px 0; padding: 20px; background: white; border-left: 4px solid {color}; border-radius: 12px; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-            <strong>{icon} {classification}:</strong> {count:,}편 ({percentage:.1f}%)
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("</div>", unsafe_allow_html=True)
-
     # --- 연도별 연구 동향 ---
     if 'PY' in df_final_output.columns:
         st.markdown("""
         <div class="chart-container">
-            <div class="chart-title">정제된 라이브 스트리밍 연구 동향 (2단계 필터링 기준 적용 후)</div>
+            <div class="chart-title">정제된 라이브 스트리밍 연구 동향 (학술적 정제 기준 적용 후)</div>
         """, unsafe_allow_html=True)
         
         df_trend = df_final_output.copy()
@@ -1216,38 +1118,11 @@ if uploaded_files:
                 </div>
                 """, unsafe_allow_html=True)
 
-    # 병합 성과 강조 - 2단계 필터링 반영
-    success_info = []
-    success_info.append(f"<strong>파일 통합:</strong> {successful_files}개의 WOS 파일을 하나로 병합")
-    
-    if duplicates_removed > 0:
-        success_info.append(f"<strong>중복 제거:</strong> {duplicates_removed}편의 중복 논문 자동 감지 및 제거")
-    
-    success_info.append(f"<strong>2단계 필터링:</strong> 체계적 포함/배제 기준으로 {total_excluded}편 제외")
-    success_info.append(f"<strong>최종 규모:</strong> {len(df_final_output):,}편의 고품질 논문으로 정제된 데이터셋")
-    success_info.append(f"<strong>핵심 연구:</strong> {include_papers}편의 직접 관련 라이브스트리밍 연구 확보")
-    success_info.append("<strong>SCIMAT 호환:</strong> 완벽한 WOS Plain Text 형식으로 100% 호환성 보장")
-    
-    success_content = "".join([f"<p style='color: #0064ff; margin: 6px 0; font-weight: 500;'>{info}</p>" for info in success_info])
-    
-    st.markdown(f"""
-    <div class="info-panel">
-        <h4 style="color: #0064ff; margin-bottom: 16px; font-weight: 700;">🎯 2단계 필터링 완료</h4>
-        {success_content}
-        <div style="margin-top: 16px; padding: 12px; background: rgba(0,100,255,0.1); border-radius: 8px;">
-            <p style='color: #0064ff; margin: 0; font-weight: 600; font-size: 14px;'>
-            💡 <strong>배제 기준 적용률:</strong> {(total_excluded/total_papers_before_filter*100):.1f}% 
-            - 연구 질문에 직접적으로 기여하는 논문만을 선별하여 분석의 깊이와 신뢰성을 확보했습니다.
-            </p>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
     # --- 최종 파일 다운로드 섹션 ---
     st.markdown("""
     <div class="section-header">
-        <div class="section-title">🔥 2단계 필터링 완료 - SCIMAT 분석용 파일 다운로드</div>
-        <div class="section-subtitle">체계적 포함/배제 기준 적용 후 정제된 고품질 WOS Plain Text 파일</div>
+        <div class="section-title">📥 학술적 정제 완료 - SCIMAT 분석용 파일 다운로드</div>
+        <div class="section-subtitle">강화된 포함/배제 기준 적용 후 정제된 고품질 WOS Plain Text 파일</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -1255,14 +1130,14 @@ if uploaded_files:
     text_data = convert_to_scimat_wos_format(df_final_output)
     
     download_clicked = st.download_button(
-        label="🔥 다운로드",
+        label="📥 다운로드",
         data=text_data,
-        file_name=f"live_streaming_two_step_filtered_scimat_{len(df_final_output)}papers.txt",
+        file_name=f"live_streaming_academic_filtered_scimat_{len(df_final_output)}papers.txt",
         mime="text/plain",
         type="primary",
         use_container_width=True,
         key="download_final_file",
-        help="2단계 필터링 기준 적용 후 SCIMAT에서 바로 사용 가능한 WOS Plain Text 파일"
+        help="학술적 정제 기준 적용 후 SCIMAT에서 바로 사용 가능한 WOS Plain Text 파일"
     )
 
 # --- 하단 여백 및 추가 정보 ---
@@ -1280,23 +1155,14 @@ with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
     **Q: WOS에서 어떤 설정으로 다운로드해야 하나요?**
     A: Export → Record Content: "Full Record and Cited References", File Format: "Plain Text"로 설정하세요. 인용 관계 분석을 위해 참고문헌 정보가 필수입니다.
     
-    **Q: 2단계 필터링 기준은 무엇인가요?**
-    A: 1단계에서 기초 선별(학술적 형태, 핵심 키워드, 도메인 관련성 등)을 하고, 2단계에서 핵심 연구 속성(다차원성, 방법론)을 검증하여 연구의 엄밀성을 확보합니다.
+    **Q: 어떤 기준으로 논문이 배제되나요?**
+    A: 2단계 필터링을 통해 연구 주제, 형태, 상호작용성, 연구 차원, 방법론 등을 종합적으로 검토하여 부적합한 논문을 체계적으로 배제합니다.
     
     **Q: SCIMAT에서 키워드 정리를 어떻게 하나요?**
     A: Group set → Word → Find similar words by distances (Maximum distance: 1)로 유사 키워드를 자동 통합하고, Word Group manual set에서 수동으로 관련 키워드들을 그룹화하세요.
     
     **Q: SCIMAT 분석 설정은 어떻게 하나요?**
     A: Unit of Analysis: "Author's words + Source's words", Network Type: "Co-occurrence", Normalization: "Equivalence Index", Clustering: "Simple Centers Algorithm" (Maximum network size: 50)를 권장합니다.
-    
-    **Q: 병합된 파일이 SCIMAT에서 제대로 로딩되지 않습니다.**
-    A: 원본 WOS 파일들이 'FN Clarivate Analytics Web of Science'로 시작하는 정품 Plain Text 파일인지 확인하세요.
-    
-    **Q: SCIMAT에서 Period는 어떻게 설정하나요?**
-    A: 연구 분야의 진화 단계를 반영하여 의미 있게 구분하되, 각 Period당 최소 50편 이상의 논문을 포함하도록 설정하세요.
-    
-    **Q: 몇 개의 파일까지 동시에 업로드할 수 있나요?**
-    A: 기술적으로는 제한이 없지만, 안정성을 위해 10개 이하의 파일을 권장합니다. 매우 큰 데이터셋의 경우 나누어서 처리하세요.
     """)
 
 # SciMAT 분석 가이드 - 항상 표시
@@ -1410,6 +1276,7 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     - 인코딩 문제시 UTF-8로 변경
     """)
 
-st.markdown("<br><br>", unsafe_allow_html=True) 12px; font-weight: 600; margin-bottom: 3px; letter-spacing: 0.3px;">HANYANG UNIVERSITY</div>
-        <div style="font-size: 11px; opacity: 0.9; font-weight: 500;">Technology Management Research</div>
-        <div style="font-size:
+st.markdown("<br><br>", unsafe_allow_html=True)
+
+
+
