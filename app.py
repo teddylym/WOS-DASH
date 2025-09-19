@@ -538,13 +538,13 @@ def classify_article(row):
         if any(kw in full_text_for_keywords for kw in kws):
             matched_dimensions.append(dim)
     
-    # 7. (2A) 연구 차원 조합 필터링
+    # 7. (2A) 연구 차원 조합 필터링 (EC5)
     if len(matched_dimensions) < 2:
-        return 'Exclude - 2A (연구 차원 단일)'
+        return 'Exclude - EC5 (연구 차원 단일)'
         
-    # 8. (2B) 연구 방법론 키워드 필터링
+    # 8. (2B) 연구 방법론 키워드 필터링 (EC6)
     if not any(kw in full_text_for_keywords for kw in methodology_keywords):
-        return 'Exclude - 2B (연구 방법론 부재)'
+        return 'Exclude - EC6 (연구 방법론 부재)'
 
     # --- 최종 분류 ---
     # 2단계 필터링을 통과한 논문은 다학제적 연구로 간주
@@ -647,7 +647,7 @@ if uploaded_files:
     """, unsafe_allow_html=True)
 
     total_excluded = len(df_excluded)
-    df_final_output = df_included.copy() # 이제 Review 카테고리가 없으므로 바로 복사
+    df_final_output = df_included.copy()
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -844,6 +844,6 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     - Document Mapper: "Core Mapper"
     - Performance Measures: G-index, Sum Citations
     - Evolution Map: "Jaccard Index"
-    ```
+    """)
     
 st.markdown("<br><br>", unsafe_allow_html=True)
