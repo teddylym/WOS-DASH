@@ -522,8 +522,14 @@ def classify_article(row):
         return 'Exclude - EC6 (연구 방법론 부재)'
 
     # --- 최종 분류 ---
-    # 2단계 필터링을 통과하면 핵심 연구로 분류. 세부 분류는 제거.
-    return 'Include - Core Research'
+    # 2단계 필터링 통과 시, 기존 분류 체계 유지
+    if len(matched_dimensions) == 1:
+        return f'Include - {matched_dimensions[0]}'
+    elif len(matched_dimensions) > 1:
+        return 'Include - Multidisciplinary'
+    else:
+        # 이 경우는 2단계 필터링에서 걸러지지만, 안전장치로 남겨둠
+        return 'Review - Contribution Unclear'
 
 
 # --- WOS Plain Text 형식 변환 함수 ---
@@ -608,7 +614,7 @@ if uploaded_files:
     
     df_excluded = merged_df[merged_df['Classification'].str.startswith('Exclude', na=False)]
     df_included = merged_df[~merged_df['Classification'].str.startswith('Exclude', na=False)].copy()
-    # 2단계 필터링에서는 Review 카테고리가 없으므로 df_review 생성 로직 제거
+    df_review = df_included[df_included['Classification'].str.startswith('Review', na=False)]
     
     st.success(f"✅ 병합 및 정제 완료! {successful_files}개 파일에서 최종 {len(df_included):,}편의 논문을 처리했습니다.")
     if duplicates_removed > 0:
@@ -623,21 +629,21 @@ if uploaded_files:
     """, unsafe_allow_html=True)
 
     total_excluded = len(df_excluded)
-    df_final_output = df_included.copy()
+    df_final_output = df_included.drop(columns=['Classification'], errors='ignore')
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.markdown(f"""<div class="metric-card"><div class="metric-icon">📋</div><div class="metric-value">{len(df_final_output):,}</div><div class="metric-label">최종 분석 대상<br><small>(Final Papers)</small></div></div>""", unsafe_allow_html=True)
     with col2:
-        st.markdown(f"""<div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value">{len(df_included):,}</div><div class="metric-label">핵심 포함 연구<br><small>(Included Papers)</small></div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="metric-card"><div class="metric-icon">✅</div><div class="metric-value">{len(df_included) - len(df_review):,}</div><div class="metric-label">핵심 포함 연구<br><small>(Included Papers)</small></div></div>""", unsafe_allow_html=True)
     with col3:
         processing_rate = (len(df_included) / total_papers_before_filter * 100) if total_papers_before_filter > 0 else 0
         st.markdown(f"""<div class="metric-card"><div class="metric-icon">📊</div><div class="metric-value">{processing_rate:.1f}%</div><div class="metric-label">최종 포함 비율<br><small>(Inclusion Rate)</small></div></div>""", unsafe_allow_html=True)
     with col4:
         st.markdown(f"""<div class="metric-card" style="padding-bottom: 50px;"><div class="metric-icon" style="background-color: #ef4444;">⛔</div><div class="metric-value">{total_excluded:,}</div><div class="metric-label">학술적 배제<br><small>(Excluded Papers)</small></div><div style="position: absolute; bottom: 10px; right: 15px;">""", unsafe_allow_html=True)
-        if st.button("상세보기", key="exclude_details_button"): 
+        if st.button("상세보기", key="exclude_details_button"):
             st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
-        st.markdown("</div></div>", unsafe_allow_html=True) 
+        st.markdown("</div></div>", unsafe_allow_html=True)
 
     # --- 선정 기준 설명 UI (2단계 필터링 적용) ---
     st.markdown("""
@@ -679,41 +685,53 @@ if uploaded_files:
                     st.markdown(f"""<div style="margin: 8px 0 8px 20px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 14px;"><div style="font-weight: 500;">{paper.get('TI', 'N/A')}</div><div style="color: #6b7280; font-size: 12px;">{paper.get('PY', 'N/A')} | {paper.get('SO', 'N/A')}</div></div>""", unsafe_allow_html=True)
             
             st.markdown("</div>", unsafe_allow_html=True)
-    
+
     # --- 논문 분류 현황 ---
-    st.markdown("""<div class="chart-container"><div class="chart-title">포함된 연구의 분류 분포 (Distribution of Included Research)</div>""", unsafe_allow_html=True)
-    classification_counts_df = df_included['Classification'].value_counts().reset_index()
-    classification_counts_df.columns = ['Classification (분류)', 'Count (논문 수)']
-    
-    c1, c2 = st.columns([0.4, 0.6])
-    with c1:
-        st.dataframe(classification_counts_df, use_container_width=True, hide_index=True)
-    with c2:
-        chart = alt.Chart(classification_counts_df).mark_arc(innerRadius=90, outerRadius=150).encode(
-            theta=alt.Theta(field="Count (논문 수)", type="quantitative", stack=True),
-            color=alt.Color(field="Classification (분류)", type="nominal", title="Research Topic (연구 분야)", scale=alt.Scale(scheme='tableau20')),
-            tooltip=['Classification (분류)', 'Count (논문 수)']
-        )
-        text_total = alt.Chart(pd.DataFrame({'value': [f'{len(df_included)}']})).mark_text(align='center', baseline='middle', fontSize=45, fontWeight='bold', color='#0064ff').encode(text='value:N')
-        text_label = alt.Chart(pd.DataFrame({'value': ['Core Research']})).mark_text(align='center', baseline='middle', fontSize=16, dy=30, color='#8b95a1').encode(text='value:N')
-        st.altair_chart((chart + text_total + text_label).properties(width=350, height=350).configure_view(strokeWidth=0), use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    if not df_included.empty:
+        st.markdown("""<div class="chart-container"><div class="chart-title">포함된 연구의 분류 분포 (Distribution of Included Research)</div>""", unsafe_allow_html=True)
+        classification_counts_df = df_included['Classification'].value_counts().reset_index()
+        classification_counts_df.columns = ['Classification (분류)', 'Count (논문 수)']
+        
+        c1, c2 = st.columns([0.4, 0.6])
+        with c1:
+            st.dataframe(classification_counts_df, use_container_width=True, hide_index=True)
+        with c2:
+            chart = alt.Chart(classification_counts_df).mark_arc(innerRadius=90, outerRadius=150).encode(
+                theta=alt.Theta(field="Count (논문 수)", type="quantitative", stack=True),
+                color=alt.Color(field="Classification (분류)", type="nominal", title="Research Topic (연구 분야)", scale=alt.Scale(scheme='tableau20')),
+                tooltip=['Classification (분류)', 'Count (논문 수)']
+            )
+            text_total = alt.Chart(pd.DataFrame({'value': [f'{len(df_included)}']})).mark_text(align='center', baseline='middle', fontSize=45, fontWeight='bold', color='#0064ff').encode(text='value:N')
+            text_label = alt.Chart(pd.DataFrame({'value': ['Included Papers']})).mark_text(align='center', baseline='middle', fontSize=16, dy=30, color='#8b95a1').encode(text='value:N')
+            st.altair_chart((chart + text_total + text_label).properties(width=350, height=350).configure_view(strokeWidth=0), use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # --- 분류별 상세 분포 ---
-    st.markdown("""<div class="chart-container"><div class="chart-title">분류별 상세 분포 (Detailed Distribution by Classification)</div>""", unsafe_allow_html=True)
-    sorted_classifications = df_included['Classification'].value_counts()
-    for classification, count in sorted_classifications.items():
-        percentage = (count / len(df_included) * 100) if len(df_included) > 0 else 0
-        icon = "✅"
-        color = "#10b981"
-        display_name = "핵심 연구 (Core Research)"
-        st.markdown(f"""
-        <div style="margin: 16px 0; padding: 20px; background: white; border-left: 4px solid {color}; border-radius: 12px; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-            <strong>{icon} {display_name}:</strong> {count:,}편 ({percentage:.1f}%)
-        </div>
-        """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
+    if not df_included.empty:
+        classification_mapping = {
+            'Include - Platform': '플랫폼 생태계',
+            'Include - User': '사용자 행태/심리',
+            'Include - Commercial': '상업적 활용',
+            'Review - Contribution Unclear': '리뷰/기여도 불분명',
+            'Include - Educational': '교육적 활용',
+            'Include - Social': '사회/문화적 영향',
+            'Include - Technical': '기술 구현',
+            'Include - Multidisciplinary': '다학제 연구'
+        }
+        st.markdown("""<div class="chart-container"><div class="chart-title">분류별 상세 분포 (Detailed Distribution by Classification)</div>""", unsafe_allow_html=True)
+        sorted_classifications = df_included['Classification'].value_counts()
+        for classification, count in sorted_classifications.items():
+            percentage = (count / len(df_included) * 100) if len(df_included) > 0 else 0
+            icon = "🔍" if "Review" in classification else "✅"
+            color = "#f59e0b" if "Review" in classification else "#10b981"
+            korean_name = classification_mapping.get(classification, classification.replace('Include - ', ''))
+            display_name = f"{korean_name}"
+            st.markdown(f"""
+            <div style="margin: 16px 0; padding: 20px; background: white; border-left: 4px solid {color}; border-radius: 12px; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <strong>{icon} {display_name}:</strong> {count:,}편 ({percentage:.1f}%)
+            </div>
+            """, unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # --- 연도별 연구 동향 ---
     if not df_final_output.empty and 'PY' in df_final_output.columns:
@@ -733,22 +751,33 @@ if uploaded_files:
         st.markdown("</div>", unsafe_allow_html=True)
     
     # --- 키워드 품질 확인 ---
-    st.markdown("""<div class="chart-container"><div class="chart-title">정제된 데이터 키워드 품질 확인</div>""", unsafe_allow_html=True)
-    sample_data = []
-    sample_rows = df_included.head(3)
-    for _, row in sample_rows.iterrows():
-        de_keywords = str(row.get('DE', 'N/A'))
-        id_keywords = str(row.get('ID', 'N/A'))
-        sample_data.append({
-            '논문 제목': str(row.get('TI', 'N/A')),
-            'DE 키워드': de_keywords,
-            'ID 키워드': id_keywords
-        })
-    if sample_data:
-        st.dataframe(pd.DataFrame(sample_data), use_container_width=True, hide_index=True)
-        st.success("✅ 키워드 품질 우수 - SCIMAT에서 원활한 그루핑 예상")
-    st.markdown("</div>", unsafe_allow_html=True)
-    
+    if not df_included.empty:
+        st.markdown("""<div class="chart-container"><div class="chart-title">정제된 데이터 키워드 품질 확인</div>""", unsafe_allow_html=True)
+        sample_data = []
+        sample_rows = df_included.head(3)
+        for _, row in sample_rows.iterrows():
+            de_keywords = str(row.get('DE', 'N/A'))
+            id_keywords = str(row.get('ID', 'N/A'))
+            sample_data.append({
+                '논문 제목': str(row.get('TI', 'N/A')),
+                'DE 키워드': de_keywords,
+                'ID 키워드': id_keywords
+            })
+        if sample_data:
+            st.dataframe(pd.DataFrame(sample_data), use_container_width=True, hide_index=True)
+            st.success("✅ 키워드 품질 우수 - SCIMAT에서 원활한 그루핑 예상")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- Review 논문 목록 ---
+    if not df_review.empty:
+        with st.expander(f"🔍 Review (검토 필요) - 논문 목록 ({len(df_review)}편)"):
+            st.markdown("아래 논문들은 연구의 핵심 속성은 만족하나, 명확한 분석적 기여 차원을 특정하기 어려워 수동 검토가 필요합니다.")
+            review_excel_buffer = io.BytesIO()
+            with pd.ExcelWriter(review_excel_buffer, engine='openpyxl') as writer:
+                df_review[['TI', 'PY', 'SO', 'AU', 'DE', 'ID']].to_excel(writer, sheet_name='Review_Papers', index=False)
+            st.download_button(label="(다운로드)", data=review_excel_buffer.getvalue(), file_name="review_papers.xlsx", mime="application/vnd.ms-excel", use_container_width=True)
+            st.dataframe(df_review[['TI', 'PY', 'SO', 'AU', 'DE', 'ID']], use_container_width=True, hide_index=True)
+
     # --- 최종 요약 패널 ---
     st.markdown(f"""
     <div class="info-panel">
@@ -840,6 +869,7 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     2. Maximum distance: 1 (한 글자 차이)
     3. 같은 의미 단어들 확인하고 Move로 통합
     ```
+    의미: 철자가 1글자만 다른 단어들을 찾아서 제안 (예: "platform" ↔ "platforms")
     
     **수동으로 키워드 정리**
     ```
@@ -848,6 +878,7 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     3. 관련 키워드들 선택 후 New group으로 묶기
     4. 불필요한 키워드 제거
     ```
+    목적: 데이터 품질 향상, 의미 있는 클러스터 형성
     
     ### 3단계: 시간 구간 설정
     
@@ -859,6 +890,15 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
        - Period 2: 2007-2016 (형성기)
        - Period 3: 2017-2021 (확산기)
        - Period 4: 2022-2025 (융합기)
+    ```
+    원리: 연구 분야의 진화 단계를 반영한 의미 있는 구분
+    
+    **각 Period에 논문 할당**
+    ```
+    1. Period 1 클릭 → Add
+    2. 해당 연도 논문들 선택
+    3. 오른쪽 화살표로 이동
+    4. 다른 Period들도 동일하게 반복
     ```
     
     ### 4단계: 분석 실행
@@ -878,6 +918,31 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     - Document Mapper: "Core Mapper"
     - Performance Measures: G-index, Sum Citations
     - Evolution Map: "Jaccard Index"
-    """)
     
+    **분석 실행**
+    ```
+    - Finish 클릭
+    - 완료까지 대기 (10-30분)
+    ```
+    
+    ### 5단계: 결과 해석
+    
+    **전략적 다이어그램 4사분면**
+    - 우상단: Motor Themes (핵심 주제)
+    - 좌상단: Specialized Themes (전문화된 주제)
+    - 좌하단: Emerging/Declining Themes (신흥/쇠퇴 주제)
+    - 우하단: Basic Themes (기초 주제)
+    
+    **진화 맵 분석**
+    - 노드 크기 = 논문 수
+    - 연결선 두께 = Jaccard 유사도
+    - 시간에 따른 주제 변화 추적
+    
+    ### 문제 해결
+    - 키워드 정리를 꼼꼼히 (분석품질의 핵심)
+    - Period별 최소 50편 이상 권장
+    - Java 메모리 부족시 재시작
+    - 인코딩 문제시 UTF-8로 변경
+    """)
+
 st.markdown("<br><br>", unsafe_allow_html=True)
