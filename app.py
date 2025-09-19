@@ -840,7 +840,7 @@ if uploaded_files:
     st.download_button(label="📥 다운로드 (Download)", data=text_data, file_name=f"scimat_filtered_{len(df_final_output)}papers.txt", mime="text/plain", use_container_width=True)
 
 # --- 하단 고정 정보 ---
-st.markdown("<br><br>", unsafe_allow_html=True)
+# st.markdown("<br><br>", unsafe_allow_html=True) # <-- 이 부분을 제거하여 간격 축소
 
 with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
     st.markdown("""
