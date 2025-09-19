@@ -613,7 +613,7 @@ def diagnose_merged_quality(df, file_count, duplicates_removed):
             total_count = len(df)
             
             if valid_count < total_count * 0.7:
-                issues.append(f"⚠️ {field} 필드의 {((total_count-valid_count)/total_count*100):.1f}%가 비어있음")
+                issues.append(f"⚠️ {field} 필드의 {((total_count-valid-count)/total_count*100):.1f}%가 비어있음")
     
     if not has_keywords:
         issues.append("❌ 키워드 필드 없음: DE 또는 ID 필드 필요")
@@ -1204,5 +1204,25 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     ```
     - Finish 클릭
     - 완료까지 대기 (10-30분)
+    ```
     
+    ### 5단계: 결과 해석
+    
+    **전략적 다이어그램 4사분면**
+    - 우상단: Motor Themes (핵심 주제)
+    - 좌상단: Specialized Themes (전문화된 주제)
+    - 좌하단: Emerging/Declining Themes (신흥/쇠퇴 주제)
+    - 우하단: Basic Themes (기초 주제)
+    
+    **진화 맵 분석**
+    - 노드 크기 = 논문 수
+    - 연결선 두께 = Jaccard 유사도
+    - 시간에 따른 주제 변화 추적
+    
+    ### 문제 해결
+    - 키워드 정리를 꼼꼼히 (분석품질의 핵심)
+    - Period별 최소 50편 이상 권장
+    - Java 메모리 부족시 재시작
+    - 인코딩 문제시 UTF-8로 변경
+    """)
 
