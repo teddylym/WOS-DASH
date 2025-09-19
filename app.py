@@ -31,8 +31,11 @@ st.markdown("""
         border: 1px solid #e5e8eb;
         margin-bottom: 12px;
         transition: all 0.2s ease;
-        position: relative; /* For button positioning */
-        height: 100%; /* 동일한 높이를 위한 수정 */
+        position: relative;
+        height: 120px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
     
     .metric-card:hover {
@@ -69,6 +72,23 @@ st.markdown("""
         justify-content: center;
         font-size: 16px;
         margin-bottom: 12px;
+    }
+    
+    .metric-icon-red {
+        background: #ef4444;
+    }
+    
+    .exclude-button {
+        position: absolute;
+        bottom: 10px;
+        right: 15px;
+        background: #f43f5e;
+        color: white;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
     }
     
     .chart-container {
@@ -259,6 +279,7 @@ st.markdown("""
         color: #191f28 !important;
         font-family: 'Pretendard', sans-serif !important;
         font-size: 14px !important;
+        height: 240px !important;
     }
     
     .stDataFrame {
@@ -325,6 +346,22 @@ st.markdown("""
         font-size: 12px;
         color: #8b95a1;
         line-height: 1.3;
+    }
+    
+    .bottom-sections {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        height: 240px;
+        margin: 20px 0;
+    }
+    
+    .bottom-section {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        border: 1px solid #e5e8eb;
+        overflow-y: auto;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -451,9 +488,9 @@ def parse_wos_format(content):
     if current_record: records.append(current_record)
     return pd.DataFrame(records) if records else None
 
-# --- 라이브 스트리밍 플랫폼 생태계 연구 분류 함수 (사용자 요청 기준 적용) ---
+# --- 라이브 스트리밍 플랫폼 생태계 연구 분류 함수 (수정된 IC/EC 기준 적용) ---
 def classify_article(row):
-    """사용자 요청 포함/배제 기준(IC/EC)을 적용한 논문 분류 함수"""
+    """수정된 IC/EC 기준을 적용한 논문 분류 함수"""
     
     # --- 텍스트 필드 추출 및 결합 (소문자 변환) ---
     def extract_text(value):
@@ -462,76 +499,129 @@ def classify_article(row):
     title = extract_text(row.get('TI', ''))
     abstract = extract_text(row.get('AB', ''))
     author_keywords = extract_text(row.get('DE', ''))
-    wos_keywords = extract_text(row.get('ID', ''))
-    
-    # IC1-A는 제목, 초록, 키워드를 모두 검색 범위로 함
-    full_text_for_keywords = ' '.join([title, abstract, author_keywords, wos_keywords])
+    keywords_plus = extract_text(row.get('ID', ''))
+    full_text = ' '.join([title, abstract, author_keywords, keywords_plus])
     
     document_type = extract_text(row.get('DT', ''))
+    language = extract_text(row.get('LA', ''))
 
-    # --- 키워드 셋 정의 ---
-    # IC1-A (핵심 키워드)
-    core_keywords = [
-        'live stream', 'livestream', 'twitch', 'live commerce', 'streamer', 
-        'real-time interaction', 'youtube live', 'facebook live', 'tiktok live', 
-        'periscope', 'bilibili live', 'afreecatv', 'chzzk', 'kick live'
+    # --- 핵심 플랫폼 키워드 (부록 A 기반 45개 키워드) ---
+    core_platform_keywords = [
+        'live stream', 'live streaming', 'livestream', 'livestreaming',
+        'twitch', 'youtube live', 'facebook live', 'instagram live',
+        'live commerce', 'live shopping', 'live selling',
+        'streamer', 'streamers', 'content creator', 'influencer',
+        'real-time interaction', 'real-time engagement', 'live chat',
+        'streaming platform', 'streaming service', 'broadcasting platform',
+        'live broadcast', 'live broadcasting', 'live video',
+        'streaming economy', 'creator economy', 'digital creator',
+        'parasocial', 'parasocial relationship', 'virtual interaction',
+        'donation', 'tipping', 'super chat', 'bits',
+        'follower', 'subscriber', 'viewer engagement',
+        'streaming technology', 'live streaming technology',
+        'esports streaming', 'game streaming', 'gaming stream',
+        'live event', 'virtual event', 'online performance',
+        'streaming ecosystem', 'content monetization',
+        'audience participation', 'viewer interaction',
+        'synchronous communication', 'real-time communication'
     ]
     
-    # IC1-B (연구 차원)
-    dimension_keywords = {
-        'Technical': ['latency', 'qos', 'quality of service', 'qoe', 'quality of experience', 'protocol', 'bandwidth', 'codec', 'network', 'infrastructure'],
-        'Platform': ['ecosystem', 'governance', 'algorithm', 'monetization', 'business model', 'platform'],
-        'User': ['behavior', 'motivation', 'engagement', 'community', 'psychology', 'user', 'viewer', 'audience', 'parasocial', 'participation'],
-        'Commercial': ['commerce', 'marketing', 'sales', 'roi', 'purchase', 'influencer', 'advertising', 'monetization'],
-        'Social': ['culture', 'identity', 'social impact', 'fandom', 'community', 'cultural'],
-        'Educational': ['learning', 'teaching', 'virtual classroom', 'education']
+    # --- 6개 연구 차원별 키워드 ---
+    research_dimensions = {
+        'Technical': [
+            'latency', 'qos', 'quality of service', 'protocol', 'bandwidth',
+            'streaming protocol', 'rtmp', 'webrtc', 'cdn', 'content delivery',
+            'video encoding', 'bitrate', 'frame rate', 'resolution',
+            'network performance', 'streaming quality', 'buffering'
+        ],
+        'Platform': [
+            'ecosystem', 'governance', 'algorithm', 'monetization',
+            'platform economy', 'business model', 'revenue model',
+            'platform strategy', 'digital platform', 'marketplace',
+            'content moderation', 'platform policy', 'platform design'
+        ],
+        'User': [
+            'behavior', 'motivation', 'engagement', 'community',
+            'user experience', 'viewer behavior', 'audience behavior',
+            'psychological', 'social psychology', 'user study',
+            'user engagement', 'participation', 'interaction patterns'
+        ],
+        'Commercial': [
+            'commerce', 'marketing', 'sales', 'roi', 'return on investment',
+            'advertising', 'brand', 'promotion', 'consumer behavior',
+            'purchase intention', 'buying behavior', 'e-commerce',
+            'digital marketing', 'influencer marketing'
+        ],
+        'Social': [
+            'culture', 'identity', 'social impact', 'fandom',
+            'social interaction', 'community building', 'social media',
+            'cultural impact', 'social phenomena', 'digital culture',
+            'online community', 'social network'
+        ],
+        'Educational': [
+            'learning', 'teaching', 'virtual classroom', 'education',
+            'online learning', 'e-learning', 'educational technology',
+            'distance learning', 'virtual learning', 'pedagogy',
+            'educational platform', 'learning management'
+        ]
     }
-
-    # EC1 (도메인 관련성 부재)
+    
+    # --- 의료/군사 도메인 키워드 (EC1 배제용) ---
     irrelevant_domain_keywords = [
-        'remote surgery', 'medical signal', 'military', 'satellite image', 'astronomy',
-        'seismic', 'geological', 'telemedicine', 'vehicular network', 'drone video'
+        'surgery', 'surgical', 'medical', 'hospital', 'patient',
+        'military', 'defense', 'satellite', 'surveillance', 'warfare',
+        'telemedicine', 'remote surgery', 'medical streaming'
     ]
     
-    # EC3 (학술적 형태 부적합)
-    non_academic_types = ['editorial', 'news', 'correction', 'short commentary', 'conference abstract', 'letter', 'book review']
-
+    # --- 학술적 형태 부적합 키워드 (EC3 배제용) ---
+    non_academic_types = [
+        'editorial', 'book review', 'letter', 'note', 'correction', 
+        'news item', 'commentary', 'short communication'
+    ]
+    
     # --- 분류 로직 (계층적 필터링) ---
     
-    # 1. EC3 (학술적 형태 부적합)
-    if any(doc_type in document_type for doc_type in non_academic_types):
-        return 'Exclude - EC3 (학술적 형태 부적합)'
-
-    # 2. IC2 (학술적 기여 - 형태)
+    # EC3: 학술적 형태 부적합
     if not any(doc_type in document_type for doc_type in ['article', 'review']):
-        return 'Exclude - IC2 위배 (학술적 기여 부족)'
-
-    # 3. EC1 (도메인 관련성 부재)
-    if any(kw in full_text_for_keywords for kw in irrelevant_domain_keywords):
-        return 'Exclude - EC1 (도메인 관련성 부재)'
-        
-    # 4. IC1-A (핵심 키워드 포함 여부)
-    if not any(kw in full_text_for_keywords for kw in core_keywords):
-        return 'Exclude - IC1 위배 (핵심 키워드 부재)'
-
-    # 5. EC2 (부차적 언급) - 제목에 핵심 키워드가 없는 경우
-    if not any(kw in title for kw in core_keywords):
-        return 'Exclude - EC2 (부차적 언급)'
-
-    # 6. IC1-B (연구 차원 부합)
-    matched_dimensions = []
-    for dim, kws in dimension_keywords.items():
-        if any(kw in full_text_for_keywords for kw in kws):
-            matched_dimensions.append(dim)
+        return 'Exclude - EC3 (학술적 형태 부적합)'
+    if any(exclude_type in document_type for exclude_type in non_academic_types):
+        return 'Exclude - EC3 (학술적 형태 부적합)'
     
-    if len(matched_dimensions) == 1:
-        return f'Include - {matched_dimensions[0]}'
+    # IC1-A: 핵심 키워드 포함 여부 확인
+    has_core_keyword = any(keyword in full_text for keyword in core_platform_keywords)
+    if not has_core_keyword:
+        return 'Exclude - IC1-A (핵심 키워드 부재)'
+    
+    # EC1: 도메인 관련성 부재 (의료/군사 등)
+    if any(keyword in full_text for keyword in irrelevant_domain_keywords):
+        return 'Exclude - EC1 (도메인 관련성 부재)'
+    
+    # EC2: 부차적 언급 체크
+    # (1) 제목에 스트리밍 관련 핵심 키워드가 없고
+    title_has_streaming = any(keyword in title for keyword in core_platform_keywords[:20])  # 주요 키워드만
+    
+    # (2) 초록에서 스트리밍 관련 문장 비중이 10% 미만이며
+    streaming_sentences = sum(1 for keyword in core_platform_keywords if keyword in abstract)
+    total_abstract_length = len(abstract.split())
+    streaming_ratio = (streaming_sentences * 10) / max(total_abstract_length, 1)  # 대략적 비율 계산
+    
+    if not title_has_streaming and streaming_ratio < 0.1 and total_abstract_length > 50:
+        return 'Exclude - EC2 (부차적 언급)'
+    
+    # IC1-B: 연구 차원 부합 여부 확인
+    matched_dimensions = []
+    for dim, keywords in research_dimensions.items():
+        if any(keyword in full_text for keyword in keywords):
+            matched_dimensions.append(f'Include - {dim}')
+    
+    if len(matched_dimensions) == 0:
+        return 'Review - 연구 차원 불명확'
+    elif len(matched_dimensions) == 1:
+        return matched_dimensions[0]
     elif len(matched_dimensions) > 1:
         return 'Include - Multidisciplinary'
     else:
-        # 핵심 기준은 통과했으나, 6개 차원에 명확히 속하지 않는 경우
-        return 'Review - Contribution Unclear'
-
+        return 'Review - 기여도 불명확'
 
 # --- WOS Plain Text 형식 변환 함수 ---
 def convert_to_scimat_wos_format(df_to_convert):
@@ -641,10 +731,14 @@ if uploaded_files:
         processing_rate = (len(df_included) / total_papers_before_filter * 100) if total_papers_before_filter > 0 else 0
         st.markdown(f"""<div class="metric-card"><div class="metric-icon">📊</div><div class="metric-value">{processing_rate:.1f}%</div><div class="metric-label">최종 포함 비율<br><small>(Inclusion Rate)</small></div></div>""", unsafe_allow_html=True)
     with col4:
-        st.markdown(f"""<div class="metric-card" style="padding-bottom: 50px;"><div class="metric-icon" style="background-color: #ef4444;">⛔</div><div class="metric-value">{total_excluded:,}</div><div class="metric-label">학술적 배제<br><small>(Excluded Papers)</small></div><div style="position: absolute; bottom: 10px; right: 15px;">""", unsafe_allow_html=True)
-        if st.button("상세보기", key="exclude_details_button"): # 버튼 수정
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon metric-icon-red">⛔</div>
+            <div class="metric-value">{total_excluded:,}</div>
+            <div class="metric-label">학술적 배제 상세보기<br><small>(Excluded Papers)</small></div>""", unsafe_allow_html=True)
+        if st.button("상세보기", key="exclude_details_button", type="secondary"):
             st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
-        st.markdown("</div></div>", unsafe_allow_html=True) # div 닫기 수정
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # --- 선정 기준 설명 UI (수정됨) ---
     st.markdown("""
@@ -655,26 +749,33 @@ if uploaded_files:
     with ic_col:
         st.markdown('<h5 style="color: #10b981;">✅ 포함 기준 (Inclusion Criteria)</h5>', unsafe_allow_html=True)
         st.markdown("""
-        - **IC1 (주제 관련성):** 논문은 다음 A와 B 조건을 모두 충족해야 합니다.
-            - **A. 핵심 키워드 포함:** 제목, 초록, 또는 저자 키워드에 `live stream*`, `Twitch`, `live commerce`, `streamer`, `real-time interaction` 등 핵심 플랫폼 키워드 중 하나 이상을 포함해야 합니다.
-            - **B. 연구 차원 부합:** 내용이 아래 6개 연구 차원 중 하나 이상에 명확히 부합해야 합니다.
-                - **Technical:** latency, QoS, protocol 등
-                - **Platform:** ecosystem, governance, algorithm 등
-                - **User:** behavior, motivation, engagement 등
-                - **Commercial:** commerce, marketing, sales 등
-                - **Social:** culture, identity, social impact 등
-                - **Educational:** learning, teaching, virtual classroom 등
-        - **IC2 (학술적 기여):** 동료 심사를 거친 학술지 논문(Article) 또는 리뷰(Review)여야 합니다.
+        **IC1 (주제 관련성):** 논문은 다음 A와 B 조건을 모두 충족해야 한다.
+        
+        - **A. 핵심 키워드 포함:** 제목, 초록, 또는 저자 키워드에 핵심 플랫폼 키워드(예: live stream*, Twitch, live commerce, streamer, real-time interaction 등 45개 키워드) 중 하나 이상을 포함해야 한다.
+        
+        - **B. 연구 차원 부합:** 내용이 아래 6개 연구 차원 중 하나 이상에 명확히 부합해야 한다:
+            1. **Technical:** latency, QoS, protocol, bandwidth 등
+            2. **Platform:** ecosystem, governance, algorithm, monetization 등
+            3. **User:** behavior, motivation, engagement, community 등
+            4. **Commercial:** commerce, marketing, sales, ROI 등
+            5. **Social:** culture, identity, social impact, fandom 등
+            6. **Educational:** learning, teaching, virtual classroom 등
+        
+        **IC2 (학술적 기여):** 동료 심사를 거친 학술지 논문(Article) 또는 리뷰(Review)로서, 실증 데이터, 이론적 프레임워크, 또는 체계적 분석을 포함해야 한다.
         """)
     with ec_col:
-        st.markdown('<h5 style="color: #ef4444;">⛔️ 제외 기준 (Exclusion Criteria)</h5>', unsafe_allow_html=True)
+        st.markdown('<h5 style="color: #ef4444;">⛔️ 배제 기준 (Exclusion Criteria)</h5>', unsafe_allow_html=True)
         st.markdown("""
-        - **EC1 (도메인 관련성 부재):** 라이브 스트리밍 기술을 사용하지만, 연구의 핵심 도메인이 생태계와 무관한 경우 (예: 원격 수술, 군사 작전).
-        - **EC2 (부차적 언급):** 제목에 스트리밍 관련 핵심 키워드가 없고, 연구의 핵심 목적이 스트리밍과 무관한 경우.
-        - **EC3 (학술적 형태 부적합):** 동료 심사를 거치지 않은 사설(editorial), 뉴스(news), 정오표(correction), 단신(short commentary) 등.
+        - **EC1 (도메인 관련성 부재):** 라이브 스트리밍 기술을 사용하지만, 연구의 핵심 도메인이 생태계와 무관한 경우. (예: 원격 수술을 위한 의료 신호 스트리밍, 군사 작전을 위한 위성 영상 스트리밍)
+        
+        - **EC2 (부차적 언급):** 다음 조건에 모두 해당하는 경우 배제한다: 
+            (1) 제목에 스트리밍 관련 핵심 키워드가 없고, 
+            (2) 초록에서 스트리밍 관련 문장의 비중이 전체의 10% 미만이며, 
+            (3) 연구의 핵심 목적/질문이 스트리밍과 무관한 경우.
+        
+        - **EC3 (학술적 형태 부적합):** 동료 심사를 거치지 않은 사설(editorial), 뉴스(news), 정오표(correction), 1-2 페이지 분량의 단신(short commentary) 및 콘퍼런스 초록(conference abstract only).
         """)
     st.markdown("</div>", unsafe_allow_html=True)
-
 
     # --- 배제된 논문 상세 정보 ---
     if st.session_state.get('show_exclude_details', False) and total_excluded > 0:
@@ -693,18 +794,17 @@ if uploaded_files:
             
             df_excluded_download = df_excluded[cols_to_download + ['Classification']]
 
-
             excel_buffer = io.BytesIO()
             with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
                 df_excluded_download.to_excel(writer, sheet_name='Excluded_Papers', index=False)
             
-            st.download_button(label="(다운로드)", data=excel_buffer.getvalue(), file_name="excluded_papers.xlsx", mime="application/vnd.ms-excel", use_container_width=True)
+            st.download_button(label="Excel 다운로드", data=excel_buffer.getvalue(), file_name="excluded_papers.xlsx", mime="application/vnd.ms-excel", use_container_width=True)
 
             # 화면에는 2개 샘플만 표시
             exclusion_reasons = df_excluded['Classification'].unique()
             for reason in sorted(exclusion_reasons):
                 ec_papers = df_excluded[df_excluded['Classification'] == reason]
-                st.markdown(f"""<div style="margin: 12px 0; padding: 16px; background: white; border-left: 4px solid #f43f5e; border-radius: 12px;"><strong style="color: #be123c;">{reason}</strong> <span style="color: #8b95a1;">(총 {len(ec_papers)}편 중 2편 샘플)</span></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div style="margin: 12px 0; padding: 16px; background: white; border-left: 4px solid #f43f5e; border-radius: 12px;"><strong style="color: #be123c;">{reason}</strong> <span style="color: #8b95a1;">(이 {len(ec_papers)}편 중 2편 샘플)</span></div>""", unsafe_allow_html=True)
                 for _, paper in ec_papers.head(2).iterrows():
                     st.markdown(f"""<div style="margin: 8px 0 8px 20px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 14px;"><div style="font-weight: 500;">{paper.get('TI', 'N/A')}</div><div style="color: #6b7280; font-size: 12px;">{paper.get('PY', 'N/A')} | {paper.get('SO', 'N/A')}</div></div>""", unsafe_allow_html=True)
             
@@ -714,7 +814,7 @@ if uploaded_files:
     st.markdown(f"""
     <div class="info-panel">
         <h4 style="color: #0064ff; margin-bottom: 16px; font-weight: 700;">📊 학술적 엄밀성 확보</h4>
-        <p style="color: #191f28; margin: 6px 0;"><strong>총 입력:</strong> {total_papers_before_filter:,}편의 논문</p>
+        <p style="color: #191f28; margin: 6px 0;"><strong>이 입력:</strong> {total_papers_before_filter:,}편의 논문</p>
         <p style="color: #191f28; margin: 6px 0;"><strong>배제 적용:</strong> {total_excluded:,}편 제외 ({(total_excluded/total_papers_before_filter*100):.1f}%)</p>
         <p style="color: #191f28; margin: 6px 0;"><strong>최종 분석:</strong> {len(df_final_output):,}편으로 정제된 고품질 데이터셋</p>
         <p style="color: #191f28; margin: 6px 0;"><strong>핵심 연구:</strong> {len(df_included[~df_included['Classification'].str.startswith('Review')]):,}편의 직접 관련 라이브스트리밍 연구 확보</p>
@@ -745,11 +845,12 @@ if uploaded_files:
         'Include - Platform': '플랫폼 생태계',
         'Include - User': '사용자 행태/심리',
         'Include - Commercial': '상업적 활용',
-        'Review - Contribution Unclear': '리뷰/기여도 불분명',
+        'Review - 연구 차원 불명확': '리뷰/차원 불분명',
         'Include - Educational': '교육적 활용',
         'Include - Social': '사회/문화적 영향',
         'Include - Technical': '기술 구현',
-        'Include - Multidisciplinary': '다학제 연구'
+        'Include - Multidisciplinary': '다학제 연구',
+        'Review - 기여도 불명확': '리뷰/기여도 불분명'
     }
     st.markdown("""<div class="chart-container"><div class="chart-title">분류별 상세 분포 (Detailed Distribution by Classification)</div>""", unsafe_allow_html=True)
     sorted_classifications = df_included['Classification'].value_counts()
@@ -757,8 +858,8 @@ if uploaded_files:
         percentage = (count / len(df_included) * 100) if len(df_included) > 0 else 0
         icon = "🔍" if "Review" in classification else "✅"
         color = "#f59e0b" if "Review" in classification else "#10b981"
-        korean_name = classification_mapping.get(classification, classification.replace('Include - ', ''))
-        display_name = f"{korean_name}"
+        korean_name = classification_mapping.get(classification, "")
+        display_name = f"{korean_name}" if korean_name else classification
         st.markdown(f"""
         <div style="margin: 16px 0; padding: 20px; background: white; border-left: 4px solid {color}; border-radius: 12px; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
             <strong>{icon} {display_name}:</strong> {count:,}편 ({percentage:.1f}%)
@@ -809,7 +910,7 @@ if uploaded_files:
             review_excel_buffer = io.BytesIO()
             with pd.ExcelWriter(review_excel_buffer, engine='openpyxl') as writer:
                 df_review[['TI', 'PY', 'SO', 'AU', 'DE', 'ID']].to_excel(writer, sheet_name='Review_Papers', index=False)
-            st.download_button(label="(다운로드)", data=review_excel_buffer.getvalue(), file_name="review_papers.xlsx", mime="application/vnd.ms-excel", use_container_width=True)
+            st.download_button(label="Excel 다운로드", data=review_excel_buffer.getvalue(), file_name="review_papers.xlsx", mime="application/vnd.ms-excel", use_container_width=True)
 
             # 데이터프레임 표시
             st.dataframe(df_review[['TI', 'PY', 'SO', 'AU', 'DE', 'ID']], use_container_width=True, hide_index=True)
@@ -826,13 +927,12 @@ if uploaded_files:
         <p style="color: #191f28; margin: 6px 0;"><strong>SCIMAT 호환:</strong> 완벽한 WOS Plain Text 형식으로 100% 호환성 보장</p>
         <div style="margin-top: 16px; padding: 12px; background: rgba(0,100,255,0.1); border-radius: 8px;">
             <p style='color: #0064ff; margin: 0; font-weight: 600; font-size: 14px;'>
-            💡 <strong>배제 기준 적용률:</strong> {(total_excluded/total_papers_before_filter*100) if total_papers_before_filter > 0 else 0:.1f}% 
+            💡 <strong>배제 기준 적용률:</strong> {(total_excluded/total_papers_before_filter*100):.1f}% 
             - 연구 질문에 직접적으로 기여하는 논문만을 선별하여 분석의 깊이와 신뢰성을 확보했습니다.
             </p>
         </div>
     </div>
     """, unsafe_allow_html=True)
-
 
     # --- 최종 다운로드 ---
     st.markdown("""<div class="section-header"><div class="section-title">📥 최종 파일 다운로드 (Final File Download)</div><div class="section-subtitle">정제된 고품질 WOS Plain Text 파일</div></div>""", unsafe_allow_html=True)
@@ -842,144 +942,49 @@ if uploaded_files:
 # --- 하단 고정 정보 ---
 st.markdown("<br><br>", unsafe_allow_html=True)
 
-with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
-    st.markdown("""
-    **Q: 여러 WOS 파일을 어떻게 한 번에 처리하나요?**
-    A: WOS에서 여러 번 Plain Text 다운로드한 후, 모든 .txt 파일을 한 번에 업로드하면 자동으로 병합됩니다.
+# FAQ와 가이드를 같은 높이로 맞춤
+st.markdown("""
+<div class="bottom-sections">
+    <div class="bottom-section">
+        <h4>❓ 자주 묻는 질문 (FAQ)</h4>
+        <div style="font-size: 13px; line-height: 1.5;">
+            <p><strong>Q: 여러 WOS 파일을 어떻게 한 번에 처리하나요?</strong><br>
+            A: WOS에서 여러 번 Plain Text 다운로드한 후, 모든 .txt 파일을 한 번에 업로드하면 자동으로 병합됩니다.</p>
+            
+            <p><strong>Q: 중복된 논문이 있을까봐 걱정됩니다.</strong><br>
+            A: UT(Unique Article Identifier) 기준으로 자동 중복 제거되며, UT가 없으면 제목+저자 조합으로 중복을 감지합니다.</p>
+            
+            <p><strong>Q: WOS에서 어떤 설정으로 다운로드해야 하나요?</strong><br>
+            A: Export → Record Content: "Full Record and Cited References", File Format: "Plain Text"로 설정하세요. 인용 관계 분석을 위해 참고문헌 정보가 필수입니다.</p>
+            
+            <p><strong>Q: 어떤 기준으로 논문이 배제되나요?</strong><br>
+            A: IC/EC 기준에 따라 주제 관련성, 학술적 형태, 도메인 적합성을 체계적으로 검토하여 분석의 깊이와 신뢰성을 확보합니다.</p>
+        </div>
+    </div>
     
-    **Q: 중복된 논문이 있을까봐 걱정됩니다.**
-    A: UT(Unique Article Identifier) 기준으로 자동 중복 제거되며, UT가 없으면 제목+저자 조합으로 중복을 감지합니다.
-    
-    **Q: WOS에서 어떤 설정으로 다운로드해야 하나요?**
-    A: Export → Record Content: "Full Record and Cited References", File Format: "Plain Text"로 설정하세요. 인용 관계 분석을 위해 참고문헌 정보가 필수입니다.
-    
-    **Q: 어떤 기준으로 논문이 배제되나요?**
-    A: 사회-기술적 맥락이 부재하거나(EC2), 주제의 주변성이 높거나(EC1), 방법론적으로 부적합한(EC4) 연구를 체계적으로 배제하여 분석의 깊이와 신뢰성을 확보합니다.
-    
-    **Q: SCIMAT에서 키워드 정리를 어떻게 하나요?**
-    A: Group set → Word → Find similar words by distances (Maximum distance: 1)로 유사 키워드를 자동 통합하고, Word Group manual set에서 수동으로 관련 키워드들을 그룹화하세요.
-    
-    **Q: SCIMAT 분석 설정은 어떻게 하나요?**
-    A: Unit of Analysis: "Author's words + Source's words", Network Type: "Co-occurrence", Normalization: "Equivalence Index", Clustering: "Simple Centers Algorithm" (Maximum network size: 50)를 권장합니다.
-    
-    **Q: 병합된 파일이 SCIMAT에서 제대로 로딩되지 않습니다.**
-    A: 원본 WOS 파일들이 'FN Clarivate Analytics Web of Science'로 시작하는 정품 Plain Text 파일인지 확인하세요.
-    
-    **Q: SCIMAT에서 Period는 어떻게 설정하나요?**
-    A: 연구 분야의 진화 단계를 반영하여 의미 있게 구분하되, 각 Period당 최소 50편 이상의 논문을 포함하도록 설정하세요.
-    
-    **Q: 몇 개의 파일까지 동시에 업로드할 수 있나요?**
-    A: 기술적으로는 제한이 없지만, 안정성을 위해 10개 이하의 파일을 권장합니다. 매우 큰 데이터셋의 경우 나누어서 처리하세요.
-    """)
-
-with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
-    st.markdown("""
-    ### 필요한 것
-    - SciMAT 소프트웨어 (무료 다운로드)
-    - 다운로드된 WOS Plain Text 파일
-    - Java 1.8 이상
-    
-    ### 1단계: SciMAT 시작하기
-    
-    **새 프로젝트 생성**
-    ```
-    1. SciMAT 실행 (SciMAT.jar 더블클릭)
-    2. File → New Project
-    3. Path: 저장할 폴더 선택
-    4. File name: 프로젝트 이름 입력
-    5. Accept
-    ```
-    
-    **데이터 불러오기**
-    ```
-    1. File → Add Files
-    2. "ISI WoS" 선택
-    3. 다운로드한 txt 파일 선택
-    4. 로딩 완료까지 대기
-    ```
-    
-    ### 2단계: 키워드 정리하기
-    
-    **유사 키워드 자동 통합**
-    ```
-    1. Group set → Word → Find similar words by distances
-    2. Maximum distance: 1 (한 글자 차이)
-    3. 같은 의미 단어들 확인하고 Move로 통합
-    ```
-    의미: 철자가 1글자만 다른 단어들을 찾아서 제안 (예: "platform" ↔ "platforms")
-    
-    **수동으로 키워드 정리**
-    ```
-    1. Group set → Word → Word Group manual set
-    2. Words without group 목록 확인
-    3. 관련 키워드들 선택 후 New group으로 묶기
-    4. 불필요한 키워드 제거
-    ```
-    목적: 데이터 품질 향상, 의미 있는 클러스터 형성
-    
-    ### 3단계: 시간 구간 설정
-    
-    **Period 만들기**
-    ```
-    1. Knowledge base → Periods → Periods manager
-    2. Add 버튼으로 시간 구간 생성:
-       - Period 1: 2000-2006 (태동기)
-       - Period 2: 2007-2016 (형성기)
-       - Period 3: 2017-2021 (확산기)
-       - Period 4: 2022-2025 (융합기)
-    ```
-    원리: 연구 분야의 진화 단계를 반영한 의미 있는 구분
-    
-    **각 Period에 논문 할당**
-    ```
-    1. Period 1 클릭 → Add
-    2. 해당 연도 논문들 선택
-    3. 오른쪽 화살표로 이동
-    4. 다른 Period들도 동일하게 반복
-    ```
-    
-    ### 4단계: 분석 실행
-    
-    **분석 마법사 시작**
-    ```
-    1. Analysis → Make Analysis
-    2. 모든 Period 선택 → Next
-    ```
-    
-    **Step 1-8: 분석 설정**
-    - Unit of Analysis: "Author's words + Source's words"
-    - Data Reduction: Minimum frequency 2
-    - Network Type: "Co-occurrence"
-    - Normalization: "Equivalence Index"
-    - Clustering: "Simple Centers Algorithm" (Max network size: 50)
-    - Document Mapper: "Core Mapper"
-    - Performance Measures: G-index, Sum Citations
-    - Evolution Map: "Jaccard Index"
-    
-    **분석 실행**
-    ```
-    - Finish 클릭
-    - 완료까지 대기 (10-30분)
-    ```
-    
-    ### 5단계: 결과 해석
-    
-    **전략적 다이어그램 4사분면**
-    - 우상단: Motor Themes (핵심 주제)
-    - 좌상단: Specialized Themes (전문화된 주제)
-    - 좌하단: Emerging/Declining Themes (신흥/쇠퇴 주제)
-    - 우하단: Basic Themes (기초 주제)
-    
-    **진화 맵 분석**
-    - 노드 크기 = 논문 수
-    - 연결선 두께 = Jaccard 유사도
-    - 시간에 따른 주제 변화 추적
-    
-    ### 문제 해결
-    - 키워드 정리를 꼼꼼히 (분석품질의 핵심)
-    - Period별 최소 50편 이상 권장
-    - Java 메모리 부족시 재시작
-    - 인코딩 문제시 UTF-8로 변경
-    """)
+    <div class="bottom-section">
+        <h4>📊 WOS → SciMAT 분석 실행 가이드</h4>
+        <div style="font-size: 13px; line-height: 1.5;">
+            <p><strong>1단계: SciMAT 시작하기</strong><br>
+            - 새 프로젝트 생성: File → New Project<br>
+            - 데이터 불러오기: File → Add Files → "ISI WoS"</p>
+            
+            <p><strong>2단계: 키워드 정리하기</strong><br>
+            - 유사 키워드 자동 통합: Group set → Word → Find similar words by distances (Max distance: 1)<br>
+            - 수동 키워드 정리: Word Group manual set에서 관련 키워드들 그루핑</p>
+            
+            <p><strong>3단계: 시간 구간 설정</strong><br>
+            - Knowledge base → Periods → Periods manager<br>
+            - 의미있는 Period 구분 (각 Period당 최소 50편 이상)</p>
+            
+            <p><strong>4단계: 분석 실행</strong><br>
+            - Analysis → Make Analysis<br>
+            - Unit of Analysis: "Author's words + Source's words"<br>
+            - Network Type: "Co-occurrence"<br>
+            - Normalization: "Equivalence Index"</p>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 st.markdown("<br><br>", unsafe_allow_html=True)
