@@ -625,7 +625,7 @@ def diagnose_merged_quality(df, file_count, duplicates_removed):
             total_count = len(df)
             
             if valid_count < total_count * 0.7:
-                issues.append(f"⚠️ {field} 필드의 {((total_count-valid-count)/total_count*100):.1f}%가 비어있음")
+                issues.append(f"⚠️ {field} 필드의 {((total_count-valid_count)/total_count*100):.1f}%가 비어있음")
     
     if not has_keywords:
         issues.append("❌ 키워드 필드 없음: DE 또는 ID 필드 필요")
@@ -1096,7 +1096,7 @@ if uploaded_files:
     # --- 최종 파일 다운로드 섹션 ---
     st.markdown("""
     <div class="section-header">
-        <div class="section-title">📥 데이터 정제 완료 - SCIMAT 분석용 파일 다운로드</div>
+        <div class="section-title">🔥 데이터 정제 완료 - SCIMAT 분석용 파일 다운로드</div>
         <div class="section-subtitle">연구 목표에 맞춰 정제된 최종 데이터셋</div>
     </div>
     """, unsafe_allow_html=True)
@@ -1105,7 +1105,7 @@ if uploaded_files:
     text_data = convert_to_scimat_wos_format(df_final_output)
     
     download_clicked = st.download_button(
-        label="📥 다운로드",
+        label="🔥 다운로드",
         data=text_data,
         file_name=f"live_streaming_refined_for_scimat_{len(df_final_output)}papers.txt",
         mime="text/plain",
@@ -1251,4 +1251,19 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     - 인코딩 문제시 UTF-8로 변경
     """)
 
+st.markdown("<br>", unsafe_allow_html=True)
 
+# 기술 지원 및 추가 정보 (조건부 표시)
+if uploaded_files and 'df_final_output' in locals() and len(df_final_output) > 0:
+    st.markdown("""
+    <div style="text-align: center; padding: 20px; background: #f8fafe; border-radius: 8px; margin-top: 30px; border: 1px solid #e1f2ff;">
+        <p style="color: #1e40af; font-size: 14px; margin: 0;">
+            <strong>한양대학교 기술경영학과 연구실</strong> | 
+            WOS 데이터 전처리 도구 | 
+            SCIMAT 분석 최적화
+        </p>
+        <p style="color: #6b7280; font-size: 12px; margin: 6px 0 0 0;">
+            문의사항이 있으시면 mot.hanyang.ac.kr을 통해 연락주세요
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
