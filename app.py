@@ -507,9 +507,9 @@ def parse_wos_format(content):
         
     return pd.DataFrame(records)
 
-# --- 논문 분류 함수 (EC5 기준 적용) ---
+# --- 논문 분류 함수 (EC2 로직 수정) ---
 def classify_article(row):
-    """논문 계획서의 IC/EC 기준을 적용한 분류 함수 (EC5 포함)"""
+    """EC2 기준을 수정한 논문 분류 함수"""
     
     # --- 텍스트 필드 추출 및 결합 (소문자 변환) ---
     def extract_text(value):
@@ -524,22 +524,13 @@ def classify_article(row):
     document_type = extract_text(row.get('DT', ''))
 
     # --- 키워드 셋 정의 ---
-    # IC1 & EC2 관련
     core_keywords = [
         'live stream', 'livestream', 'live-stream', 'live commerce', 'game streaming', 
         'virtual influencer', 'twitch', 'youtube live', 'facebook live', 'tiktok live'
     ]
-    
-    # EC1 관련
     irrelevant_domain_keywords = ['remote surgery', 'military', 'medical signal']
-    
-    # EC3 관련
     non_academic_types = ['editorial', 'news', 'correction', 'letter', 'book review']
-    
-    # EC4 관련
     non_interactive_keywords = ['vod', 'asynchronous', 'pre-recorded']
-    
-    # EC5 관련
     dimension_keywords = {
         'Technical': ['latency', 'qos', 'qoe', 'protocol', 'bandwidth', 'codec', 'network', 'infrastructure'],
         'Platform': ['ecosystem', 'governance', 'algorithm', 'business model', 'platform'],
@@ -548,36 +539,28 @@ def classify_article(row):
         'Social': ['culture', 'identity', 'social impact', 'fandom', 'community'],
         'Educational': ['learning', 'teaching', 'virtual classroom', 'education']
     }
-    
-    # EC6 관련
     methodology_keywords = ['survey', 'experiment', 'interview', 'case study', 'model', 'ethnography', 'empirical', 'framework', 'analysis', 'mechanism', 'sem']
 
     # --- 1단계 필터링: 기초 선별 ---
     if any(kw in full_text_for_keywords for kw in irrelevant_domain_keywords):
         return 'Exclude - EC1 (도메인 관련성 부재)'
     
-    if sum(1 for kw in core_keywords if kw in abstract) < 2:
+    # 수정된 EC2 로직
+    title_has_core_keyword = any(kw in title for kw in core_keywords)
+    full_text_core_keyword_count = sum(full_text_for_keywords.count(kw) for kw in core_keywords)
+    if not title_has_core_keyword and full_text_core_keyword_count < 2:
         return 'Exclude - EC2 (부차적 언급)'
-        
+
     if any(doc_type in document_type for doc_type in non_academic_types):
         return 'Exclude - EC3 (학술적 형태 부적합)'
-        
     if any(kw in full_text_for_keywords for kw in non_interactive_keywords):
         return 'Exclude - EC4 (실시간 상호작용성 부재)'
-
-    # --- 2단계 필터링: 핵심 속성 검증 ---
-    matched_dimensions = [dim for dim, kws in dimension_keywords.items() if any(kw in full_text_for_keywords for kw in kws)]
-    
-    # EC5: 연구 차원 단일
-    if len(matched_dimensions) < 2:
-        return 'Exclude - EC5 (연구 차원 단일)'
-        
-    # EC6: 연구 방법론 부재
     if not any(kw in full_text_for_keywords for kw in methodology_keywords):
         return 'Exclude - EC6 (연구 방법론 부재)'
 
-    # --- 최종 분류: 모든 배제 기준 통과 (Include) ---
-    # 가상 분류 체계 적용 (향후 VOSviewer 결과에 따라 변경될 수 있음)
+    # --- 2단계 필터링 & 최종 분류: 연구 차원 기반 ---
+    matched_dimensions = [dim for dim, kws in dimension_keywords.items() if any(kw in full_text_for_keywords for kw in kws)]
+    
     classification_map = {
         'Technical': 'C1: 기술 및 인프라 (Technical & Infrastructure)',
         'Platform': 'C2: 플랫폼 및 생태계 (Platforms & Ecosystems)',
@@ -586,9 +569,13 @@ def classify_article(row):
         'Social': 'C5: 사회 및 문화적 영향 (Social & Cultural Impacts)',
         'Educational': 'C6: 교육 및 학습 (Education & Learning)',
     }
-    
-    # 다수 차원에 걸쳐 있으므로 '다학제 연구'로 우선 분류
-    return 'C7: 다학제 연구 (Multidisciplinary)'
+
+    if len(matched_dimensions) == 0:
+        return 'Exclude - EC5 (연구 차원 부재)'
+    elif len(matched_dimensions) == 1:
+        return classification_map[matched_dimensions[0]]
+    else: # len(matched_dimensions) > 1
+        return 'C7: 다학제 연구 (Multidisciplinary)'
 
 
 # --- 데이터 품질 진단 함수 ---
@@ -897,13 +884,13 @@ if uploaded_files:
         <p><b>1단계: 기초 선별 (기본 자격 검증)</b></p>
         <ul>
             <li><b>EC1 (도메인 관련성 부재)</b>: 원격 수술, 군사 작전 등 라이브 스트리밍 생태계와 무관한 경우</li>
-            <li><b>EC2 (부차적 언급)</b>: 초록 내 핵심 키워드 등장 빈도가 2회 미만인 경우</li>
+            <li><b>EC2 (부차적 언급)</b>: <strong>제목</strong>에 핵심 키워드가 없으면서, <strong>전체 텍스트(제목+초록+키워드)</strong>에서도 키워드 빈도가 2회 미만인 경우</li>
             <li><b>EC3 (학술적 형태 부적합)</b>: 사설(editorial), 뉴스(news) 등 비학술 자료</li>
             <li><b>EC4 (실시간 상호작용성 부재)</b>: VOD, 비동기(asynchronous) 영상 등 실시간 상호작용이 없는 경우</li>
         </ul>
         <p><b>2단계: 핵심 속성 검증 (연구의 깊이 및 엄밀성 검증)</b></p>
         <ul>
-            <li><b>EC5 (연구 차원 단일)</b>: 기술, 플랫폼, 사용자 등 연구 차원이 1개에만 국한될 경우</li>
+            <li><b>EC5 (연구 차원 부재)</b>: 기술, 플랫폼, 사용자 등 6개 연구 차원 중 어느 것에도 해당하지 않을 경우</li>
             <li><b>EC6 (연구 방법론 부재)</b>: survey, model 등 실증적 연구 방법론이 명시되지 않은 경우</li>
         </ul>
         </div>
@@ -999,26 +986,9 @@ if uploaded_files:
     # --- 포함된 논문의 가상 분류 현황 ---
     st.markdown("""
     <div class="chart-container">
-        <div class="chart-title">포함된 논문의 가상 분류 분포 (VOSviewer 분석 전)</div>
+        <div class="chart-title">포함된 논문의 분류 분포 (Classification Distribution)</div>
     """, unsafe_allow_html=True)
     
-    st.markdown("""
-    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; margin-bottom: 20px;">
-    <h5 style="margin-bottom: 10px;">가상 분류 기준 (Illustrative Classification Scheme)</h5>
-    <p style="font-size: 13px; color: #8b95a1;">참고: 아래 분류는 정제된 데이터를 시각화하기 위한 예시이며, 최종 클러스터는 VOSviewer 분석을 통해 확정됩니다.</p>
-    <ul style="list-style-type: none; padding-left: 0;">
-        <li style="margin-bottom: 5px;"><span style="color: #1f77b4; font-weight: bold;">C1:</span> 기술 및 인프라 (Technical & Infrastructure)</li>
-        <li style="margin-bottom: 5px;"><span style="color: #d62728; font-weight: bold;">C2:</span> 플랫폼 및 생태계 (Platforms & Ecosystems)</li>
-        <li style="margin-bottom: 5px;"><span style="color: #2ca02c; font-weight: bold;">C3:</span> 사용자 경험 및 심리 (User Experience & Psychology)</li>
-        <li style="margin-bottom: 5px;"><span style="color: #ff7f0e; font-weight: bold;">C4:</span> 라이브 커머스 및 수익화 (Live Commerce & Monetization)</li>
-        <li style="margin-bottom: 5px;"><span style="color: #9467bd; font-weight: bold;">C5:</span> 사회 및 문화적 영향 (Social & Cultural Impacts)</li>
-        <li style="margin-bottom: 5px;"><span style="color: #8c564b; font-weight: bold;">C6:</span> 교육 및 학습 (Education & Learning)</li>
-        <li style="margin-bottom: 5px;"><span style="color: #7f7f7f; font-weight: bold;">C7:</span> 다학제 연구 (Multidisciplinary)</li>
-    </ul>
-    </div>
-    """, unsafe_allow_html=True)
-
-
     classification_counts_df = df_for_analysis['Classification'].value_counts().reset_index()
     classification_counts_df.columns = ['분류 (Classification)', '논문 수 (Count)']
 
@@ -1167,7 +1137,7 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     **데이터 불러오기**
     ```
     1. File → Add Files
-    2. "ISI WoS" 선택
+    2. "ISI WOS" 선택
     3. 다운로드한 txt 파일 선택
     4. 로딩 완료까지 대기
     ```
