@@ -32,7 +32,7 @@ st.markdown("""
         margin-bottom: 12px;
         transition: all 0.2s ease;
         position: relative; /* For button positioning */
-        height: 100%; /* 동일한 높이를 위한 수정 */
+        height: 100%; 
     }
     
     .metric-card:hover {
@@ -331,7 +331,6 @@ st.markdown("""
 
 # --- 다중 WOS Plain Text 파일 로딩 및 병합 함수 ---
 def load_and_merge_wos_files(uploaded_files):
-    """다중 WOS Plain Text 파일을 로딩하고 병합 - 중복 제거 완전 수정"""
     all_dataframes = []
     file_status = []
     
@@ -423,7 +422,6 @@ def load_and_merge_wos_files(uploaded_files):
         return None, file_status, 0
 
 def parse_wos_format(content):
-    """WOS Plain Text 형식을 DataFrame으로 변환"""
     lines = content.split('\n')
     records = []
     current_record = {}
@@ -451,11 +449,10 @@ def parse_wos_format(content):
     if current_record: records.append(current_record)
     return pd.DataFrame(records) if records else None
 
-# --- 라이브 스트리밍 플랫폼 생태계 연구 분류 함수 (2단계 필터링 적용 최종본) ---
+# --- 라이브 스트리밍 플랫폼 생태계 연구 분류 함수 (2단계 필터링 + 키워드 확장 최종본) ---
 def classify_article(row):
     """2단계 필터링(Two-Step Filtering)을 적용한 논문 분류 함수"""
     
-    # --- 텍스트 필드 추출 및 결합 (소문자 변환) ---
     def extract_text(value):
         return str(value).lower().strip() if pd.notna(value) else ""
     
@@ -467,15 +464,12 @@ def classify_article(row):
     full_text_for_keywords = ' '.join([title, abstract, author_keywords, wos_keywords])
     document_type = extract_text(row.get('DT', ''))
 
-    # --- 키워드 셋 정의 ---
-    # IC1-A (핵심 키워드)
     core_keywords = [
         'live stream', 'livestream', 'live-streaming', 'twitch', 'live commerce', 'streamer', 
         'real-time interaction', 'youtube live', 'facebook live', 'tiktok live', 
         'periscope', 'bilibili live', 'afreecatv', 'chzzk', 'kick live'
     ]
     
-    # IC1-B (연구 차원)
     dimension_keywords = {
         'Technical': ['latency', 'qos', 'quality of service', 'qoe', 'quality of experience', 'protocol', 'bandwidth', 'codec', 'network', 'infrastructure'],
         'Platform': ['ecosystem', 'governance', 'algorithm', 'business model', 'platform'],
@@ -485,70 +479,51 @@ def classify_article(row):
         'Educational': ['learning', 'teaching', 'virtual classroom', 'education']
     }
 
-    # EC1 (도메인 관련성 부재)
     irrelevant_domain_keywords = [
         'remote surgery', 'medical signal', 'military', 'satellite image', 'astronomy',
         'seismic', 'geological', 'telemedicine', 'vehicular network', 'drone video'
     ]
     
-    # EC3 (학술적 형태 부적합)
     non_academic_types = ['editorial', 'news', 'correction', 'short commentary', 'conference abstract', 'letter', 'book review']
     
-    # EC4 (실시간 상호작용성 부재)
     non_interactive_keywords = ['vod', 'video on demand', 'asynchronous', 'pre-recorded', 'one-way video']
 
-    # 2B 단계 (연구 방법론)
     methodology_keywords = [
         'survey', 'experiment', 'interview', 'case study', 'qualitative', 'quantitative', 
-        'model', 'ethnography', 'empirical', 'framework', 'algorithm', 'protocol', 'analysis'
+        'model', 'ethnography', 'empirical', 'framework', 'algorithm', 'protocol', 'analysis',
+        'mechanism', 'effect', 'impact', 'influence', 'antecedent', 'consequence', 
+        'structural equation model', 'sem', 'review', 'meta-analysis'
     ]
 
     # --- 1단계 필터링 (기초 선별) ---
-    
-    # 1. EC3 (학술적 형태 부적합)
     if any(doc_type in document_type for doc_type in non_academic_types):
         return 'Exclude - EC3 (학술적 형태 부적합)'
-
-    # 2. IC2 (학술적 기여 - 형태)
     if not any(doc_type in document_type for doc_type in ['article', 'review']):
         return 'Exclude - IC2 위배 (학술적 기여 부족)'
-
-    # 3. EC1 (도메인 관련성 부재)
     if any(kw in full_text_for_keywords for kw in irrelevant_domain_keywords):
         return 'Exclude - EC1 (도메인 관련성 부재)'
-    
-    # 4. EC4 (실시간 상호작용성 부재)
     if any(kw in full_text_for_keywords for kw in non_interactive_keywords):
         return 'Exclude - EC4 (실시간 상호작용성 부재)'
-        
-    # 5. IC1-A (핵심 키워드 포함 여부)
     if not any(kw in full_text_for_keywords for kw in core_keywords):
         return 'Exclude - IC1 위배 (핵심 키워드 부재)'
-
-    # 6. EC2 (부차적 언급)
     abstract_keyword_count = sum(abstract.count(kw) for kw in core_keywords)
     if abstract_keyword_count < 2:
         return 'Exclude - EC2 (부차적 언급)'
 
     # --- 2단계 필터링 (핵심 연구 속성 검증) ---
-    
-    # 연구 차원 매칭
     matched_dimensions = []
     for dim, kws in dimension_keywords.items():
         if any(kw in full_text_for_keywords for kw in kws):
             matched_dimensions.append(dim)
     
-    # 7. (2A) 연구 차원 조합 필터링 (EC5)
     if len(matched_dimensions) < 2:
         return 'Exclude - EC5 (연구 차원 단일)'
-        
-    # 8. (2B) 연구 방법론 키워드 필터링 (EC6)
     if not any(kw in full_text_for_keywords for kw in methodology_keywords):
         return 'Exclude - EC6 (연구 방법론 부재)'
 
     # --- 최종 분류 ---
-    # 2단계 필터링을 통과한 논문은 다학제적 연구로 간주
-    return 'Include - Multidisciplinary'
+    # 2단계 필터링을 통과하면 핵심 연구로 분류. 세부 분류는 제거.
+    return 'Include - Core Research'
 
 
 # --- WOS Plain Text 형식 변환 함수 ---
@@ -633,6 +608,7 @@ if uploaded_files:
     
     df_excluded = merged_df[merged_df['Classification'].str.startswith('Exclude', na=False)]
     df_included = merged_df[~merged_df['Classification'].str.startswith('Exclude', na=False)].copy()
+    # 2단계 필터링에서는 Review 카테고리가 없으므로 df_review 생성 로직 제거
     
     st.success(f"✅ 병합 및 정제 완료! {successful_files}개 파일에서 최종 {len(df_included):,}편의 논문을 처리했습니다.")
     if duplicates_removed > 0:
@@ -692,32 +668,56 @@ if uploaded_files:
 
     # --- 배제된 논문 상세 정보 ---
     if st.session_state.get('show_exclude_details', False) and total_excluded > 0:
-        st.markdown("""<div class="chart-container"><div class="chart-title">배제 사유별 분포 (Distribution by Exclusion Reason)</div>""", unsafe_allow_html=True)
-        
-        exclusion_reason_df = df_excluded['Classification'].str.replace('Exclude - ', '').value_counts().reset_index()
-        exclusion_reason_df.columns = ['Exclusion Reason', 'Count']
-
-        bar_chart = alt.Chart(exclusion_reason_df).mark_bar().encode(
-            x=alt.X('Count:Q', title='논문 수'),
-            y=alt.Y('Exclusion Reason:N', title='배제 사유', sort='-x'),
-            tooltip=['Exclusion Reason', 'Count']
-        ).properties(height=300)
-        
-        st.altair_chart(bar_chart, use_container_width=True)
-
-        with st.expander("배제 논문 상세 목록 보기 (최대 100개 샘플)"):
-            st.dataframe(df_excluded[['TI', 'PY', 'SO', 'Classification']].head(100), use_container_width=True)
+        with st.container():
+            st.markdown("""<div style="background: #fff1f2; padding: 20px; border-radius: 12px; margin: 20px 0; border: 1px solid #ffdde0;"><h4 style="color: #be123c;">⛔ 제외 논문 상세 (Excluded Papers Details)</h4>""", unsafe_allow_html=True)
             
-            # 다운로드 버튼
-            excel_buffer = io.BytesIO()
-            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                df_excluded[['TI', 'AU', 'PY', 'SO', 'AB', 'Classification']].to_excel(writer, sheet_name='Excluded_Papers', index=False)
-            st.download_button(label="전체 배제 목록 다운로드 (Excel)", data=excel_buffer.getvalue(), file_name="excluded_papers.xlsx", mime="application/vnd.ms-excel", use_container_width=True)
+            exclusion_reasons = df_excluded['Classification'].unique()
+            for reason in sorted(exclusion_reasons):
+                ec_papers = df_excluded[df_excluded['Classification'] == reason]
+                st.markdown(f"""<div style="margin: 12px 0; padding: 16px; background: white; border-left: 4px solid #f43f5e; border-radius: 12px;"><strong style="color: #be123c;">{reason}</strong> <span style="color: #8b95a1;">(총 {len(ec_papers)}편 중 2편 샘플)</span></div>""", unsafe_allow_html=True)
+                for _, paper in ec_papers.head(2).iterrows():
+                    st.markdown(f"""<div style="margin: 8px 0 8px 20px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 14px;"><div style="font-weight: 500;">{paper.get('TI', 'N/A')}</div><div style="color: #6b7280; font-size: 12px;">{paper.get('PY', 'N/A')} | {paper.get('SO', 'N/A')}</div></div>""", unsafe_allow_html=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+    
+    # --- 논문 분류 현황 ---
+    st.markdown("""<div class="chart-container"><div class="chart-title">포함된 연구의 분류 분포 (Distribution of Included Research)</div>""", unsafe_allow_html=True)
+    classification_counts_df = df_included['Classification'].value_counts().reset_index()
+    classification_counts_df.columns = ['Classification (분류)', 'Count (논문 수)']
+    
+    c1, c2 = st.columns([0.4, 0.6])
+    with c1:
+        st.dataframe(classification_counts_df, use_container_width=True, hide_index=True)
+    with c2:
+        chart = alt.Chart(classification_counts_df).mark_arc(innerRadius=90, outerRadius=150).encode(
+            theta=alt.Theta(field="Count (논문 수)", type="quantitative", stack=True),
+            color=alt.Color(field="Classification (분류)", type="nominal", title="Research Topic (연구 분야)", scale=alt.Scale(scheme='tableau20')),
+            tooltip=['Classification (분류)', 'Count (논문 수)']
+        )
+        text_total = alt.Chart(pd.DataFrame({'value': [f'{len(df_included)}']})).mark_text(align='center', baseline='middle', fontSize=45, fontWeight='bold', color='#0064ff').encode(text='value:N')
+        text_label = alt.Chart(pd.DataFrame({'value': ['Core Research']})).mark_text(align='center', baseline='middle', fontSize=16, dy=30, color='#8b95a1').encode(text='value:N')
+        st.altair_chart((chart + text_total + text_label).properties(width=350, height=350).configure_view(strokeWidth=0), use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- 분류별 상세 분포 ---
+    st.markdown("""<div class="chart-container"><div class="chart-title">분류별 상세 분포 (Detailed Distribution by Classification)</div>""", unsafe_allow_html=True)
+    sorted_classifications = df_included['Classification'].value_counts()
+    for classification, count in sorted_classifications.items():
+        percentage = (count / len(df_included) * 100) if len(df_included) > 0 else 0
+        icon = "✅"
+        color = "#10b981"
+        display_name = "핵심 연구 (Core Research)"
+        st.markdown(f"""
+        <div style="margin: 16px 0; padding: 20px; background: white; border-left: 4px solid {color}; border-radius: 12px; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <strong>{icon} {display_name}:</strong> {count:,}편 ({percentage:.1f}%)
+        </div>
+        """, unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
     # --- 연도별 연구 동향 ---
-    if 'PY' in df_final_output.columns:
-        st.markdown("""<div class="chart-container"><div class="chart-title">최종 선정 논문의 연도별 연구 동향 (Publication Trend of Final Papers)</div>""", unsafe_allow_html=True)
+    if not df_final_output.empty and 'PY' in df_final_output.columns:
+        st.markdown("""<div class="chart-container"><div class="chart-title">연도별 연구 동향 (Publication Trend by Year)</div>""", unsafe_allow_html=True)
         df_trend = df_final_output.copy()
         df_trend['PY'] = pd.to_numeric(df_trend['PY'], errors='coerce')
         df_trend.dropna(subset=['PY'], inplace=True)
@@ -731,7 +731,24 @@ if uploaded_files:
         ).properties(height=300)
         st.altair_chart(line_chart, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
-
+    
+    # --- 키워드 품질 확인 ---
+    st.markdown("""<div class="chart-container"><div class="chart-title">정제된 데이터 키워드 품질 확인</div>""", unsafe_allow_html=True)
+    sample_data = []
+    sample_rows = df_included.head(3)
+    for _, row in sample_rows.iterrows():
+        de_keywords = str(row.get('DE', 'N/A'))
+        id_keywords = str(row.get('ID', 'N/A'))
+        sample_data.append({
+            '논문 제목': str(row.get('TI', 'N/A')),
+            'DE 키워드': de_keywords,
+            'ID 키워드': id_keywords
+        })
+    if sample_data:
+        st.dataframe(pd.DataFrame(sample_data), use_container_width=True, hide_index=True)
+        st.success("✅ 키워드 품질 우수 - SCIMAT에서 원활한 그루핑 예상")
+    st.markdown("</div>", unsafe_allow_html=True)
+    
     # --- 최종 요약 패널 ---
     st.markdown(f"""
     <div class="info-panel">
@@ -757,10 +774,18 @@ if uploaded_files:
     st.download_button(label="📥 다운로드 (Download)", data=text_data, file_name=f"scimat_filtered_{len(df_final_output)}papers.txt", mime="text/plain", use_container_width=True)
 
 # --- 하단 고정 정보 ---
+st.markdown("<br><br>", unsafe_allow_html=True)
+
 with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
     st.markdown("""
     **Q: 여러 WOS 파일을 어떻게 한 번에 처리하나요?**
     A: WOS에서 여러 번 Plain Text 다운로드한 후, 모든 .txt 파일을 한 번에 업로드하면 자동으로 병합됩니다.
+    
+    **Q: 중복된 논문이 있을까봐 걱정됩니다.**
+    A: UT(Unique Article Identifier) 기준으로 자동 중복 제거되며, UT가 없으면 제목+저자 조합으로 중복을 감지합니다.
+    
+    **Q: WOS에서 어떤 설정으로 다운로드해야 하나요?**
+    A: Export → Record Content: "Full Record and Cited References", File Format: "Plain Text"로 설정하세요. 인용 관계 분석을 위해 참고문헌 정보가 필수입니다.
     
     **Q: 어떤 기준으로 논문이 배제되나요?**
     A: 2단계 필터링을 통해 주제 관련성이 낮거나(1단계), 연구의 깊이(연구 차원 단일) 또는 학술적 엄밀성(방법론 부재)이 부족한(2단계) 연구를 체계적으로 배제합니다.
@@ -770,6 +795,15 @@ with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
     
     **Q: SCIMAT 분석 설정은 어떻게 하나요?**
     A: Unit of Analysis: "Author's words + Source's words", Network Type: "Co-occurrence", Normalization: "Equivalence Index", Clustering: "Simple Centers Algorithm" (Maximum network size: 50)를 권장합니다.
+    
+    **Q: 병합된 파일이 SCIMAT에서 제대로 로딩되지 않습니다.**
+    A: 원본 WOS 파일들이 'FN Clarivate Analytics Web of Science'로 시작하는 정품 Plain Text 파일인지 확인하세요.
+    
+    **Q: SCIMAT에서 Period는 어떻게 설정하나요?**
+    A: 연구 분야의 진화 단계를 반영하여 의미 있게 구분하되, 각 Period당 최소 50편 이상의 논문을 포함하도록 설정하세요.
+    
+    **Q: 몇 개의 파일까지 동시에 업로드할 수 있나요?**
+    A: 기술적으로는 제한이 없지만, 안정성을 위해 10개 이하의 파일을 권장합니다. 매우 큰 데이터셋의 경우 나누어서 처리하세요.
     """)
 
 with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
