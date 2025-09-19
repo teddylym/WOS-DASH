@@ -561,21 +561,12 @@ def classify_article(row):
     # --- 2단계 필터링 & 최종 분류: 연구 차원 기반 ---
     matched_dimensions = [dim for dim, kws in dimension_keywords.items() if any(kw in full_text_for_keywords for kw in kws)]
     
-    classification_map = {
-        'Technical': 'C1: 기술 및 인프라 (Technical & Infrastructure)',
-        'Platform': 'C2: 플랫폼 및 생태계 (Platforms & Ecosystems)',
-        'User': 'C3: 사용자 경험 및 심리 (User Experience & Psychology)',
-        'Commercial': 'C4: 라이브 커머스 및 수익화 (Live Commerce & Monetization)',
-        'Social': 'C5: 사회 및 문화적 영향 (Social & Cultural Impacts)',
-        'Educational': 'C6: 교육 및 학습 (Education & Learning)',
-    }
-
     if len(matched_dimensions) == 0:
         return 'Exclude - EC5 (연구 차원 부재)'
     elif len(matched_dimensions) == 1:
-        return classification_map[matched_dimensions[0]]
+        return matched_dimensions[0]
     else: # len(matched_dimensions) > 1
-        return 'C7: 다학제 연구 (Multidisciplinary)'
+        return 'etc'
 
 
 # --- 데이터 품질 진단 함수 ---
@@ -999,19 +990,19 @@ if uploaded_files:
     with col2:
         # 도넛 차트 (신규 분류 및 색상 적용)
         color_map = {
-            'C1: 기술 및 인프라 (Technical & Infrastructure)': '#1f77b4',
-            'C2: 플랫폼 및 생태계 (Platforms & Ecosystems)': '#d62728',
-            'C3: 사용자 경험 및 심리 (User Experience & Psychology)': '#2ca02c',
-            'C4: 라이브 커머스 및 수익화 (Live Commerce & Monetization)': '#ff7f0e',
-            'C5: 사회 및 문화적 영향 (Social & Cultural Impacts)': '#9467bd',
-            'C6: 교육 및 학습 (Education & Learning)': '#8c564b',
-            'C7: 다학제 연구 (Multidisciplinary)': '#7f7f7f',
+            'Technical': '#1f77b4',
+            'Platform': '#ff7f0e',
+            'User': '#2ca02c',
+            'Commercial': '#d62728',
+            'Social': '#9467bd',
+            'Educational': '#8c564b',
+            'etc': '#7f7f7f',
         }
         
         # 데이터프레임 순서에 맞게 도메인/범위 정렬
         ordered_df = classification_counts_df.set_index('분류 (Classification)')
         domain = ordered_df.index.tolist()
-        range_ = [color_map.get(cat.split(' (')[0], '#333') for cat in domain]
+        range_ = [color_map.get(cat, '#333') for cat in domain]
 
         selection = alt.selection_point(fields=['분류 (Classification)'], on='mouseover', nearest=True)
 
@@ -1227,4 +1218,5 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     """)
 
 st.markdown("<br><br>", unsafe_allow_html=True)
+
 
