@@ -733,6 +733,9 @@ uploaded_files = st.file_uploader(
     help="WOS Plain Text 파일들을 드래그하여 놓거나 클릭하여 선택하세요"
 )
 
+if 'show_exclude_details' not in st.session_state:
+    st.session_state['show_exclude_details'] = False
+
 if uploaded_files:
     st.markdown(f"📋 **선택된 파일 개수:** {len(uploaded_files)}개")
     
@@ -925,14 +928,63 @@ if uploaded_files:
         """, unsafe_allow_html=True)
     
     with col4:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-icon">⛔</div>
-            <div class="metric-value">{total_excluded:,}</div>
-            <div class="metric-label">학술적 배제</div>
+        col4_inner1, col4_inner2 = st.columns([3, 1])
+        with col4_inner1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-icon">⛔</div>
+                <div class="metric-value">{total_excluded:,}</div>
+                <div class="metric-label">학술적 배제</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col4_inner2:
+            st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+            if st.button("상세", key="exclude_details_button", help="배제된 논문 상세 보기"):
+                st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
+
+    # 배제된 논문 상세 정보 토글 표시
+    if st.session_state.get('show_exclude_details', False) and total_excluded > 0:
+        st.markdown("""
+        <div style="background: #fef2f2; padding: 20px; border-radius: 16px; margin: 20px 0; border: 1px solid #ef4444;">
+            <h4 style="color: #dc2626; margin-bottom: 16px; font-weight: 700;">⛔ 학술적 배제 기준에 따른 제외 논문</h4>
         </div>
         """, unsafe_allow_html=True)
+        
+        # 배제된 논문 전체 목록 다운로드
+        excel_buffer_excluded = io.BytesIO()
+        with pd.ExcelWriter(excel_buffer_excluded, engine='openpyxl') as writer:
+            df_excluded.to_excel(writer, sheet_name='Excluded_Papers', index=False)
+        excel_data_excluded = excel_buffer_excluded.getvalue()
+        
+        st.download_button(
+            label="📊 (엑셀다운로드) - 배제된 논문 전체 목록",
+            data=excel_data_excluded,
+            file_name=f"excluded_papers_{len(df_excluded)}편.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+        # 배제 이유별로 그룹화하여 표시
+        exclusion_reasons = df_excluded['Classification'].value_counts().index
+        for reason in exclusion_reasons:
+            reason_papers = df_excluded[df_excluded['Classification'] == reason]
+            with st.expander(f"{reason} ({len(reason_papers)}편)", expanded=False):
+                for _, paper in reason_papers.head(5).iterrows(): # 샘플 5개 표시
+                    title = str(paper.get('TI', 'N/A'))[:100]
+                    year = str(paper.get('PY', 'N/A'))
+                    source = str(paper.get('SO', 'N/A'))[:50]
+                    st.markdown(f"**{title}** ({year}) - *{source}*")
     
+    # 배제 기준 적용 결과 요약
+    st.markdown(f"""
+    <div class="info-panel">
+        <h4 style="color: #0064ff; margin-bottom: 16px; font-weight: 700;">📊 학술적 엄밀성 확보</h4>
+        <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>총 입력:</strong> {total_papers_before_filter:,}편의 논문</p>
+        <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>배제 적용:</strong> {total_excluded:,}편 제외 ({(total_excluded/total_papers_before_filter*100):.1f}%)</p>
+        <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>최종 분석:</strong> {len(df_final_output):,}편으로 정제된 고품질 데이터셋</p>
+        <p style="color: #0064ff; margin: 6px 0; font-weight: 500;"><strong>핵심 연구:</strong> {include_papers:,}편의 직접 관련 라이브스트리밍 연구 확보</p>
+    </div>
+    """, unsafe_allow_html=True)
+
     # --- 논문 분류 현황 ---
     st.markdown("""
     <div class="chart-container">
@@ -972,7 +1024,37 @@ if uploaded_files:
         st.altair_chart(chart, use_container_width=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- 분류 상세 결과 ---
+    st.markdown("""
+    <div class="chart-container">
+        <div class="chart-title">분류별 상세 분포 (배제 기준 적용 후)</div>
+    """, unsafe_allow_html=True)
     
+    # 분류별 상세 통계
+    sorted_classifications = df_for_analysis['Classification'].value_counts().index.tolist()
+    for classification in sorted_classifications:
+        count = len(df_for_analysis[df_for_analysis['Classification'] == classification])
+        percentage = (count / len(df_final_output) * 100) if len(df_final_output) > 0 else 0
+        
+        if classification.startswith('Include'):
+            color = "#10b981"
+            icon = "✅"
+        elif classification.startswith('Review'):
+            color = "#f59e0b"
+            icon = "🔍"
+        else:
+            color = "#8b5cf6"
+            icon = "❓"
+        
+        st.markdown(f"""
+        <div style="margin: 16px 0; padding: 20px; background: white; border-left: 4px solid {color}; border-radius: 12px; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <strong>{icon} {classification}:</strong> {count:,}편 ({percentage:.1f}%)
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+
     # --- 연도별 연구 동향 ---
     if 'PY' in df_final_output.columns:
         st.markdown("""
@@ -1016,7 +1098,6 @@ if uploaded_files:
         de_keywords = str(row.get('DE', 'N/A')) if pd.notna(row.get('DE')) else 'N/A'
         id_keywords = str(row.get('ID', 'N/A')) if pd.notna(row.get('ID')) else 'N/A'
         
-        # 키워드 개수 계산
         de_count = len([k.strip() for k in de_keywords.split(';') if k.strip()]) if de_keywords != 'N/A' else 0
         id_count = len([k.strip() for k in id_keywords.split(';') if k.strip()]) if id_keywords != 'N/A' else 0
         
@@ -1032,7 +1113,6 @@ if uploaded_files:
         sample_df = pd.DataFrame(sample_data)
         st.dataframe(sample_df, use_container_width=True, hide_index=True)
         
-        # 키워드 품질 평가
         avg_de = sum([d['DE 개수'] for d in sample_data]) / len(sample_data) if sample_data else 0
         avg_id = sum([d['ID 개수'] for d in sample_data]) / len(sample_data) if sample_data else 0
         
@@ -1057,66 +1137,62 @@ if uploaded_files:
             </div>
             """, unsafe_allow_html=True)
             
-            # Review 논문 엑셀 다운로드 버튼
             review_excel_data = []
             for idx, (_, paper) in enumerate(review_papers.iterrows(), 1):
                 review_excel_data.append({
-                    '번호': idx,
-                    '논문 제목': str(paper.get('TI', 'N/A')),
-                    '출판연도': str(paper.get('PY', 'N/A')),
-                    '저널명': str(paper.get('SO', 'N/A')),
-                    '저자': str(paper.get('AU', 'N/A')),
-                    '분류': str(paper.get('Classification', 'N/A')),
-                    '저자 키워드': str(paper.get('DE', 'N/A')),
-                    'WOS 키워드': str(paper.get('ID', 'N/A')),
-                    '초록': str(paper.get('AB', 'N/A')),
+                    '번호': idx, '논문 제목': str(paper.get('TI', 'N/A')), '출판연도': str(paper.get('PY', 'N/A')),
+                    '저널명': str(paper.get('SO', 'N/A')), '저자': str(paper.get('AU', 'N/A')),
+                    '분류': str(paper.get('Classification', 'N/A')), '저자 키워드': str(paper.get('DE', 'N/A')),
+                    'WOS 키워드': str(paper.get('ID', 'N/A')), '초록': str(paper.get('AB', 'N/A')),
                     '문서유형': str(paper.get('DT', 'N/A'))
                 })
             
             review_excel_df = pd.DataFrame(review_excel_data)
             
-            # 엑셀 파일 생성
             excel_buffer = io.BytesIO()
             with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
                 review_excel_df.to_excel(writer, sheet_name='Review_Papers', index=False)
             excel_data = excel_buffer.getvalue()
             
             st.download_button(
-                label="📊 검토 논문 목록 엑셀 다운로드",
-                data=excel_data,
+                label="📊 검토 논문 목록 엑셀 다운로드", data=excel_data,
                 file_name=f"review_papers_filtered_{len(review_papers)}편.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                type="secondary",
-                use_container_width=True
+                type="secondary", use_container_width=True
             )
-            
             st.markdown("<br>", unsafe_allow_html=True)
             
             for idx, (_, paper) in enumerate(review_papers.iterrows(), 1):
                 title = str(paper.get('TI', 'N/A'))
                 year = str(paper.get('PY', 'N/A'))
                 source = str(paper.get('SO', 'N/A'))
-                classification = str(paper.get('Classification', 'N/A'))
                 doc_type = str(paper.get('DT', 'N/A'))
-                
-                badge_color = "#f59e0b"
-                badge_text = "기여도 검토"
                 
                 st.markdown(f"""
                 <div style="margin: 12px 0; padding: 16px; background: white; border-left: 4px solid #f59e0b; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                        <span style="background: {badge_color}; color: white; padding: 4px 12px; border-radius: 16px; font-size: 12px; margin-right: 12px; font-weight: 600;">{badge_text}</span>
-                        <span style="color: #8b95a1; font-size: 14px;">#{idx}</span>
-                        <span style="color: #8b95a1; font-size: 12px; margin-left: 8px;">[{doc_type}]</span>
-                    </div>
-                    <div style="font-weight: 600; color: #191f28; margin-bottom: 6px; line-height: 1.5;">
-                        {title}
-                    </div>
-                    <div style="font-size: 14px; color: #8b95a1;">
-                        <strong>연도:</strong> {year} | <strong>저널:</strong> {source}
-                    </div>
+                    <div style="font-weight: 600; color: #191f28; margin-bottom: 6px; line-height: 1.5;">{title}</div>
+                    <div style="font-size: 14px; color: #8b95a1;"><strong>연도:</strong> {year} | <strong>저널:</strong> {source} | <strong>유형:</strong> {doc_type}</div>
                 </div>
                 """, unsafe_allow_html=True)
+
+    # --- 최종 성과 요약 패널 ---
+    st.markdown("""
+    <div class="info-panel">
+        <h4 style="color: #0064ff; margin-bottom: 16px; font-weight: 700;">🎯 학술적 데이터 정제 완료</h4>
+        <p style='color: #0064ff; margin: 6px 0; font-weight: 500;'><strong>파일 통합:</strong> {successful_files}개의 WOS 파일을 하나로 병합</p>
+        <p style='color: #0064ff; margin: 6px 0; font-weight: 500;'><strong>중복 제거:</strong> {duplicates_removed}편의 중복 논문 자동 감지 및 제거</p>
+        <p style='color: #0064ff; margin: 6px 0; font-weight: 500;'><strong>학술적 엄밀성:</strong> 개념 기반 배제 기준으로 {total_excluded}편 제외</p>
+        <p style='color: #0064ff; margin: 6px 0; font-weight: 500;'><strong>최종 규모:</strong> {len(df_final_output):,}편의 고품질 논문으로 정제된 데이터셋</p>
+        <p style='color: #0064ff; margin: 6px 0; font-weight: 500;'><strong>핵심 연구:</strong> {include_papers}편의 직접 관련 라이브스트리밍 연구 확보</p>
+        <div style="margin-top: 16px; padding: 12px; background: rgba(0,100,255,0.1); border-radius: 8px;">
+            <p style='color: #0064ff; margin: 0; font-weight: 600; font-size: 14px;'>
+            💡 <strong>배제 기준 적용률:</strong> {(total_excluded/total_papers_before_filter*100):.1f}% 
+            - 연구 질문에 직접적으로 기여하는 논문만을 선별하여 분석의 깊이와 신뢰성을 확보했습니다.
+            </p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 
     # --- 최종 파일 다운로드 섹션 ---
     st.markdown("""
@@ -1277,6 +1353,4 @@ with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
     """)
 
 st.markdown("<br><br>", unsafe_allow_html=True)
-
-
 
