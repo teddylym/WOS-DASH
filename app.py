@@ -522,14 +522,11 @@ def classify_article(row):
         return 'Exclude - EC6 (연구 방법론 부재)'
 
     # --- 최종 분류 ---
-    # 2단계 필터링 통과 시, 기존 분류 체계 유지
     if len(matched_dimensions) == 1:
-        # 이 코드는 EC5 때문에 도달하지 않지만, 구조적 안정성을 위해 유지
         return f'Include - {matched_dimensions[0]}'
     elif len(matched_dimensions) > 1:
         return 'Include - Multidisciplinary'
     else:
-        # 이 경우도 도달하지 않지만, 안전장치로 남겨둠
         return 'Review - Contribution Unclear'
 
 
@@ -608,6 +605,14 @@ if uploaded_files:
             st.error("⚠️ 처리 가능한 WOS Plain Text 파일이 없습니다. 파일 형식을 확인해주세요.")
             st.stop()
         
+        # 파일별 처리상태를 보여주기 위한 UI (원본 복원)
+        with st.expander("파일별 처리 상태 보기"):
+            for status in file_status:
+                if status['status'] == 'SUCCESS':
+                    st.markdown(f"<div class='file-status'>{status['filename']}: {status['message']}</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"<div class='file-status' style='border-left-color: #ef4444;'>{status['filename']}: {status['message']}</div>", unsafe_allow_html=True)
+
         merged_df['Classification'] = merged_df.apply(classify_article, axis=1)
 
     successful_files = sum(1 for s in file_status if s['status'] == 'SUCCESS')
@@ -617,7 +622,7 @@ if uploaded_files:
     df_included = merged_df[~merged_df['Classification'].str.startswith('Exclude', na=False)].copy()
     df_review = df_included[df_included['Classification'].str.startswith('Review', na=False)]
     
-    st.success(f"✅ 병합 및 정제 완료! {successful_files}개 파일에서 최종 {len(df_included):,}편의 논문을 처리했습니다.")
+    st.success(f"✅ 다중 파일 병합 및 학술적 정제 성공! {successful_files}개 파일에서 최종 {len(df_included):,}편의 논문을 처리했습니다.")
     if duplicates_removed > 0:
         st.info(f"🔄 중복 논문 {duplicates_removed}편이 자동으로 제거되었습니다.")
 
@@ -678,6 +683,13 @@ if uploaded_files:
         with st.container():
             st.markdown("""<div style="background: #fff1f2; padding: 20px; border-radius: 12px; margin: 20px 0; border: 1px solid #ffdde0;"><h4 style="color: #be123c;">⛔ 제외 논문 상세 (Excluded Papers Details)</h4>""", unsafe_allow_html=True)
             
+            # 다운로드 버튼 (복원)
+            excel_buffer = io.BytesIO()
+            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                df_excluded[['TI', 'AU', 'PY', 'SO', 'AB', 'Classification']].to_excel(writer, sheet_name='Excluded_Papers', index=False)
+            st.download_button(label="전체 배제 목록 다운로드 (Excel)", data=excel_buffer.getvalue(), file_name="excluded_papers.xlsx", mime="application/vnd.ms-excel", use_container_width=True)
+
+            # 샘플 리스트 형식 (복원)
             exclusion_reasons = df_excluded['Classification'].unique()
             for reason in sorted(exclusion_reasons):
                 ec_papers = df_excluded[df_excluded['Classification'] == reason]
@@ -686,53 +698,62 @@ if uploaded_files:
                     st.markdown(f"""<div style="margin: 8px 0 8px 20px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 14px;"><div style="font-weight: 500;">{paper.get('TI', 'N/A')}</div><div style="color: #6b7280; font-size: 12px;">{paper.get('PY', 'N/A')} | {paper.get('SO', 'N/A')}</div></div>""", unsafe_allow_html=True)
             
             st.markdown("</div>", unsafe_allow_html=True)
-    
-    # --- 논문 분류 현황 ---
-    if not df_included.empty:
-        st.markdown("""<div class="chart-container"><div class="chart-title">포함된 연구의 분류 분포 (Distribution of Included Research)</div>""", unsafe_allow_html=True)
-        classification_counts_df = df_included['Classification'].value_counts().reset_index()
-        classification_counts_df.columns = ['Classification (분류)', 'Count (논문 수)']
-        
-        c1, c2 = st.columns([0.4, 0.6])
-        with c1:
-            st.dataframe(classification_counts_df, use_container_width=True, hide_index=True)
-        with c2:
-            chart = alt.Chart(classification_counts_df).mark_arc(innerRadius=90, outerRadius=150).encode(
-                theta=alt.Theta(field="Count (논문 수)", type="quantitative", stack=True),
-                color=alt.Color(field="Classification (분류)", type="nominal", title="Research Topic (연구 분야)", scale=alt.Scale(scheme='tableau20')),
-                tooltip=['Classification (분류)', 'Count (논문 수)']
-            )
-            text_total = alt.Chart(pd.DataFrame({'value': [f'{len(df_included)}']})).mark_text(align='center', baseline='middle', fontSize=45, fontWeight='bold', color='#0064ff').encode(text='value:N')
-            text_label = alt.Chart(pd.DataFrame({'value': ['Included Papers']})).mark_text(align='center', baseline='middle', fontSize=16, dy=30, color='#8b95a1').encode(text='value:N')
-            st.altair_chart((chart + text_total + text_label).properties(width=350, height=350).configure_view(strokeWidth=0), use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- 분류별 상세 분포 ---
-    if not df_included.empty:
-        classification_mapping = {
-            'Include - Platform': '플랫폼 생태계',
-            'Include - User': '사용자 행태/심리',
-            'Include - Commercial': '상업적 활용',
-            'Review - Contribution Unclear': '리뷰/기여도 불분명',
-            'Include - Educational': '교육적 활용',
-            'Include - Social': '사회/문화적 영향',
-            'Include - Technical': '기술 구현',
-            'Include - Multidisciplinary': '다학제 연구'
-        }
-        st.markdown("""<div class="chart-container"><div class="chart-title">분류별 상세 분포 (Detailed Distribution by Classification)</div>""", unsafe_allow_html=True)
-        sorted_classifications = df_included['Classification'].value_counts()
-        for classification, count in sorted_classifications.items():
-            percentage = (count / len(df_included) * 100) if len(df_included) > 0 else 0
-            icon = "🔍" if "Review" in classification else "✅"
-            color = "#f59e0b" if "Review" in classification else "#10b981"
-            korean_name = classification_mapping.get(classification, classification.replace('Include - ', ''))
-            display_name = f"{korean_name}"
-            st.markdown(f"""
-            <div style="margin: 16px 0; padding: 20px; background: white; border-left: 4px solid {color}; border-radius: 12px; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-                <strong>{icon} {display_name}:</strong> {count:,}편 ({percentage:.1f}%)
-            </div>
-            """, unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+    # --- 학술적 엄밀성 확보 패널 (복원) ---
+    st.markdown(f"""
+    <div class="info-panel">
+        <h4 style="color: #0064ff; margin-bottom: 16px; font-weight: 700;">📊 학술적 엄밀성 확보</h4>
+        <p style="color: #191f28; margin: 6px 0;"><strong>총 입력:</strong> {total_papers_before_filter:,}편의 논문</p>
+        <p style="color: #191f28; margin: 6px 0;"><strong>배제 적용:</strong> {total_excluded:,}편 제외 ({(total_excluded/total_papers_before_filter*100 if total_papers_before_filter > 0 else 0):.1f}%)</p>
+        <p style="color: #191f28; margin: 6px 0;"><strong>최종 분석:</strong> {len(df_final_output):,}편으로 정제된 고품질 데이터셋</p>
+        <p style="color: #191f28; margin: 6px 0;"><strong>핵심 연구:</strong> {len(df_included[~df_included['Classification'].str.startswith('Review')]):,}편의 직접 관련 라이브스트리밍 연구 확보</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # --- 논문 분류 현황 (복원) ---
+    st.markdown("""<div class="chart-container"><div class="chart-title">학술적 정제 후 연구 분류 분포 (Distribution of Included Research)</div>""", unsafe_allow_html=True)
+    classification_counts_df = df_included['Classification'].value_counts().reset_index()
+    classification_counts_df.columns = ['Classification (분류)', 'Count (논문 수)']
+    
+    c1, c2 = st.columns([0.4, 0.6])
+    with c1:
+        st.dataframe(classification_counts_df, use_container_width=True, hide_index=True)
+    with c2:
+        chart = alt.Chart(classification_counts_df).mark_arc(innerRadius=90, outerRadius=150).encode(
+            theta=alt.Theta(field="Count (논문 수)", type="quantitative", stack=True),
+            color=alt.Color(field="Classification (분류)", type="nominal", title="Research Topic (연구 분야)", scale=alt.Scale(scheme='tableau20')),
+            tooltip=['Classification (분류)', 'Count (논문 수)']
+        )
+        text_total = alt.Chart(pd.DataFrame({'value': [f'{len(df_included)}']})).mark_text(align='center', baseline='middle', fontSize=45, fontWeight='bold', color='#0064ff').encode(text='value:N')
+        text_label = alt.Chart(pd.DataFrame({'value': ['Included Papers']})).mark_text(align='center', baseline='middle', fontSize=16, dy=30, color='#8b95a1').encode(text='value:N')
+        st.altair_chart((chart + text_total + text_label).properties(width=350, height=350).configure_view(strokeWidth=0), use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- 분류별 상세 분포 (복원) ---
+    classification_mapping = {
+        'Include - Platform': '플랫폼 생태계',
+        'Include - User': '사용자 행태/심리',
+        'Include - Commercial': '상업적 활용',
+        'Review - Contribution Unclear': '리뷰/기여도 불분명',
+        'Include - Educational': '교육적 활용',
+        'Include - Social': '사회/문화적 영향',
+        'Include - Technical': '기술 구현',
+        'Include - Multidisciplinary': '다학제 연구'
+    }
+    st.markdown("""<div class="chart-container"><div class="chart-title">분류별 상세 분포 (Detailed Distribution by Classification)</div>""", unsafe_allow_html=True)
+    sorted_classifications = df_included['Classification'].value_counts()
+    for classification, count in sorted_classifications.items():
+        percentage = (count / len(df_included) * 100) if len(df_included) > 0 else 0
+        icon = "🔍" if "Review" in classification else "✅"
+        color = "#f59e0b" if "Review" in classification else "#10b981"
+        korean_name = classification_mapping.get(classification, classification.replace('Include - ', ''))
+        display_name = f"{korean_name}"
+        st.markdown(f"""
+        <div style="margin: 16px 0; padding: 20px; background: white; border-left: 4px solid {color}; border-radius: 12px; font-size: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <strong>{icon} {display_name}:</strong> {count:,}편 ({percentage:.1f}%)
+        </div>
+        """, unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # --- 연도별 연구 동향 ---
     if not df_final_output.empty and 'PY' in df_final_output.columns:
@@ -804,6 +825,7 @@ if uploaded_files:
     st.download_button(label="📥 다운로드 (Download)", data=text_data, file_name=f"scimat_filtered_{len(df_final_output)}papers.txt", mime="text/plain", use_container_width=True)
 
 # --- 하단 고정 정보 ---
+# st.markdown("<br><br>", unsafe_allow_html=True) # <-- 간격 문제 해결을 위해 삭제
 with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
     st.markdown("""
     **Q: 여러 WOS 파일을 어떻게 한 번에 처리하나요?**
