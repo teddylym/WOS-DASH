@@ -914,18 +914,37 @@ if uploaded_files:
     
     # Classification 컬럼만 제거 (원본 WOS 형식 유지)
     df_final_output = df_for_analysis.drop(columns=['Classification'], errors='ignore')
+
+    # --- 수정된 부분: 최종 분석 대상 엑셀 다운로드용 데이터 준비 ---
+    excel_buffer_included = io.BytesIO()
+    with pd.ExcelWriter(excel_buffer_included, engine='openpyxl') as writer:
+        df_final_output.to_excel(writer, sheet_name='Included_Papers', index=False)
+    excel_data_included = excel_buffer_included.getvalue()
     
     # 메트릭 카드들
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-icon">📋</div>
-            <div class="metric-value">{len(df_final_output):,}</div>
-            <div class="metric-label">최종 분석 대상<br><small style="color: #8b95a1;">(데이터 정제 후)</small></div>
-        </div>
-        """, unsafe_allow_html=True)
+        # --- 수정된 부분: 카드와 버튼을 함께 배치하기 위해 내부 컬럼 사용 ---
+        col1_inner1, col1_inner2 = st.columns([3, 1])
+        with col1_inner1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-icon">📋</div>
+                <div class="metric-value">{len(df_final_output):,}</div>
+                <div class="metric-label">최종 분석 대상<br><small style="color: #8b95a1;">(데이터 정제 후)</small></div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col1_inner2:
+            st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True) # 수직 정렬용
+            st.download_button(
+                label="엑셀",
+                data=excel_data_included,
+                file_name=f"included_papers_{len(df_final_output)}편.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="download_included_papers",
+                help="최종 분석에 포함된 논문 목록을 엑셀 파일로 다운로드합니다."
+            )
     
     include_papers = len(df_for_analysis)
     
