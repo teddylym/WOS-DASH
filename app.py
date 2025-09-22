@@ -31,6 +31,10 @@ st.markdown("""
         border: 1px solid #e5e8eb;
         margin-bottom: 12px;
         transition: all 0.2s ease;
+        min-height: 160px; /* 동일한 높이를 위한 최소 높이 지정 */
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
     }
     
     .metric-card:hover {
@@ -229,7 +233,7 @@ st.markdown("""
         font-family: 'Pretendard', sans-serif;
     }
     
-    .stDownloadButton > button {
+    .stDownloadButton > button, .stButton > button {
         background: #3182f6 !important;
         color: white !important;
         border: none !important;
@@ -243,7 +247,7 @@ st.markdown("""
         font-family: 'Pretendard', sans-serif !important;
     }
     
-    .stDownloadButton > button:hover {
+    .stDownloadButton > button:hover, .stButton > button:hover {
         background: #1c64f2 !important;
         transform: translateY(-1px) !important;
         box-shadow: 0 2px 6px rgba(0,0,0,0.15) !important;
@@ -818,7 +822,7 @@ if uploaded_files:
         error_count = len([s for s in file_status if s['status'] == 'ERROR'])
         
         st.markdown(f"""
-        <div class="metric-card">
+        <div class="metric-card" style="min-height: auto;">
             <div class="metric-icon">✅</div>
             <div class="metric-value">{success_count}</div>
             <div class="metric-label">성공한 파일</div>
@@ -826,7 +830,7 @@ if uploaded_files:
         """, unsafe_allow_html=True)
         
         st.markdown(f"""
-        <div class="metric-card">
+        <div class="metric-card" style="min-height: auto;">
             <div class="metric-icon">❌</div>
             <div class="metric-value">{error_count}</div>
             <div class="metric-label">실패한 파일</div>
@@ -915,36 +919,35 @@ if uploaded_files:
     # Classification 컬럼만 제거 (원본 WOS 형식 유지)
     df_final_output = df_for_analysis.drop(columns=['Classification'], errors='ignore')
 
-    # --- 수정된 부분: 최종 분석 대상 엑셀 다운로드용 데이터 준비 ---
+    # --- 최종 분석 대상 엑셀 다운로드용 데이터 준비 ---
+    export_columns = ['PT', 'AU', 'AF', 'AB', 'TI', 'PY', 'DI']
+    df_for_excel = df_final_output[[col for col in export_columns if col in df_final_output.columns]]
+    
     excel_buffer_included = io.BytesIO()
     with pd.ExcelWriter(excel_buffer_included, engine='openpyxl') as writer:
-        df_final_output.to_excel(writer, sheet_name='Included_Papers', index=False)
+        df_for_excel.to_excel(writer, sheet_name='Included_Papers', index=False)
     excel_data_included = excel_buffer_included.getvalue()
     
     # 메트릭 카드들
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        # --- 수정된 부분: 카드와 버튼을 함께 배치하기 위해 내부 컬럼 사용 ---
-        col1_inner1, col1_inner2 = st.columns([3, 1])
-        with col1_inner1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-icon">📋</div>
-                <div class="metric-value">{len(df_final_output):,}</div>
-                <div class="metric-label">최종 분석 대상<br><small style="color: #8b95a1;">(데이터 정제 후)</small></div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col1_inner2:
-            st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True) # 수직 정렬용
-            st.download_button(
-                label="엑셀",
-                data=excel_data_included,
-                file_name=f"included_papers_{len(df_final_output)}편.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="download_included_papers",
-                help="최종 분석에 포함된 논문 목록을 엑셀 파일로 다운로드합니다."
-            )
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">📋</div>
+            <div class="metric-value">{len(df_final_output):,}</div>
+            <div class="metric-label">최종 분석 대상<br><small style="color: #8b95a1;">(데이터 정제 후)</small></div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.download_button(
+            label="상세",
+            data=excel_data_included,
+            file_name=f"included_papers_{len(df_final_output)}편.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="download_included_papers",
+            help="최종 분석에 포함된 논문 상세 보기 (엑셀 다운로드)",
+            use_container_width=True
+        )
     
     include_papers = len(df_for_analysis)
     
@@ -956,7 +959,8 @@ if uploaded_files:
             <div class="metric-label">핵심 포함 연구</div>
         </div>
         """, unsafe_allow_html=True)
-    
+        st.markdown("<div style='height: 46px;'></div>", unsafe_allow_html=True)
+
     with col3:
         processing_rate = (len(df_final_output) / total_papers_before_filter * 100) if total_papers_before_filter > 0 else 0
         st.markdown(f"""
@@ -966,21 +970,18 @@ if uploaded_files:
             <div class="metric-label">최종 포함 비율</div>
         </div>
         """, unsafe_allow_html=True)
-    
+        st.markdown("<div style='height: 46px;'></div>", unsafe_allow_html=True)
+
     with col4:
-        col4_inner1, col4_inner2 = st.columns([3, 1])
-        with col4_inner1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-icon">⛔</div>
-                <div class="metric-value">{total_excluded:,}</div>
-                <div class="metric-label">데이터 정제 후 배제</div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col4_inner2:
-            st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-            if st.button("상세", key="exclude_details_button", help="배제된 논문 상세 보기"):
-                st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-icon">⛔</div>
+            <div class="metric-value">{total_excluded:,}</div>
+            <div class="metric-label">데이터 정제 후 배제</div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("상세", key="exclude_details_button", help="배제된 논문 상세 보기", use_container_width=True):
+            st.session_state['show_exclude_details'] = not st.session_state.get('show_exclude_details', False)
 
     # 학술적 엄밀성 확보 패널 추가
     st.markdown(f"""
@@ -1287,3 +1288,4 @@ if uploaded_files and 'df_final_output' in locals() and len(df_final_output) > 0
         </p>
     </div>
     """, unsafe_allow_html=True)
+
