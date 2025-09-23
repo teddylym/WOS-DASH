@@ -919,15 +919,10 @@ if uploaded_files:
     # Classification 컬럼만 제거 (원본 WOS 형식 유지)
     df_final_output = df_for_analysis.drop(columns=['Classification'], errors='ignore')
 
-    # --- 최종 분석 대상 엑셀 다운로드용 데이터 준비 ---
-    export_columns = ['PT', 'AU', 'AF', 'AB', 'TI', 'PY', 'DI']
-    df_for_excel = df_final_output[[col for col in export_columns if col in df_final_output.columns]]
-    
-    excel_buffer_included = io.BytesIO()
-    with pd.ExcelWriter(excel_buffer_included, engine='openpyxl') as writer:
-        df_for_excel.to_excel(writer, sheet_name='Included_Papers', index=False)
-    excel_data_included = excel_buffer_included.getvalue()
-    
+    # --- 최종 분석 대상 다운로드를 위한 WOS Plain Text 데이터 준비 ---
+    # (이전 엑셀 생성 로직을 WOS 텍스트 생성 로직으로 변경)
+    wos_text_data_included = convert_to_scimat_wos_format(df_final_output)
+
     # 메트릭 카드들
     col1, col2, col3, col4 = st.columns(4)
     
@@ -940,12 +935,12 @@ if uploaded_files:
         </div>
         """, unsafe_allow_html=True)
         st.download_button(
-            label="상세",
-            data=excel_data_included,
-            file_name=f"included_papers_{len(df_final_output)}편.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="download_included_papers",
-            help="최종 분석에 포함된 논문 상세 보기 (엑셀 다운로드)",
+            label="상세 (WOS TXT)",
+            data=wos_text_data_included,
+            file_name=f"included_papers_wos_format_{len(df_final_output)}papers.txt",
+            mime="text/plain",
+            key="download_included_papers_txt",
+            help="최종 분석에 포함된 논문 상세 보기 (WOS 원본 형식)",
             use_container_width=True
         )
     
@@ -1288,4 +1283,3 @@ if uploaded_files and 'df_final_output' in locals() and len(df_final_output) > 0
         </p>
     </div>
     """, unsafe_allow_html=True)
-
