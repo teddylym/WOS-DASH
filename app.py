@@ -515,6 +515,7 @@ def parse_wos_format(content):
 def classify_article(row):
     """
     연구 목표(생태계 분석)에 맞춰, 광범위한 관련 연구를 수집하되 명백한 비관련 연구를 배제하는 함수
+    EC2, EC5, EC7 배제 기준 추가로 정교한 선별 체계 구현
     """
     
     # --- 텍스트 필드 추출 및 결합 (소문자 변환) ---
@@ -538,10 +539,43 @@ def classify_article(row):
     ]
     
     # 배제 기준 키워드
-    irrelevant_domain_keywords = ['remote surgery', 'military', 'medical signal', 'telemedicine', 'seismic', 'geological', 'satellite image', 'astronomy']
+    irrelevant_domain_keywords = [
+        'remote surgery', 'military', 'medical signal', 'telemedicine', 
+        'seismic', 'geological', 'satellite image', 'astronomy', 
+        'industrial control', 'surveillance system'
+    ]
+    
+    # EC2: 순수 기술 구현 집중 키워드
+    pure_technical_keywords = [
+        'p2p network optimization', 'codec development', 'compression algorithm',
+        'latency reduction', 'bandwidth optimization', 'packet loss',
+        'video encoding', 'network protocol', 'qos improvement',
+        'streaming protocol', 'data transmission', 'network architecture'
+    ]
+    
     non_academic_types = ['editorial', 'news', 'correction', 'letter', 'book review', 'meeting abstract']
     non_interactive_keywords = ['vod', 'asynchronous', 'pre-recorded', 'video on demand']
-    methodology_keywords = ['survey', 'experiment', 'interview', 'case study', 'model', 'ethnography', 'empirical', 'framework', 'analysis', 'mechanism', 'sem', 'review', 'meta-analysis', 'algorithm']
+    
+    # EC5: 생태계 관점 부재 - 생태계 관련 키워드가 있는지 확인
+    ecosystem_keywords = [
+        'creator', 'influencer', 'audience', 'viewer', 'user engagement',
+        'monetization', 'revenue', 'business model', 'platform economy',
+        'content creation', 'social interaction', 'community', 'parasocial',
+        'economy', 'market', 'ecosystem', 'stakeholder'
+    ]
+    
+    # EC7: 도구적 활용 키워드
+    instrumental_use_keywords = [
+        'robot control', 'robotic', 'microscopy', 'medical device monitoring',
+        'industrial automation', 'remote control', 'teleoperation',
+        'scientific instrument', 'laboratory equipment', 'machinery control'
+    ]
+    
+    methodology_keywords = [
+        'survey', 'experiment', 'interview', 'case study', 'model', 
+        'ethnography', 'empirical', 'framework', 'analysis', 'mechanism', 
+        'sem', 'review', 'meta-analysis', 'algorithm'
+    ]
 
     # --- 1단계: 기초 필터링 (명백한 비관련 논문 배제) ---
     
@@ -552,6 +586,14 @@ def classify_article(row):
     # EC1 (도메인 관련성)
     if any(kw in full_text for kw in irrelevant_domain_keywords):
         return 'Exclude - EC1 (Irrelevant domain)'
+    
+    # EC2 (순수 기술 구현 집중) - 새로 추가
+    # 기술적 키워드가 있으면서 생태계 키워드가 전혀 없는 경우
+    has_technical_focus = any(kw in full_text for kw in pure_technical_keywords)
+    has_ecosystem_context = any(kw in full_text for kw in ecosystem_keywords)
+    
+    if has_technical_focus and not has_ecosystem_context:
+        return 'Exclude - EC2 (Pure technical focus)'
         
     # EC3 (학술적 형태)
     if any(doc_type in document_type for doc_type in non_academic_types):
@@ -560,10 +602,19 @@ def classify_article(row):
     # EC4 (실시간 상호작용성)
     if any(kw in full_text for kw in non_interactive_keywords):
         return 'Exclude - EC4 (Non-interactive)'
+    
+    # EC5 (생태계 관점 부재) - 새로 추가
+    # 라이브 스트리밍 키워드는 있지만 생태계 관점이 전혀 없는 경우
+    if not has_ecosystem_context:
+        return 'Exclude - EC5 (No ecosystem perspective)'
         
     # EC6 (연구 방법론)
     if not any(kw in full_text for kw in methodology_keywords):
         return 'Exclude - EC6 (No methodology)'
+    
+    # EC7 (도구적 활용) - 새로 추가
+    if any(kw in full_text for kw in instrumental_use_keywords):
+        return 'Exclude - EC7 (Instrumental use only)'
 
     # --- 2단계: 최종 분류 (포함된 논문들의 성격 규명) ---
     # 1단계를 통과한 모든 논문은 일단 연구 대상에 포함
@@ -882,7 +933,8 @@ if uploaded_files:
     <div class="success-panel">
         <h4 style="color: #065f46; margin-bottom: 20px; font-weight: 700;">🎯 다중 파일 병합 및 데이터 정제 성공!</h4>
         <p style="color: #065f46; margin: 6px 0; font-weight: 500;">여러 WOS Plain Text 파일이 성공적으로 하나로 병합되었습니다.</p>
-        <p style="color: #065f46; margin: 6px 0; font-weight: 500;"><strong>데이터 정제:</strong> 연구 목표에 맞춰 관련성이 높은 논문만을 체계적으로 선별했습니다.</p>
+        <p style="color: #065f46; margin: 6px 0; font-weight: 500;"><strong>데이터 정제:</strong> 연구 목적에 맞춰 관련성이 높은 논문만을 체계적으로 선별했습니다.</p>
+        <p style="color: #065f46; margin: 6px 0; font-weight: 500;"><strong>신규 배제 기준:</strong> EC2(순수 기술 집중), EC5(생태계 관점 부재), EC7(도구적 활용) 기준이 추가로 적용되어 정교한 선별 체계 구현</p>
         <p style="color: #065f46; margin: 6px 0; font-weight: 500;"><strong>SCIMAT 호환성:</strong> 정제된 파일은 SCIMAT에서 100% 정상 작동합니다.</p>
     </div>
     """, unsafe_allow_html=True)
@@ -891,24 +943,30 @@ if uploaded_files:
     st.markdown("""
     <div class="section-header">
         <div class="section-title">📈 데이터 정제 결과</div>
-        <div class="section-subtitle">연구 목표에 맞춰 정제된 최종 데이터셋 요약</div>
+        <div class="section-subtitle">연구 목적에 맞춰 정제된 최종 데이터셋 요약</div>
     </div>
     """, unsafe_allow_html=True)
 
-    with st.expander("🔬 적용된 데이터 정제 기준 보기"):
+    with st.expander("📬 적용된 데이터 정제 기준 보기 (신규 EC2, EC5, EC7 기준 포함)"):
         st.markdown("""
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;">
         <h5 style="color: #3182f6;">✅ 포함 기준 (Inclusion Criteria)</h5>
         <p>아래 모든 배제 기준에 해당하지 않는, '라이브 스트리밍' 관련 학술 연구를 최종 분석 대상으로 포함합니다.</p>
         <hr>
-        <h5 style="color: #e53e3e;">⛔️ 배제 기준 (Exclusion Criteria)</h5>
+        <h5 style="color: #e53e3e;">⛔️ 배제 기준 (Exclusion Criteria) - 7개 기준 적용</h5>
         <ul>
             <li><b>핵심 주제어 부재:</b> 'live stream' 등 핵심 주제어를 전혀 포함하지 않는 경우</li>
-            <li><b>EC1 (도메인 관련성 부재)</b>: 원격 수술, 군사 작전 등 무관한 분야</li>
+            <li><b>EC1 (도메인 관련성 부재)</b>: 원격 수술, 군사 작전, 산업 제어 등 무관한 특수 도메인</li>
+            <li><b>EC2 (순수 기술 구현 집중)</b> <span style="color: #dc2626; font-weight: bold;">[신규]</span>: P2P 네트워크 최적화, 코덱 개발 등 기술적 성능에만 집중하고 사회적·경제적 맥락이 부재한 연구</li>
             <li><b>EC3 (학술적 형태 부적합)</b>: 사설(editorial), 뉴스(news) 등 비학술 자료</li>
             <li><b>EC4 (실시간 상호작용성 부재)</b>: VOD, 비동기(asynchronous) 영상 등 실시간 상호작용이 없는 경우</li>
+            <li><b>EC5 (생태계 관점 부재)</b> <span style="color: #dc2626; font-weight: bold;">[신규]</span>: 창작자-시청자-플랫폼 간 상호작용, 경제적 모델 등에 대한 논의가 전혀 없는 연구</li>
             <li><b>EC6 (연구 방법론 부재)</b>: survey, model 등 실증적 연구 방법론이 명시되지 않은 경우</li>
+            <li><b>EC7 (도구적 활용)</b> <span style="color: #dc2626; font-weight: bold;">[신규]</span>: 로봇 제어, 의료기기 모니터링 등 다른 분야에서 라이브 스트리밍을 단순 전송 도구로만 활용하는 연구</li>
         </ul>
+        <div style="background: #fef2f2; padding: 12px; border-radius: 6px; margin-top: 12px; border-left: 4px solid #dc2626;">
+            <strong>개선 효과:</strong> 수작업 배제 데이터 분석을 바탕으로 추가된 EC2, EC5, EC7 기준으로 보다 정교한 연구 목적 부합성 확보
+        </div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1075,217 +1133,4 @@ if uploaded_files:
             align='center', baseline='middle', fontSize=45, fontWeight='bold', color='#3182f6'
         ).encode(text='value:N')
         text_label = alt.Chart(pd.DataFrame([{'value': 'Refined Papers'}])).mark_text(
-            align='center', baseline='middle', fontSize=16, dy=30, color='#8b95a1'
-        ).encode(text='value:N')
-
-        chart = (pie + text_total + text_label).properties(
-            width=350, height=350
-        ).configure_view(strokeWidth=0)
-        st.altair_chart(chart, use_container_width=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    # --- 연도별 연구 동향 ---
-    if 'PY' in df_final_output.columns:
-        st.markdown("""
-        <div class="chart-container">
-            <div class="chart-title">정제된 라이브 스트리밍 연구 동향 (데이터 정제 기준 적용 후)</div>
-        """, unsafe_allow_html=True)
-        
-        df_trend = df_final_output.copy()
-        df_trend['PY'] = pd.to_numeric(df_trend['PY'], errors='coerce')
-        df_trend.dropna(subset=['PY'], inplace=True)
-        df_trend['PY'] = df_trend['PY'].astype(int)
-        
-        yearly_counts = df_trend['PY'].value_counts().reset_index()
-        yearly_counts.columns = ['Year', 'Count']
-        yearly_counts = yearly_counts[yearly_counts['Year'] <= 2025].sort_values('Year')
-
-        if len(yearly_counts) > 0:
-            line_chart = alt.Chart(yearly_counts).mark_line(
-                point={'size': 80, 'filled': True}, strokeWidth=3, color='#0064ff'
-            ).encode(
-                x=alt.X('Year:O', title='발행 연도'),
-                y=alt.Y('Count:Q', title='논문 수'),
-                tooltip=['Year', 'Count']
-            ).properties(height=300)
-            
-            st.altair_chart(line_chart, use_container_width=True)
-        
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # --- 최종 파일 다운로드 섹션 ---
-    st.markdown("""
-    <div class="section-header">
-        <div class="section-title">🔥 데이터 정제 완료 - SCIMAT 분석용 파일 다운로드</div>
-        <div class="section-subtitle">연구 목표에 맞춰 정제된 최종 데이터셋</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # SCIMAT 호환 파일 다운로드
-    text_data = convert_to_scimat_wos_format(df_final_output)
-    
-    download_clicked = st.download_button(
-        label="🔥 다운로드",
-        data=text_data,
-        file_name=f"live_streaming_refined_for_scimat_{len(df_final_output)}papers.txt",
-        mime="text/plain",
-        type="primary",
-        use_container_width=True,
-        key="download_final_file",
-        help="데이터 정제 기준 적용 후 SCIMAT에서 바로 사용 가능한 WOS Plain Text 파일"
-    )
-
-# --- 하단 여백 및 추가 정보 ---
-st.markdown("<br>", unsafe_allow_html=True)
-
-# 도움말 섹션 - 항상 표시
-with st.expander("❓ 자주 묻는 질문 (FAQ)", expanded=False):
-    st.markdown("""
-    **Q: 여러 WOS 파일을 어떻게 한 번에 처리하나요?**
-    A: WOS에서 여러 번 Plain Text 다운로드한 후, 모든 .txt 파일을 한 번에 업로드하면 자동으로 병합됩니다.
-    
-    **Q: 중복된 논문이 있을까봐 걱정됩니다.**
-    A: UT(Unique Article Identifier) 기준으로 자동 중복 제거되며, UT가 없으면 제목+저자 조합으로 중복을 감지합니다.
-    
-    **Q: WOS에서 어떤 설정으로 다운로드해야 하나요?**
-    A: Export → Record Content: "Full Record and Cited References", File Format: "Plain Text"로 설정하세요. 인용 관계 분석을 위해 참고문헌 정보가 필수입니다.
-    
-    **Q: 어떤 기준으로 논문이 배제되나요?**
-    A: 연구 목표에 맞춰 명백히 관련 없는 논문(타 분야, 비학술, VOD 등)을 체계적으로 배제합니다. 상세 기준은 '데이터 정제 결과' 섹션에서 확인할 수 있습니다.
-    
-    **Q: SCIMAT에서 키워드 정리를 어떻게 하나요?**
-    A: Group set → Word → Find similar words by distances (Maximum distance: 1)로 유사 키워드를 자동 통합하고, Word Group manual set에서 수동으로 관련 키워드들을 그룹화하세요.
-    
-    **Q: SCIMAT 분석 설정은 어떻게 하나요?**
-    A: Unit of Analysis: "Author's words + Source's words", Network Type: "Co-occurrence", Normalization: "Equivalence Index", Clustering: "Simple Centers Algorithm" (Maximum network size: 50)를 권장합니다.
-    """)
-
-# SciMAT 분석 가이드 - 항상 표시
-with st.expander("📊 WOS → SciMAT 분석 실행 가이드", expanded=False):
-    st.markdown("""
-    ### 필요한 것
-    - SciMAT 소프트웨어 (무료 다운로드)
-    - 다운로드된 WOS Plain Text 파일
-    - Java 1.8 이상
-    
-    ### 1단계: SciMAT 시작하기
-    
-    **새 프로젝트 생성**
-    ```
-    1. SciMAT 실행 (SciMAT.jar 더블클릭)
-    2. File → New Project
-    3. Path: 저장할 폴더 선택
-    4. File name: 프로젝트 이름 입력
-    5. Accept
-    ```
-    
-    **데이터 불러오기**
-    ```
-    1. File → Add Files
-    2. "ISI WOS" 선택
-    3. 다운로드한 txt 파일 선택
-    4. 로딩 완료까지 대기
-    ```
-    
-    ### 2단계: 키워드 정리하기
-    
-    **유사 키워드 자동 통합**
-    ```
-    1. Group set → Word → Find similar words by distances
-    2. Maximum distance: 1 (한 글자 차이)
-    3. 같은 의미 단어들 확인하고 Move로 통합
-    ```
-    의미: 철자가 1글자만 다른 단어들을 찾아서 제안 (예: "platform" ↔ "platforms")
-    
-    **수동으로 키워드 정리**
-    ```
-    1. Group set → Word → Word Group manual set
-    2. Words without group 목록 확인
-    3. 관련 키워드들 선택 후 New group으로 묶기
-    4. 불필요한 키워드 제거
-    ```
-    목적: 데이터 품질 향상, 의미 있는 클러스터 형성
-    
-    ### 3단계: 시간 구간 설정
-    
-    **Period 만들기**
-    ```
-    1. Knowledge base → Periods → Periods manager
-    2. Add 버튼으로 시간 구간 생성:
-       - Period 1: 1996-2006 (태동기)
-       - Period 2: 2007-2016 (형성기)
-       - Period 3: 2017-2021 (확산기)
-       - Period 4: 2022-2024 (성숙기)
-    ```
-    원리: 연구 분야의 진화 단계를 반영한 의미 있는 구분
-    
-    **각 Period에 논문 할당**
-    ```
-    1. Period 1 클릭 → Add
-    2. 해당 연도 논문들 선택
-    3. 오른쪽 화살표로 이동
-    4. 다른 Period들도 동일하게 반복
-    ```
-    
-    ### 4단계: 분석 실행
-    
-    **분석 마법사 시작**
-    ```
-    1. Analysis → Make Analysis
-    2. 모든 Period 선택 → Next
-    ```
-    
-    **Step 1-8: 분석 설정**
-    - Unit of Analysis: "Author's words + Source's words"
-    - Data Reduction: Minimum frequency 2
-    - Network Type: "Co-occurrence"
-    - Normalization: "Equivalence Index"
-    - Clustering: "Simple Centers Algorithm" (Max network size: 50)
-    - Document Mapper: "Core Mapper"
-    - Performance Measures: G-index, Sum Citations
-    - Evolution Map: "Jaccard Index"
-    
-    **분석 실행**
-    ```
-    - Finish 클릭
-    - 완료까지 대기 (10-30분)
-    ```
-    
-    ### 5단계: 결과 해석
-    
-    **전략적 다이어그램 4사분면**
-    - 우상단: Motor Themes (핵심 주제)
-    - 좌상단: Specialized Themes (전문화된 주제)
-    - 좌하단: Emerging/Declining Themes (신흥/쇠퇴 주제)
-    - 우하단: Basic Themes (기초 주제)
-    
-    **진화 맵 분석**
-    - 노드 크기 = 논문 수
-    - 연결선 두께 = Jaccard 유사도
-    - 시간에 따른 주제 변화 추적
-    
-    ### 문제 해결
-    - 키워드 정리를 꼼꼼히 (분석품질의 핵심)
-    - Period별 최소 50편 이상 권장
-    - Java 메모리 부족시 재시작
-    - 인코딩 문제시 UTF-8로 변경
-    """)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# 기술 지원 및 추가 정보 (조건부 표시)
-if uploaded_files and 'df_final_output' in locals() and len(df_final_output) > 0:
-    st.markdown("""
-    <div style="text-align: center; padding: 20px; background: #f8fafe; border-radius: 8px; margin-top: 30px; border: 1px solid #e1f2ff;">
-        <p style="color: #1e40af; font-size: 14px; margin: 0;">
-            <strong>한양대학교 기술경영학과 연구실</strong> | 
-            WOS 데이터 전처리 도구 | 
-            SCIMAT 분석 최적화
-        </p>
-        <p style="color: #6b7280; font-size: 12px; margin: 6px 0 0 0;">
-            문의사항이 있으시면 mot.hanyang.ac.kr을 통해 연락주세요
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
+            align
